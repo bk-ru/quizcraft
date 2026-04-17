@@ -37,3 +37,17 @@
 - Use Conventional Commits format:
   <type>(<scope>): <short description>
 - Keep commits atomic.
+
+## Planning and execution
+- For multi-step work, plan before coding.
+- Group remaining backlog into small implementation stages.
+- Each stage must produce a reviewable increment.
+- Each commit must be atomic and map to one logical change group.
+- Do not mix unrelated layers in the same commit.
+- Before implementation, identify dependencies and the minimal next stage.
+
+## Commit policy
+- Use focused commits only.
+- Use Conventional Commits.
+- Do not stage everything at once.
+- Prefer separate commits for feat / test / docs / refactor when they are logically independent.
