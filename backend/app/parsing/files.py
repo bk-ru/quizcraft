@@ -26,6 +26,7 @@ class UploadedFileValidator:
 
     _supported_media_types = {
         ".txt": {"text/plain"},
+        ".docx": {"application/vnd.openxmlformats-officedocument.wordprocessingml.document"},
     }
 
     def __init__(self, max_file_size_bytes: int) -> None:
