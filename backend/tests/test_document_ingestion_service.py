@@ -1,10 +1,13 @@
 import pytest
 
 from backend.app.domain.errors import FileValidationError
+from backend.app.domain.errors import TextExtractionError
 from backend.app.parsing.files import UploadedFileValidator
 from backend.app.parsing.ingestion import DocumentIngestionService
+from backend.app.parsing.docx import DocxParser
 from backend.app.parsing.txt import TxtParser
 from backend.app.storage.documents import FileSystemDocumentRepository
+from backend.tests.docx_samples import build_docx_bytes
 
 
 def build_service(tmp_path, max_file_size_bytes: int = 1024) -> DocumentIngestionService:
@@ -12,6 +15,7 @@ def build_service(tmp_path, max_file_size_bytes: int = 1024) -> DocumentIngestio
         repository=FileSystemDocumentRepository(tmp_path),
         validator=UploadedFileValidator(max_file_size_bytes=max_file_size_bytes),
         txt_parser=TxtParser(),
+        docx_parser=DocxParser(),
     )
 
 
@@ -42,4 +46,35 @@ def test_ingestion_service_surfaces_validation_errors(tmp_path) -> None:
             filename="lecture.txt",
             media_type="text/plain",
             content=b"12345",
+        )
+
+
+def test_ingestion_service_persists_normalized_docx_document(tmp_path) -> None:
+    service = build_service(tmp_path)
+    content = build_docx_bytes(["  First line  ", "Second\tline"])
+
+    document = service.ingest(
+        filename="lecture.docx",
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        content=content,
+    )
+
+    assert document.filename == "lecture.docx"
+    assert document.media_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    assert document.file_size_bytes == len(content)
+    assert document.normalized_text == "First line\n\nSecond line"
+    assert document.metadata == {"text_length": len("First line\n\nSecond line")}
+
+    stored_document = FileSystemDocumentRepository(tmp_path).get(document.document_id)
+    assert stored_document == document
+
+
+def test_ingestion_service_surfaces_corrupted_docx_errors(tmp_path) -> None:
+    service = build_service(tmp_path)
+
+    with pytest.raises(TextExtractionError, match="docx"):
+        service.ingest(
+            filename="lecture.docx",
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            content=b"corrupted",
         )
