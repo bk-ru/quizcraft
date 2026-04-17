@@ -17,6 +17,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-17 15:53:15Z) Chose a conservative MVP boundary that stops after JSON export and leaves RAG, DOCX/PPTX, status streaming, and multi-provider work for later stages.
 - [x] (2026-04-17 16:19:40Z) Implemented Stage 1, `Foundation Skeleton and Core Contracts`, in worktree `D:\github\diplom\.worktrees\stage-01-foundation`, including backend bootstrap, config loading, domain errors and models, `direct` mode registry, filesystem repositories, and Stage 1 tests.
 - [x] (2026-04-17 16:55:49Z) Closed the Stage 1 review gaps in the same worktree by adding the explicit quiz JSON Schema artifact, quiz version and last-edit timestamp persistence, controlled config parsing errors, duplicate-option validation, and `LOG_FORMAT` support, then re-ran the Stage 1 pytest suites successfully.
+- [x] (2026-04-17 17:36:28Z) Implemented Batch 1 of Stage 2 in worktree `D:\github\diplom\.worktrees\stage-02-batch-01-txt-ingestion`, covering TXT file validation, TXT parsing, TXT normalization, base TXT metadata assembly, and TXT ingestion persistence with dedicated pytest coverage.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -64,6 +65,10 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 - Decision: Keep Stage 1 dependency-free on the production side and defer FastAPI/Pydantic introduction until the HTTP stage.
   Rationale: The current stage only needed a runnable Python package, config, domain contracts, logging bootstrap, and filesystem persistence. Pulling in HTTP or schema libraries earlier would enlarge the foundation stage without improving the verified behavior.
+  Date/Author: 2026-04-17 / Codex
+
+- Decision: Deliver Stage 2 in a TXT-first batch before introducing DOCX or PDF parsing.
+  Rationale: The user narrowed the next increment to `PR-001`, `PR-002`, the TXT slice of `PR-005`, the base TXT slice of `PR-006`, and their tests. Keeping that batch TXT-only preserves the small-stage property of the plan and avoids adding parser dependencies before the ingestion contract is stable.
   Date/Author: 2026-04-17 / Codex
 
 ## Outcomes & Retrospective
