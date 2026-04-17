@@ -25,6 +25,24 @@ class DomainValidationError(BackendError):
     code = "validation_error"
 
 
+class ParsingError(BackendError):
+    """Raised when document validation or parsing fails."""
+
+    code = "parsing_error"
+
+
+class FileValidationError(ParsingError):
+    """Raised when an uploaded file fails validation."""
+
+    code = "file_validation_error"
+
+
+class TextExtractionError(ParsingError):
+    """Raised when text cannot be extracted from a validated file."""
+
+    code = "text_extraction_error"
+
+
 class UnsupportedGenerationModeError(BackendError):
     """Raised when a requested generation mode is not registered."""
 
