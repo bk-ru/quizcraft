@@ -16,6 +16,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-17 15:53:15Z) Re-read `docs/planning/backlog.md` and mapped all remaining backlog items into sequential implementation stages.
 - [x] (2026-04-17 15:53:15Z) Chose a conservative MVP boundary that stops after JSON export and leaves RAG, DOCX/PPTX, status streaming, and multi-provider work for later stages.
 - [x] (2026-04-17 16:19:40Z) Implemented Stage 1, `Foundation Skeleton and Core Contracts`, in worktree `D:\github\diplom\.worktrees\stage-01-foundation`, including backend bootstrap, config loading, domain errors and models, `direct` mode registry, filesystem repositories, and Stage 1 tests.
+- [x] (2026-04-17 16:55:49Z) Closed the Stage 1 review gaps in the same worktree by adding the explicit quiz JSON Schema artifact, quiz version and last-edit timestamp persistence, controlled config parsing errors, duplicate-option validation, and `LOG_FORMAT` support, then re-ran the Stage 1 pytest suites successfully.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -69,7 +70,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 At this stopping point, the repository has a staged execution plan but still no implemented backlog code. That is intentional. The user requested planning first, with the backlog and current repository state treated as the source of truth, and this document now provides the missing delivery structure that the backlog lacked.
 
-The key outcome is that the remaining work is now grouped into narrow, verifiable increments with explicit dependencies and commit guidance. Stage 1 is now complete, so the next contributor can move directly to document ingestion and parsing instead of revisiting foundation work.
+The key outcome is that the remaining work is now grouped into narrow, verifiable increments with explicit dependencies and commit guidance. Stage 1 is now verified complete after the review-driven contract fixes, so the next contributor can move directly to document ingestion and parsing instead of revisiting foundation work.
 
 ## Context and Orientation
 
