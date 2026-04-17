@@ -25,5 +25,9 @@ def validate_quiz(quiz: Quiz) -> None:
         if any(not option.text.strip() for option in question.options):
             raise DomainValidationError("option text must not be empty")
 
+        normalized_options = {option.text.strip().casefold() for option in question.options}
+        if len(normalized_options) != len(question.options):
+            raise DomainValidationError("question options must not contain duplicates")
+
         if question.correct_option_index < 0 or question.correct_option_index >= len(question.options):
             raise DomainValidationError("correct option index is out of range")
