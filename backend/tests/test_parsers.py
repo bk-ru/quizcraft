@@ -3,13 +3,24 @@ import pytest
 from backend.app.domain.errors import TextExtractionError
 from backend.app.parsing.files import ValidatedFile
 from backend.app.parsing.normalization import normalize_text
+from backend.app.parsing.docx import DocxParser
 from backend.app.parsing.txt import TxtParser
+from backend.tests.docx_samples import build_docx_bytes
 
 
 def build_validated_file(content: bytes) -> ValidatedFile:
     return ValidatedFile(
         filename="lecture.txt",
         media_type="text/plain",
+        file_size_bytes=len(content),
+        content=content,
+    )
+
+
+def build_docx_validated_file(content: bytes) -> ValidatedFile:
+    return ValidatedFile(
+        filename="lecture.docx",
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         file_size_bytes=len(content),
         content=content,
     )
@@ -36,6 +47,21 @@ def test_txt_parser_raises_controlled_error_for_broken_content() -> None:
 
     with pytest.raises(TextExtractionError, match="decode"):
         parser.parse(build_validated_file(b"\x00\x00\x00\x00"))
+
+
+def test_docx_parser_extracts_paragraph_text() -> None:
+    parser = DocxParser()
+
+    text = parser.parse(build_docx_validated_file(build_docx_bytes(["First line", "Second line"])))
+
+    assert text == "First line\n\nSecond line"
+
+
+def test_docx_parser_raises_controlled_error_for_corrupted_document() -> None:
+    parser = DocxParser()
+
+    with pytest.raises(TextExtractionError, match="docx"):
+        parser.parse(build_docx_validated_file(b"not a zip archive"))
 
 
 def test_normalize_text_canonicalizes_whitespace_and_control_characters() -> None:

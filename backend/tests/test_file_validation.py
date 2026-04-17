@@ -2,6 +2,7 @@ import pytest
 
 from backend.app.domain.errors import FileValidationError
 from backend.app.parsing.files import UploadedFileValidator
+from backend.tests.docx_samples import build_docx_bytes
 
 
 def build_validator(max_file_size_bytes: int = 1024) -> UploadedFileValidator:
@@ -21,6 +22,21 @@ def test_validator_accepts_supported_txt_file() -> None:
     assert validated_file.media_type == "text/plain"
     assert validated_file.file_size_bytes == 11
     assert validated_file.content == b"hello world"
+
+
+def test_validator_accepts_supported_docx_file() -> None:
+    validator = build_validator()
+    content = build_docx_bytes(["First paragraph"])
+
+    validated_file = validator.validate(
+        filename="lecture.docx",
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        content=content,
+    )
+
+    assert validated_file.filename == "lecture.docx"
+    assert validated_file.media_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    assert validated_file.file_size_bytes == len(content)
 
 
 def test_validator_rejects_unsupported_extension() -> None:
