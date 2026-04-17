@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QuizCraft — Экспорт теста</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f17; --surface: #13161f; --surface2: #1b1f2e; --surface3: #222638;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+      --primary: #6f6af8; --primary2: #9c8fff;
+      --accent: #f857a6; --success: #22d3a0; --warn: #f5a524; --error: #f87171;
+      --text: #e8eaf2; --muted: #8a8fa8;
+    }
+    body {
+      font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    body::before {
+      content: ''; position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 500px;
+      background: radial-gradient(ellipse at top, rgba(34,211,160,.08) 0%, transparent 65%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      height: 58px; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; border-bottom: 1px solid var(--border);
+      background: var(--surface); flex-shrink: 0; position: sticky; top: 0; z-index: 50;
+    }
+    .topbar-left { display: flex; align-items: center; gap: 1rem; }
+    .back-btn { display: flex; align-items: center; gap: .4rem; color: var(--muted); text-decoration: none; font-size: .85rem; font-weight: 500; transition: color .2s; }
+    .back-btn:hover { color: var(--text); }
+    .divider-v { width: 1px; height: 22px; background: var(--border2); }
+    .page-title { font-size: 1rem; font-weight: 700; }
+    .quiz-meta-tag { font-size: .8rem; color: var(--muted); display: flex; align-items: center; gap: .35rem; }
+    .btn { padding: .5rem 1.1rem; border-radius: 8px; font-size: .85rem; font-weight: 600; cursor: pointer; border: none; transition: all .2s; font-family: inherit; display: flex; align-items: center; gap: .4rem; }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border2); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 3px 12px rgba(111,106,248,.3); }
+    .btn-primary:hover { background: var(--primary2); }
+
+    /* LAYOUT */
+    .page-content {
+      position: relative; z-index: 1;
+      max-width: 1000px; margin: 0 auto; width: 100%;
+      padding: 2.5rem 2rem; display: flex; flex-direction: column; gap: 2rem;
+    }
+
+    /* BREADCRUMB */
+    .breadcrumb { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--muted); }
+    .breadcrumb a { color: var(--muted); text-decoration: none; transition: color .2s; }
+    .breadcrumb a:hover { color: var(--text); }
+    .breadcrumb .sep { font-size: .7rem; }
+    .breadcrumb .current { color: var(--text); font-weight: 600; }
+
+    /* QUIZ SUMMARY */
+    .quiz-summary {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 1.75rem; display: flex; align-items: center; gap: 1.5rem;
+      animation: fadeUp .5s ease;
+    }
+    .quiz-summary-icon {
+      width: 60px; height: 60px; border-radius: 16px; flex-shrink: 0;
+      background: rgba(111,106,248,.14);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .quiz-summary-icon svg { width: 30px; height: 30px; stroke: var(--primary); fill: none; stroke-width: 1.5; }
+    .quiz-summary-info h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .4rem; }
+    .quiz-pills { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .pill { padding: .22rem .7rem; border-radius: 50px; font-size: .72rem; font-weight: 600; }
+    .pill-q { background: rgba(111,106,248,.14); color: var(--primary2); }
+    .pill-sc { background: rgba(34,211,160,.1); color: var(--success); }
+    .pill-mc { background: rgba(111,106,248,.1); color: var(--primary2); }
+    .pill-tf { background: rgba(248,87,166,.1); color: var(--accent); }
+    .quiz-summary-right { margin-left: auto; display: flex; gap: .6rem; }
+
+    /* FORMAT CARDS */
+    .section-header { margin-bottom: 1rem; }
+    .section-title { font-size: 1.1rem; font-weight: 800; margin-bottom: .25rem; }
+    .section-sub { font-size: .875rem; color: var(--muted); }
+
+    .format-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    .format-card {
+      background: var(--surface); border: 2px solid var(--border); border-radius: 16px;
+      padding: 1.5rem; cursor: pointer; transition: all .22s; position: relative;
+      animation: fadeUp .5s ease both;
+    }
+    .format-card:nth-child(1) { animation-delay: .05s; }
+    .format-card:nth-child(2) { animation-delay: .1s; }
+    .format-card:nth-child(3) { animation-delay: .15s; }
+    .format-card:nth-child(4) { animation-delay: .2s; }
+    .format-card:hover { border-color: var(--border2); transform: translateY(-3px); box-shadow: 0 12px 30px rgba(0,0,0,.25); }
+    .format-card.selected { border-color: var(--primary); background: rgba(111,106,248,.06); }
+    .format-card.selected .check-mark { opacity: 1; }
+    .check-mark {
+      position: absolute; top: 1rem; right: 1rem;
+      width: 22px; height: 22px; border-radius: 50%;
+      background: var(--primary); opacity: 0;
+      display: flex; align-items: center; justify-content: center; transition: opacity .2s;
+    }
+    .check-mark svg { width: 12px; height: 12px; stroke: #fff; fill: none; stroke-width: 2.5; }
+
+    .format-icon {
+      width: 52px; height: 52px; border-radius: 14px; margin-bottom: 1rem;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .ficon-docx { background: rgba(37,99,235,.18); }
+    .ficon-docx svg { stroke: #60a5fa; }
+    .ficon-pptx { background: rgba(234,88,12,.15); }
+    .ficon-pptx svg { stroke: #fb923c; }
+    .ficon-txt { background: rgba(255,255,255,.07); }
+    .ficon-txt svg { stroke: var(--muted); }
+    .ficon-json { background: rgba(234,179,8,.12); }
+    .ficon-json svg { stroke: #facc15; }
+    .format-icon svg { width: 26px; height: 26px; fill: none; stroke-width: 1.5; }
+
+    .format-name { font-size: 1.05rem; font-weight: 800; margin-bottom: .3rem; }
+    .format-desc { font-size: .82rem; color: var(--muted); line-height: 1.5; margin-bottom: .9rem; }
+    .format-tags { display: flex; gap: .4rem; flex-wrap: wrap; }
+    .ftag { padding: .18rem .55rem; border-radius: 50px; font-size: .68rem; font-weight: 600; background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
+
+    /* OPTIONS */
+    .options-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 1.5rem; animation: fadeUp .5s ease .3s both;
+    }
+    .options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    .opt-group { }
+    .opt-label { font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: .4rem; display: block; }
+    .opt-select {
+      width: 100%; padding: .6rem .85rem; border-radius: 8px;
+      border: 1px solid var(--border2); background: var(--surface2);
+      color: var(--text); font-family: inherit; font-size: .875rem; outline: none; transition: border-color .2s;
+    }
+    .opt-select:focus { border-color: var(--primary); }
+
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: .65rem 0; border-bottom: 1px solid var(--border); }
+    .toggle-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .toggle-label-wrap .tl-main { font-size: .875rem; font-weight: 600; }
+    .toggle-label-wrap .tl-sub { font-size: .75rem; color: var(--muted); }
+    .toggle { width: 40px; height: 22px; border-radius: 11px; background: var(--surface3); border: 1px solid var(--border2); cursor: pointer; position: relative; transition: background .25s; flex-shrink: 0; }
+    .toggle.on { background: var(--primary); border-color: var(--primary); }
+    .toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .25s; }
+    .toggle.on::after { left: 20px; }
+
+    /* PREVIEW */
+    .preview-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      overflow: hidden; animation: fadeUp .5s ease .4s both;
+    }
+    .preview-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: .9rem 1.25rem; background: var(--surface2); border-bottom: 1px solid var(--border);
+    }
+    .preview-head span { font-size: .78rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .preview-body { padding: 1.25rem; font-family: 'Courier New', monospace; font-size: .8rem; color: var(--muted); line-height: 1.9; max-height: 220px; overflow-y: auto; }
+    .preview-body .pk { color: var(--primary2); }
+    .preview-body .pv { color: var(--text); }
+    .preview-body .pc { color: var(--muted); }
+    .preview-body .ps { color: var(--success); }
+    .preview-body .pa { color: var(--accent); }
+
+    /* EXPORT ACTION */
+    .export-action {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      animation: fadeUp .5s ease .5s both;
+    }
+    .export-action-info h3 { font-size: 1rem; font-weight: 700; margin-bottom: .25rem; }
+    .export-action-info p { font-size: .82rem; color: var(--muted); }
+    .export-action-btns { display: flex; gap: .65rem; }
+    .btn-export {
+      padding: .7rem 1.75rem; border-radius: 10px; border: none;
+      background: linear-gradient(135deg, var(--success), #16a37c);
+      color: #000; font-family: inherit; font-size: .95rem; font-weight: 800;
+      cursor: pointer; box-shadow: 0 4px 16px rgba(34,211,160,.3);
+      transition: all .2s; display: flex; align-items: center; gap: .5rem;
+    }
+    .btn-export:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(34,211,160,.4); }
+    .btn-export svg { width: 17px; height: 17px; stroke: #000; fill: none; stroke-width: 2; }
+    .btn-export.loading { opacity: .65; cursor: wait; }
+
+    /* TOAST */
+    .toast {
+      position: fixed; bottom: 2rem; right: 2rem; z-index: 200;
+      background: var(--surface); border: 1px solid rgba(34,211,160,.3);
+      border-left: 3px solid var(--success);
+      border-radius: 12px; padding: .9rem 1.2rem;
+      box-shadow: 0 12px 40px rgba(0,0,0,.4);
+      display: flex; align-items: center; gap: .75rem;
+      font-size: .875rem; font-weight: 500;
+      animation: slideIn .4s ease;
+      max-width: 340px;
+    }
+    .toast.hide { animation: slideOut .3s ease forwards; }
+    .toast-icon { width: 28px; height: 28px; border-radius: 50%; background: rgba(34,211,160,.15); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .toast-icon svg { width: 14px; height: 14px; stroke: var(--success); fill: none; stroke-width: 2.5; }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+    @keyframes slideOut { to { opacity: 0; transform: translateX(60px); } }
+    ::-webkit-scrollbar { width: 5px; } ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
+    @media (max-width: 700px) { .format-grid { grid-template-columns: 1fr; } .options-grid { grid-template-columns: 1fr; } .export-action { flex-direction: column; gap: 1rem; } }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <a class="back-btn" href="02-quiz-editor.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      Назад
+    </a>
+    <div class="divider-v"></div>
+    <span class="page-title">Экспорт теста</span>
+  </div>
+  <div>
+    <button class="btn btn-ghost">Сохранить настройки</button>
+  </div>
+</div>
+
+<div class="page-content">
+
+  <!-- BREADCRUMB -->
+  <div class="breadcrumb">
+    <a href="01-homepage.html">Главная</a>
+    <span class="sep">/</span>
+    <a href="02-quiz-editor.html">Редактор</a>
+    <span class="sep">/</span>
+    <span class="current">Экспорт</span>
+  </div>
+
+  <!-- QUIZ SUMMARY -->
+  <div class="quiz-summary">
+    <div class="quiz-summary-icon">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+    </div>
+    <div class="quiz-summary-info">
+      <h2>История Древнего Рима</h2>
+      <div class="quiz-pills">
+        <span class="pill pill-q">15 вопросов</span>
+        <span class="pill pill-sc">5 одиночных</span>
+        <span class="pill pill-mc">6 множественных</span>
+        <span class="pill pill-tf">4 верно/неверно</span>
+      </div>
+    </div>
+    <div class="quiz-summary-right">
+      <button class="btn btn-ghost" onclick="window.location.href='02-quiz-editor.html'">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        Редактировать
+      </button>
+    </div>
+  </div>
+
+  <!-- FORMAT SELECTION -->
+  <div>
+    <div class="section-header">
+      <div class="section-title">Выберите формат</div>
+      <div class="section-sub">Нажмите на карточку для выбора; можно выбрать несколько</div>
+    </div>
+    <div class="format-grid">
+      <!-- DOCX -->
+      <div class="format-card selected" onclick="toggleFormat(this)">
+        <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="format-icon ficon-docx"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+        <div class="format-name">DOCX</div>
+        <div class="format-desc">Microsoft Word документ с полным форматированием, нумерацией и выделением правильных ответов.</div>
+        <div class="format-tags">
+          <span class="ftag">Форматирование</span>
+          <span class="ftag">Word</span>
+          <span class="ftag">Печать</span>
+        </div>
+      </div>
+      <!-- PPTX -->
+      <div class="format-card" onclick="toggleFormat(this)">
+        <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="format-icon ficon-pptx"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+        <div class="format-name">PPTX</div>
+        <div class="format-desc">Презентация PowerPoint — каждый вопрос на отдельном слайде. Удобно для занятий в классе.</div>
+        <div class="format-tags">
+          <span class="ftag">Слайды</span>
+          <span class="ftag">PowerPoint</span>
+          <span class="ftag">Презентация</span>
+        </div>
+      </div>
+      <!-- TXT -->
+      <div class="format-card" onclick="toggleFormat(this)">
+        <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="format-icon ficon-txt"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+        <div class="format-name">TXT</div>
+        <div class="format-desc">Простой текстовый файл без форматирования. Совместим с любыми системами тестирования.</div>
+        <div class="format-tags">
+          <span class="ftag">Универсальный</span>
+          <span class="ftag">Легковесный</span>
+        </div>
+      </div>
+      <!-- JSON -->
+      <div class="format-card" onclick="toggleFormat(this)">
+        <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <div class="format-icon ficon-json"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
+        <div class="format-name">JSON</div>
+        <div class="format-desc">Структурированные данные для интеграции с LMS, Moodle и другими платформами тестирования.</div>
+        <div class="format-tags">
+          <span class="ftag">API</span>
+          <span class="ftag">LMS</span>
+          <span class="ftag">Moodle</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTIONS -->
+  <div class="options-card">
+    <div class="section-header">
+      <div class="section-title">Параметры экспорта</div>
+    </div>
+    <div class="options-grid" style="margin-bottom:1.25rem">
+      <div class="opt-group">
+        <label class="opt-label">Порядок вопросов</label>
+        <select class="opt-select">
+          <option>По порядку (как в редакторе)</option>
+          <option>Случайный порядок</option>
+          <option>По типу вопроса</option>
+        </select>
+      </div>
+      <div class="opt-group">
+        <label class="opt-label">Порядок вариантов</label>
+        <select class="opt-select">
+          <option>Случайный</option>
+          <option>По алфавиту</option>
+          <option>По порядку</option>
+        </select>
+      </div>
+    </div>
+    <div style="border-top: 1px solid var(--border); padding-top: 1rem;">
+      <div class="toggle-row">
+        <div class="toggle-label-wrap">
+          <div class="tl-main">Показывать правильные ответы</div>
+          <div class="tl-sub">Добавить ключ ответов в конец документа</div>
+        </div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label-wrap">
+          <div class="tl-main">Включить объяснения</div>
+          <div class="tl-sub">Добавить объяснение к каждому вопросу</div>
+        </div>
+        <div class="toggle" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label-wrap">
+          <div class="tl-main">Нумерация вопросов</div>
+          <div class="tl-sub">Добавить порядковые номера к вопросам</div>
+        </div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+      <div class="toggle-row">
+        <div class="toggle-label-wrap">
+          <div class="tl-main">Метаданные теста</div>
+          <div class="tl-sub">Название, дата создания, количество вопросов</div>
+        </div>
+        <div class="toggle on" onclick="this.classList.toggle('on')"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PREVIEW -->
+  <div class="preview-card">
+    <div class="preview-head">
+      <span>Предпросмотр (JSON)</span>
+      <button class="btn btn-ghost" style="font-size:.75rem; padding:.3rem .7rem;" onclick="copyPreview()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        Скопировать
+      </button>
+    </div>
+    <div class="preview-body">
+<span class="pc">{</span><br/>
+&nbsp;&nbsp;<span class="pk">"id"</span><span class="pc">:</span> <span class="ps">"quiz_xyz_1712345678"</span><span class="pc">,</span><br/>
+&nbsp;&nbsp;<span class="pk">"title"</span><span class="pc">:</span> <span class="ps">"История Древнего Рима"</span><span class="pc">,</span><br/>
+&nbsp;&nbsp;<span class="pk">"created_at"</span><span class="pc">:</span> <span class="ps">"2026-04-12T12:00:00Z"</span><span class="pc">,</span><br/>
+&nbsp;&nbsp;<span class="pk">"questions_count"</span><span class="pc">:</span> <span class="pv">15</span><span class="pc">,</span><br/>
+&nbsp;&nbsp;<span class="pk">"questions"</span><span class="pc">: [</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="pc">{</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pk">"id"</span><span class="pc">:</span> <span class="pv">1</span><span class="pc">,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pk">"type"</span><span class="pc">:</span> <span class="ps">"single_choice"</span><span class="pc">,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pk">"text"</span><span class="pc">:</span> <span class="ps">"Кто был первым императором Рима?"</span><span class="pc">,</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pk">"options"</span><span class="pc">: [</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pc">{ </span><span class="pk">"text"</span><span class="pc">:</span> <span class="ps">"Юлий Цезарь"</span><span class="pc">, </span><span class="pk">"correct"</span><span class="pc">:</span> <span class="pa">false</span> <span class="pc">},</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pc">{ </span><span class="pk">"text"</span><span class="pc">:</span> <span class="ps">"Август"</span><span class="pc">, </span><span class="pk">"correct"</span><span class="pc">:</span> <span class="ps">true</span> <span class="pc">},</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pc">{ </span><span class="pk">"text"</span><span class="pc">:</span> <span class="ps">"Нерон"</span><span class="pc">, </span><span class="pk">"correct"</span><span class="pc">:</span> <span class="pa">false</span> <span class="pc">}</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="pc">]</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="pc">},</span><br/>
+&nbsp;&nbsp;&nbsp;&nbsp;<span class="pc">...</span><br/>
+&nbsp;&nbsp;<span class="pc">]</span><br/>
+<span class="pc">}</span>
+    </div>
+  </div>
+
+  <!-- EXPORT ACTION -->
+  <div class="export-action">
+    <div class="export-action-info">
+      <h3>Готово к скачиванию</h3>
+      <p>Выбран формат: <span id="selectedFormatsLabel" style="color:var(--text);font-weight:600;">DOCX</span></p>
+    </div>
+    <div class="export-action-btns">
+      <button class="btn btn-ghost" onclick="window.location.href='02-quiz-editor.html'">Вернуться</button>
+      <button class="btn-export" id="exportBtn" onclick="doExport()">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Скачать тест
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function toggleFormat(card) {
+    card.classList.toggle('selected');
+    updateSelectedLabel();
+  }
+
+  function updateSelectedLabel() {
+    const names = [...document.querySelectorAll('.format-card.selected .format-name')].map(el => el.textContent);
+    document.getElementById('selectedFormatsLabel').textContent = names.length ? names.join(', ') : 'Не выбрано';
+  }
+
+  function doExport() {
+    const btn = document.getElementById('exportBtn');
+    btn.classList.add('loading');
+    btn.innerHTML = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" style="animation:spin .8s linear infinite"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg> Экспорт…';
+
+    setTimeout(() => {
+      btn.classList.remove('loading');
+      btn.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" stroke="#000" fill="none" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> Скачано!';
+      showToast('Файл успешно скачан — istoriya_rima.docx');
+      setTimeout(() => {
+        btn.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" stroke="#000" fill="none" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Скачать тест';
+      }, 4000);
+    }, 1800);
+  }
+
+  function copyPreview() {
+    showToast('JSON скопирован в буфер обмена');
+  }
+
+  function showToast(msg) {
+    const existing = document.querySelector('.toast');
+    if (existing) existing.remove();
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.innerHTML = `
+      <div class="toast-icon"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <span>${msg}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.classList.add('hide');
+      setTimeout(() => toast.remove(), 350);
+    }, 3500);
+  }
+</script>
+<style>
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</body>
+</html>

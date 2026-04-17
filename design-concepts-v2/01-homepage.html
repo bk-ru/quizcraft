@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QuizCraft — Главная</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d0f17;
+      --surface:  #13161f;
+      --surface2: #1b1f2e;
+      --border:   rgba(255,255,255,0.07);
+      --primary:  #6f6af8;
+      --primary2: #9c8fff;
+      --accent:   #f857a6;
+      --success:  #22d3a0;
+      --warn:     #f5a524;
+      --text:     #e8eaf2;
+      --muted:    #8a8fa8;
+      --radius:   14px;
+      --shadow:   0 24px 64px rgba(0,0,0,.45);
+    }
+    [data-theme="light"] {
+      --bg:       #f0f2fa;
+      --surface:  #ffffff;
+      --surface2: #f5f6fc;
+      --border:   rgba(0,0,0,0.08);
+      --text:     #1a1c28;
+      --muted:    #6b6e80;
+      --shadow:   0 12px 40px rgba(0,0,0,0.10);
+    }
+
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      transition: background .3s, color .3s;
+    }
+
+    /* ─── NAVBAR ─── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem;
+      height: 64px;
+      background: rgba(13,15,23,.72);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+    [data-theme="light"] nav { background: rgba(240,242,250,.82); }
+    .nav-logo {
+      display: flex; align-items: center; gap: .6rem;
+      font-weight: 800; font-size: 1.25rem; letter-spacing: -.5px;
+      color: var(--text); text-decoration: none;
+    }
+    .nav-logo svg { width: 30px; height: 30px; }
+    .logo-dot { color: var(--primary); }
+    .nav-links { display: flex; gap: 2rem; }
+    .nav-links a {
+      color: var(--muted); text-decoration: none; font-size: .9rem; font-weight: 500;
+      transition: color .2s;
+    }
+    .nav-links a:hover { color: var(--text); }
+    .nav-right { display: flex; align-items: center; gap: .75rem; }
+    .theme-toggle {
+      width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--surface2); color: var(--muted); cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all .2s;
+    }
+    .theme-toggle:hover { color: var(--text); border-color: var(--primary); }
+    .btn {
+      padding: .55rem 1.25rem; border-radius: 8px; font-size: .875rem;
+      font-weight: 600; cursor: pointer; border: none; transition: all .2s;
+      font-family: inherit;
+    }
+    .btn-ghost {
+      background: transparent; color: var(--muted); border: 1px solid var(--border);
+    }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(111,106,248,.35);
+    }
+    .btn-primary:hover { background: var(--primary2); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(111,106,248,.4); }
+
+    /* ─── HERO ─── */
+    .hero {
+      display: flex; flex-direction: column; align-items: center; text-align: center;
+      padding: 6rem 2rem 4rem;
+      position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute; top: -120px; left: 50%; transform: translateX(-50%);
+      width: 900px; height: 500px; border-radius: 50%;
+      background: radial-gradient(ellipse, rgba(111,106,248,.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: rgba(111,106,248,.15); border: 1px solid rgba(111,106,248,.35);
+      color: var(--primary2); padding: .3rem .9rem; border-radius: 50px;
+      font-size: .78rem; font-weight: 600; letter-spacing: .4px; text-transform: uppercase;
+      margin-bottom: 1.5rem; animation: fadeUp .6s ease both;
+    }
+    .hero-badge span { width: 6px; height: 6px; border-radius: 50%; background: var(--primary); display: inline-block; }
+    .hero h1 {
+      font-size: clamp(2.4rem, 5vw, 4.2rem); font-weight: 800;
+      line-height: 1.12; letter-spacing: -1.5px;
+      max-width: 780px; margin-bottom: 1.4rem;
+      animation: fadeUp .6s ease .1s both;
+    }
+    .hero h1 .grad {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero p {
+      font-size: 1.1rem; color: var(--muted); max-width: 560px; line-height: 1.7;
+      margin-bottom: 2.5rem; animation: fadeUp .6s ease .2s both;
+    }
+    .hero-cta { display: flex; gap: .75rem; flex-wrap: wrap; justify-content: center; animation: fadeUp .6s ease .3s both; }
+    .btn-lg { padding: .85rem 2rem; font-size: 1rem; border-radius: 10px; }
+    .btn-outline {
+      background: transparent; color: var(--text); border: 1.5px solid var(--border);
+    }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); transform: translateY(-1px); }
+
+    /* ─── FEATURES ─── */
+    .features { display: grid; grid-template-columns: repeat(3,1fr); gap: 1.25rem; max-width: 1100px; margin: .5rem auto 5rem; padding: 0 2rem; }
+    .feat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.75rem;
+      transition: transform .25s, border-color .25s, box-shadow .25s;
+    }
+    .feat-card:hover { transform: translateY(-4px); border-color: var(--primary); box-shadow: 0 12px 32px rgba(111,106,248,.12); }
+    .feat-icon {
+      width: 46px; height: 46px; border-radius: 10px;
+      background: rgba(111,106,248,.15);
+      display: flex; align-items: center; justify-content: center;
+      margin-bottom: 1rem;
+    }
+    .feat-icon svg { width: 22px; height: 22px; stroke: var(--primary); fill: none; stroke-width: 1.8; }
+    .feat-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: .5rem; }
+    .feat-card p { font-size: .875rem; color: var(--muted); line-height: 1.6; }
+
+    /* ─── MAIN CARD ─── */
+    .main-section { max-width: 1100px; margin: 0 auto 5rem; padding: 0 2rem; }
+    .section-title {
+      font-size: 1.6rem; font-weight: 800; letter-spacing: -.5px; margin-bottom: .5rem;
+    }
+    .section-sub { color: var(--muted); font-size: .95rem; margin-bottom: 2rem; }
+
+    .input-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .tab-bar {
+      display: flex; align-items: center;
+      padding: 0 1.5rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .tab {
+      padding: 1rem 1.25rem; font-size: .875rem; font-weight: 600; cursor: pointer;
+      color: var(--muted); border-bottom: 2px solid transparent;
+      transition: color .2s, border-color .2s; user-select: none;
+    }
+    .tab.active { color: var(--primary); border-color: var(--primary); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Upload zone */
+    .upload-zone {
+      padding: 3rem 2rem; text-align: center; cursor: pointer;
+      transition: background .2s;
+    }
+    .upload-zone:hover { background: rgba(111,106,248,.04); }
+    .upload-zone.drag-over { background: rgba(111,106,248,.08); border-color: var(--primary); }
+    .upload-icon-wrap {
+      width: 80px; height: 80px; border-radius: 20px; margin: 0 auto 1.5rem;
+      background: rgba(111,106,248,.12); border: 1px dashed rgba(111,106,248,.4);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .upload-icon-wrap svg { width: 38px; height: 38px; stroke: var(--primary); fill: none; stroke-width: 1.5; }
+    .upload-zone h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .4rem; }
+    .upload-zone p { color: var(--muted); font-size: .875rem; margin-bottom: 1.5rem; }
+    .upload-formats { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap; }
+    .chip {
+      padding: .25rem .75rem; border-radius: 50px; font-size: .78rem; font-weight: 600;
+      background: rgba(111,106,248,.15); color: var(--primary2); border: 1px solid rgba(111,106,248,.25);
+    }
+    .file-preview {
+      margin: 1.5rem 2rem 0; padding: 1rem 1.25rem;
+      background: var(--surface2); border-radius: 10px; border: 1px solid var(--border);
+      display: flex; align-items: center; gap: .75rem; display: none;
+    }
+    .file-preview.show { display: flex; }
+    .file-preview svg { stroke: var(--success); fill: none; stroke-width: 1.8; flex-shrink: 0; }
+    .file-name { font-weight: 600; font-size: .9rem; }
+    .file-size { font-size: .8rem; color: var(--muted); }
+    .file-remove { margin-left: auto; cursor: pointer; color: var(--muted); }
+    .file-remove:hover { color: #ef4444; }
+
+    /* Text paste zone */
+    .text-zone { padding: 1.5rem; }
+    .text-zone textarea {
+      width: 100%; min-height: 220px; resize: vertical;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 1rem; color: var(--text);
+      font-family: inherit; font-size: .925rem; line-height: 1.65;
+      outline: none; transition: border-color .2s;
+    }
+    .text-zone textarea:focus { border-color: var(--primary); }
+    .text-zone textarea::placeholder { color: var(--muted); }
+    .char-count { font-size: .78rem; color: var(--muted); margin-top: .4rem; text-align: right; }
+
+    /* Settings footer */
+    .settings-bar {
+      display: grid; grid-template-columns: repeat(4,1fr) auto;
+      gap: 1rem; align-items: end;
+      padding: 1.5rem; border-top: 1px solid var(--border);
+      background: var(--surface2);
+    }
+    .settings-bar label { display: block; font-size: .78rem; font-weight: 600; color: var(--muted); margin-bottom: .4rem; }
+    .settings-bar select, .settings-bar input[type=number] {
+      width: 100%; padding: .6rem .85rem; border-radius: 8px;
+      border: 1px solid var(--border); background: var(--surface);
+      color: var(--text); font-family: inherit; font-size: .875rem; outline: none;
+      transition: border-color .2s;
+    }
+    .settings-bar select:focus, .settings-bar input[type=number]:focus { border-color: var(--primary); }
+
+    .generate-btn {
+      padding: .7rem 1.75rem;
+      background: linear-gradient(135deg, var(--primary), #9c3fe4);
+      color: #fff; border: none; border-radius: 8px;
+      font-family: inherit; font-size: .95rem; font-weight: 700;
+      cursor: pointer; white-space: nowrap;
+      box-shadow: 0 4px 18px rgba(111,106,248,.4);
+      transition: all .2s; display: flex; align-items: center; gap: .5rem;
+    }
+    .generate-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(111,106,248,.5); }
+    .generate-btn svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; }
+
+    /* ─── RECENT QUIZZES ─── */
+    .recent-section { max-width: 1100px; margin: 0 auto 6rem; padding: 0 2rem; }
+    .quiz-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); gap: 1.1rem; }
+    .quiz-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 1.4rem 1.5rem; cursor: pointer; transition: all .2s;
+      text-decoration: none; color: inherit; display: block;
+    }
+    .quiz-card:hover { transform: translateY(-3px); border-color: var(--primary); box-shadow: 0 12px 28px rgba(0,0,0,.18); }
+    .quiz-card-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: .9rem; }
+    .quiz-card-icon {
+      width: 40px; height: 40px; border-radius: 10px;
+      background: rgba(111,106,248,.15);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .quiz-card-icon svg { width: 20px; height: 20px; stroke: var(--primary); fill: none; stroke-width: 1.8; }
+    .quiz-card-badge {
+      font-size: .72rem; font-weight: 600; padding: .25rem .65rem; border-radius: 50px;
+    }
+    .badge-sc { background: rgba(34,211,160,.12); color: var(--success); }
+    .badge-mc { background: rgba(111,106,248,.12); color: var(--primary2); }
+    .badge-tf { background: rgba(248,87,166,.12); color: var(--accent); }
+    .quiz-card h4 { font-size: 1rem; font-weight: 700; margin-bottom: .35rem; }
+    .quiz-card-meta { font-size: .8rem; color: var(--muted); display: flex; gap: 1rem; flex-wrap: wrap; }
+    .quiz-card-meta span { display: flex; align-items: center; gap: .25rem; }
+
+    /* ─── FOOTER ─── */
+    footer {
+      border-top: 1px solid var(--border); padding: 2rem;
+      text-align: center; color: var(--muted); font-size: .82rem;
+    }
+
+    /* ─── ANIMATIONS ─── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .feat-card { animation: fadeUp .5s ease both; }
+    .feat-card:nth-child(1) { animation-delay: .1s; }
+    .feat-card:nth-child(2) { animation-delay: .2s; }
+    .feat-card:nth-child(3) { animation-delay: .3s; }
+
+    /* ─── RESPONSIVE ─── */
+    @media (max-width: 900px) {
+      .features { grid-template-columns: 1fr 1fr; }
+      .settings-bar { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      .features { grid-template-columns: 1fr; }
+      .settings-bar { grid-template-columns: 1fr; }
+      .nav-links { display: none; }
+      .hero h1 { font-size: 2.2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <a class="nav-logo" href="#">
+    <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="30" height="30" rx="8" fill="url(#lg)"/>
+      <path d="M8 11h14M8 15h10M8 19h6" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
+      <defs><linearGradient id="lg" x1="0" y1="0" x2="30" y2="30" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#6f6af8"/><stop offset="1" stop-color="#9c3fe4"/>
+      </linearGradient></defs>
+    </svg>
+    QuizCraft<span class="logo-dot">.</span>
+  </a>
+  <div class="nav-links">
+    <a href="#features">Возможности</a>
+    <a href="#create">Создать</a>
+    <a href="#">Примеры</a>
+    <a href="#">Документация</a>
+  </div>
+  <div class="nav-right">
+    <button class="theme-toggle" onclick="toggleTheme()" title="Переключить тему">
+      <svg id="themeIcon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+    <button class="btn btn-ghost">Войти</button>
+    <button class="btn btn-primary">Начать бесплатно</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge"><span></span>AI-генерация на базе RAG</div>
+  <h1>Создавайте <span class="grad">умные тесты</span><br/>из любых материалов</h1>
+  <p>Загрузите лекции, статьи или методички — ИИ автоматически сформирует вопросы любого типа на русском языке. Без регистрации.</p>
+  <div class="hero-cta">
+    <button class="btn btn-primary btn-lg" onclick="document.getElementById('create').scrollIntoView({behavior:'smooth'})">
+      ✦ Создать тест
+    </button>
+    <button class="btn btn-outline btn-lg">Посмотреть демо</button>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="features">
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-4.63 4.51L18.18 21 12 17.77 5.82 21l1.81-7.22L3 9.27l6.91-1.01L12 2z"/></svg>
+      </div>
+      <h3>RAG для длинных текстов</h3>
+      <p>Автоматическое разбиение на чанки и векторный поиск для точной генерации из больших документов.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M9 9h6M9 12h4"/></svg>
+      </div>
+      <h3>3 типа вопросов</h3>
+      <p>Одиночный выбор, множественный выбор и утверждение Верно / Неверно — всё в одной викторине.</p>
+    </div>
+    <div class="feat-card">
+      <div class="feat-icon">
+        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </div>
+      <h3>Экспорт в 4 форматах</h3>
+      <p>Выгружайте готовые тесты в DOCX, PPTX, TXT или JSON для любой системы тестирования.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CREATE SECTION -->
+<section class="main-section" id="create">
+  <h2 class="section-title">Создать новый тест</h2>
+  <p class="section-sub">Выберите источник материала и настройте параметры генерации.</p>
+
+  <div class="input-card">
+    <!-- Tabs -->
+    <div class="tab-bar">
+      <div class="tab active" onclick="switchTab('upload', this)">Загрузить файл</div>
+      <div class="tab" onclick="switchTab('paste', this)">Вставить текст</div>
+    </div>
+
+    <!-- Upload panel -->
+    <div class="tab-panel active" id="tab-upload">
+      <div class="upload-zone" id="dropzone"
+           ondragover="event.preventDefault(); this.classList.add('drag-over')"
+           ondragleave="this.classList.remove('drag-over')"
+           ondrop="handleDrop(event)"
+           onclick="document.getElementById('fileInput').click()">
+        <div class="upload-icon-wrap">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <h3>Перетащите файл сюда</h3>
+        <p>или нажмите, чтобы выбрать из устройства</p>
+        <div class="upload-formats">
+          <span class="chip">DOCX</span>
+          <span class="chip">TXT</span>
+          <span class="chip">до 10 МБ</span>
+        </div>
+        <input type="file" id="fileInput" accept=".docx,.txt" style="display:none" onchange="showFile(this)"/>
+      </div>
+      <div class="file-preview" id="filePreview">
+        <svg width="20" height="20" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+        <div>
+          <div class="file-name" id="fileName"></div>
+          <div class="file-size" id="fileSize"></div>
+        </div>
+        <div class="file-remove" onclick="removeFile()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </div>
+      </div>
+      <div style="height:1.5rem"></div>
+    </div>
+
+    <!-- Paste panel -->
+    <div class="tab-panel" id="tab-paste">
+      <div class="text-zone">
+        <textarea id="pasteArea" placeholder="Вставьте текст лекции, методички или статьи…" oninput="updateCharCount()"></textarea>
+        <div class="char-count"><span id="charCount">0</span> символов</div>
+      </div>
+    </div>
+
+    <!-- Settings bar -->
+    <div class="settings-bar">
+      <div>
+        <label>Количество вопросов</label>
+        <input type="number" value="10" min="3" max="50"/>
+      </div>
+      <div>
+        <label>Тип вопросов</label>
+        <select>
+          <option>Смешанный</option>
+          <option>Одиночный выбор</option>
+          <option>Множественный выбор</option>
+          <option>Верно / Неверно</option>
+        </select>
+      </div>
+      <div>
+        <label>Сложность</label>
+        <select>
+          <option>Средняя</option>
+          <option>Лёгкая</option>
+          <option>Сложная</option>
+        </select>
+      </div>
+      <div>
+        <label>Язык</label>
+        <select>
+          <option>Русский</option>
+          <option>English</option>
+        </select>
+      </div>
+      <button class="generate-btn" onclick="startGenerate()">
+        <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        Сгенерировать
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- RECENT QUIZZES -->
+<section class="recent-section">
+  <h2 class="section-title">Последние тесты</h2>
+  <p class="section-sub">Продолжайте работу с ранее созданными викторинами.</p>
+  <div class="quiz-grid">
+    <a class="quiz-card" href="02-quiz-editor.html">
+      <div class="quiz-card-head">
+        <div class="quiz-card-icon">
+          <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        </div>
+        <span class="quiz-card-badge badge-sc">Одиночный</span>
+      </div>
+      <h4>История Древнего Рима</h4>
+      <div class="quiz-card-meta">
+        <span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          2 ч. назад
+        </span>
+        <span>15 вопросов</span>
+      </div>
+    </a>
+    <a class="quiz-card" href="#">
+      <div class="quiz-card-head">
+        <div class="quiz-card-icon" style="background:rgba(34,211,160,.12)">
+          <svg viewBox="0 0 24 24" style="stroke:var(--success)"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg>
+        </div>
+        <span class="quiz-card-badge badge-mc">Множественный</span>
+      </div>
+      <h4>Введение в физику</h4>
+      <div class="quiz-card-meta">
+        <span>Вчера</span>
+        <span>20 вопросов</span>
+      </div>
+    </a>
+    <a class="quiz-card" href="#">
+      <div class="quiz-card-head">
+        <div class="quiz-card-icon" style="background:rgba(248,87,166,.12)">
+          <svg viewBox="0 0 24 24" style="stroke:var(--accent)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        </div>
+        <span class="quiz-card-badge badge-tf">Верно/Неверно</span>
+      </div>
+      <h4>Современная литература</h4>
+      <div class="quiz-card-meta">
+        <span>3 дня назад</span>
+        <span>12 вопросов</span>
+      </div>
+    </a>
+    <a class="quiz-card" href="#">
+      <div class="quiz-card-head">
+        <div class="quiz-card-icon">
+          <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        </div>
+        <span class="quiz-card-badge badge-sc">Смешанный</span>
+      </div>
+      <h4>Основы биологии клетки</h4>
+      <div class="quiz-card-meta">
+        <span>Неделю назад</span>
+        <span>25 вопросов</span>
+      </div>
+    </a>
+  </div>
+</section>
+
+<footer>© 2026 QuizCraft — дипломная работа · Самохостинг · Без регистрации</footer>
+
+<script>
+  // Theme toggle
+  function toggleTheme() {
+    const html = document.documentElement;
+    const icon = document.getElementById('themeIcon');
+    if (html.dataset.theme === 'dark') {
+      html.dataset.theme = 'light';
+      icon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+    } else {
+      html.dataset.theme = 'dark';
+      icon.innerHTML = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>';
+    }
+  }
+
+  // Tab switching
+  function switchTab(name, el) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+  }
+
+  // File handling
+  function showFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    document.getElementById('fileName').textContent = file.name;
+    document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+    document.getElementById('filePreview').classList.add('show');
+  }
+  function removeFile() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('filePreview').classList.remove('show');
+  }
+  function handleDrop(e) {
+    e.preventDefault();
+    document.getElementById('dropzone').classList.remove('drag-over');
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(1) + ' KB';
+      document.getElementById('filePreview').classList.add('show');
+    }
+  }
+
+  // Char count
+  function updateCharCount() {
+    document.getElementById('charCount').textContent = document.getElementById('pasteArea').value.length.toLocaleString('ru');
+  }
+
+  // Generate redirect
+  function startGenerate() {
+    window.location.href = '03-status-page.html';
+  }
+</script>
+</body>
+</html>

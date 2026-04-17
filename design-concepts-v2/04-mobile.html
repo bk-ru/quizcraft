@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QuizCraft — Mobile Concept</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f17; --surface: #13161f; --surface2: #1b1f2e; --surface3: #222638;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.13);
+      --primary: #6f6af8; --primary2: #9c8fff;
+      --accent: #f857a6; --success: #22d3a0; --warn: #f5a524;
+      --text: #e8eaf2; --muted: #8a8fa8;
+    }
+    body {
+      font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 2rem; gap: 4rem; flex-wrap: wrap;
+    }
+    body::before {
+      content: ''; position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+      width: 900px; height: 600px;
+      background: radial-gradient(ellipse at top, rgba(111,106,248,.1) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    /* ─── SECTION LABELS ─── */
+    .phone-wrapper { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
+    .screen-label {
+      font-size: .78rem; font-weight: 700; color: var(--muted);
+      text-transform: uppercase; letter-spacing: .8px;
+    }
+
+    /* ─── PHONE FRAME ─── */
+    .phone {
+      width: 360px; height: 780px;
+      background: #0a0a0f;
+      border-radius: 50px;
+      padding: 12px;
+      box-shadow:
+        0 0 0 1px rgba(255,255,255,0.08),
+        0 40px 80px rgba(0,0,0,.7),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .phone-screen {
+      width: 100%; height: 100%;
+      border-radius: 38px; overflow: hidden;
+      position: relative; background: var(--bg);
+    }
+    /* notch / dynamic island */
+    .dynamic-island {
+      position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
+      width: 112px; height: 32px; background: #000; border-radius: 22px;
+      z-index: 50; display: flex; align-items: center; justify-content: space-between;
+      padding: 0 10px;
+    }
+    .island-cam { width: 9px; height: 9px; border-radius: 50%; background: #1a1a2e; border: 1px solid #333; }
+    .island-dot { width: 5px; height: 5px; border-radius: 50%; background: #333; }
+
+    /* status bar */
+    .status-bar {
+      height: 50px; display: flex; align-items: flex-end; justify-content: space-between;
+      padding: 0 20px 6px; position: relative; z-index: 10;
+    }
+    .status-time { font-size: 13px; font-weight: 700; }
+    .status-icons { display: flex; align-items: center; gap: 5px; }
+    .status-icons svg { width: 14px; height: 14px; fill: var(--text); }
+
+    /* scrollable screen content */
+    .screen-scroll { height: calc(100% - 50px); overflow-y: auto; overflow-x: hidden; }
+    .screen-scroll::-webkit-scrollbar { display: none; }
+
+    /* ─── SCREEN 1: HOME ─── */
+    .s-home-header {
+      padding: 1.2rem 1.2rem .8rem;
+      background: linear-gradient(160deg, #1a1040 0%, #0d0f17 100%);
+    }
+    .s-home-header .greeting { font-size: .8rem; color: var(--muted); margin-bottom: .15rem; }
+    .s-home-header h2 { font-size: 1.3rem; font-weight: 800; }
+    .s-home-header span { color: var(--primary); }
+
+    .s-home-content { padding: 1rem 1.2rem; }
+
+    .upload-card {
+      background: var(--surface);
+      border: 1px dashed rgba(111,106,248,.35);
+      border-radius: 16px; padding: 1.4rem; text-align: center;
+      margin-bottom: 1rem; cursor: pointer; transition: all .2s;
+    }
+    .upload-card:active { transform: scale(.98); background: rgba(111,106,248,.06); }
+    .upload-card .uc-icon {
+      width: 48px; height: 48px; border-radius: 14px; background: rgba(111,106,248,.15);
+      margin: 0 auto .75rem; display: flex; align-items: center; justify-content: center;
+    }
+    .upload-card .uc-icon svg { width: 24px; height: 24px; stroke: var(--primary); fill: none; stroke-width: 1.5; }
+    .upload-card h4 { font-size: .9rem; font-weight: 700; margin-bottom: .25rem; }
+    .upload-card p { font-size: .75rem; color: var(--muted); }
+    .upload-card .chips { display: flex; gap: .4rem; justify-content: center; margin-top: .6rem; }
+    .chip { padding: .2rem .6rem; border-radius: 50px; font-size: .68rem; font-weight: 600; background: rgba(111,106,248,.15); color: var(--primary2); }
+
+    .divider-text { text-align: center; font-size: .72rem; color: var(--muted); margin-bottom: .8rem; position: relative; }
+    .divider-text::before, .divider-text::after {
+      content: ''; position: absolute; top: 50%; width: 38%; height: 1px; background: var(--border2);
+    }
+    .divider-text::before { left: 0; } .divider-text::after { right: 0; }
+
+    .text-input-mobile {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 12px; padding: .75rem; margin-bottom: .8rem;
+    }
+    .text-input-mobile textarea {
+      width: 100%; background: transparent; border: none; color: var(--text);
+      font-family: inherit; font-size: .8rem; resize: none; outline: none;
+      min-height: 70px; line-height: 1.5;
+    }
+    .text-input-mobile textarea::placeholder { color: var(--muted); }
+
+    .settings-row { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-bottom: .8rem; }
+    .s-select { background: var(--surface); border: 1px solid var(--border2); border-radius: 8px; }
+    .s-select label { display: block; font-size: .66rem; font-weight: 600; color: var(--muted); padding: .5rem .65rem .1rem; }
+    .s-select select {
+      display: block; width: 100%; background: transparent; border: none; color: var(--text);
+      font-family: inherit; font-size: .78rem; font-weight: 600; padding: 0 .65rem .5rem;
+      outline: none; cursor: pointer;
+    }
+
+    .gen-btn-mobile {
+      width: 100%; padding: .9rem; border-radius: 14px; border: none;
+      background: linear-gradient(135deg, var(--primary), #9c3fe4);
+      color: #fff; font-family: inherit; font-size: .95rem; font-weight: 700;
+      cursor: pointer; box-shadow: 0 6px 20px rgba(111,106,248,.4);
+      margin-bottom: 1.25rem; display: flex; align-items: center; justify-content: center; gap: .5rem;
+    }
+    .gen-btn-mobile svg { width: 17px; height: 17px; stroke: #fff; fill: none; stroke-width: 2; }
+
+    .recent-label { font-size: .75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: .65rem; }
+    .recent-cards { display: flex; flex-direction: column; gap: .5rem; padding-bottom: 5.5rem; }
+    .r-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: .85rem; display: flex; align-items: center; gap: .75rem; cursor: pointer;
+      transition: all .2s;
+    }
+    .r-card:active { transform: scale(.98); }
+    .r-card .r-icon { width: 36px; height: 36px; border-radius: 10px; background: rgba(111,106,248,.13); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .r-card .r-icon svg { width: 17px; height: 17px; stroke: var(--primary); fill: none; stroke-width: 1.8; }
+    .r-card .r-info h5 { font-size: .85rem; font-weight: 700; margin-bottom: .2rem; }
+    .r-card .r-info p { font-size: .72rem; color: var(--muted); }
+    .r-card .r-arrow { margin-left: auto; color: var(--muted); }
+    .r-card .r-arrow svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    /* BOTTOM NAV */
+    .bottom-nav {
+      position: absolute; bottom: 0; left: 0; right: 0; height: 78px;
+      background: rgba(13,15,23,.95); backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border);
+      display: flex; justify-content: space-around; align-items: flex-start;
+      padding-top: 10px;
+    }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+    .nav-item svg { width: 22px; height: 22px; stroke: var(--muted); fill: none; stroke-width: 1.8; }
+    .nav-item span { font-size: .6rem; font-weight: 600; color: var(--muted); }
+    .nav-item.active svg { stroke: var(--primary); }
+    .nav-item.active span { color: var(--primary); }
+
+    /* FAB */
+    .fab {
+      position: absolute; bottom: 90px; right: 18px;
+      width: 50px; height: 50px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--primary), #9c3fe4);
+      box-shadow: 0 8px 24px rgba(111,106,248,.45);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; z-index: 20;
+    }
+    .fab svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2; }
+
+    /* ─── SCREEN 2: EDITOR (phone) ─── */
+    .s-editor-header {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .9rem 1.2rem; border-bottom: 1px solid var(--border);
+    }
+    .back-ico { color: var(--muted); }
+    .back-ico svg { width: 20px; height: 20px; stroke: currentColor; fill: none; stroke-width: 2; }
+    .s-editor-header h3 { font-size: .95rem; font-weight: 700; flex: 1; }
+    .head-btn {
+      padding: .4rem .8rem; border-radius: 8px; border: none;
+      background: var(--primary); color: #fff;
+      font-family: inherit; font-size: .72rem; font-weight: 700; cursor: pointer;
+    }
+    .q-list-mobile { padding: .8rem; display: flex; flex-direction: column; gap: .65rem; padding-bottom: 5rem; }
+    .q-card-mobile {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+    }
+    .q-card-mobile .qh {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .65rem .9rem; background: var(--surface2); border-bottom: 1px solid var(--border);
+    }
+    .qnum-m {
+      width: 22px; height: 22px; border-radius: 6px; background: rgba(111,106,248,.18);
+      color: var(--primary2); font-size: .7rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    }
+    .qtype-m { font-size: .68rem; font-weight: 700; padding: .18rem .55rem; border-radius: 50px; }
+    .t-sc { background: rgba(111,106,248,.15); color: var(--primary2); }
+    .t-mc { background: rgba(34,211,160,.12); color: var(--success); }
+    .t-tf { background: rgba(248,87,166,.12); color: var(--accent); }
+    .q-card-mobile .qb { padding: .75rem .9rem; }
+    .q-card-mobile .qtext { font-size: .82rem; font-weight: 600; margin-bottom: .7rem; line-height: 1.4; }
+    .q-opts-mobile { display: flex; flex-direction: column; gap: .35rem; }
+    .q-opt {
+      display: flex; align-items: center; gap: .5rem;
+      padding: .45rem .65rem; border-radius: 7px; border: 1px solid var(--border);
+      background: var(--surface2); font-size: .78rem;
+    }
+    .q-opt.ok { background: rgba(34,211,160,.07); border-color: rgba(34,211,160,.3); }
+    .q-opt .ol {
+      width: 18px; height: 18px; border-radius: 5px; flex-shrink: 0;
+      background: var(--surface3); color: var(--muted);
+      display: flex; align-items: center; justify-content: center; font-size: .65rem; font-weight: 800;
+    }
+    .q-opt.ok .ol { background: var(--success); color: #000; }
+    .q-card-mobile .qf {
+      display: flex; justify-content: flex-end; gap: .4rem;
+      padding: .55rem .9rem; border-top: 1px solid var(--border); background: var(--surface2);
+    }
+    .qf-btn { padding: .3rem .6rem; border-radius: 6px; border: 1px solid var(--border2); background: transparent; color: var(--muted); font-family: inherit; font-size: .68rem; font-weight: 600; cursor: pointer; }
+    .qf-btn:hover { color: var(--primary); border-color: var(--primary); }
+
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .phone { animation: fadeUp .6s ease; }
+    .phone:last-child { animation-delay: .15s; }
+  </style>
+</head>
+<body>
+
+<!-- PHONE 1: HOME -->
+<div class="phone-wrapper">
+  <span class="screen-label">Главный экран</span>
+  <div class="phone">
+    <div class="phone-screen">
+      <div class="dynamic-island">
+        <div class="island-cam"></div>
+        <div class="island-dot"></div>
+      </div>
+      <div class="status-bar">
+        <span class="status-time">9:41</span>
+        <div class="status-icons">
+          <svg viewBox="0 0 24 24"><path d="M1 6l4.5 4.5L12 3l6.5 7.5L23 6"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v3" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+
+      <div class="screen-scroll">
+        <div class="s-home-header">
+          <div class="greeting">Добро пожаловать</div>
+          <h2>QuizCraft<span>.</span></h2>
+        </div>
+
+        <div class="s-home-content">
+          <div class="upload-card">
+            <div class="uc-icon">
+              <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <h4>Загрузить документ</h4>
+            <p>DOCX, TXT — до 10 МБ</p>
+            <div class="chips"><span class="chip">DOCX</span><span class="chip">TXT</span></div>
+          </div>
+
+          <div class="divider-text">или</div>
+
+          <div class="text-input-mobile">
+            <textarea placeholder="Вставьте текст лекции или методички…"></textarea>
+          </div>
+
+          <div class="settings-row">
+            <div class="s-select">
+              <label>Вопросов</label>
+              <select><option>10</option><option>15</option><option>20</option></select>
+            </div>
+            <div class="s-select">
+              <label>Тип</label>
+              <select><option>Смешанный</option><option>Одиночный</option></select>
+            </div>
+            <div class="s-select">
+              <label>Сложность</label>
+              <select><option>Средняя</option><option>Лёгкая</option></select>
+            </div>
+            <div class="s-select">
+              <label>Язык</label>
+              <select><option>Русский</option><option>English</option></select>
+            </div>
+          </div>
+
+          <button class="gen-btn-mobile">
+            <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+            Сгенерировать тест
+          </button>
+
+          <div class="recent-label">Последние тесты</div>
+          <div class="recent-cards">
+            <div class="r-card">
+              <div class="r-icon"><svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></div>
+              <div class="r-info">
+                <h5>История Древнего Рима</h5>
+                <p>15 вопросов · 2 часа назад</p>
+              </div>
+              <div class="r-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+            <div class="r-card">
+              <div class="r-icon" style="background:rgba(34,211,160,.12)"><svg viewBox="0 0 24 24" style="stroke:var(--success)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div class="r-info">
+                <h5>Введение в физику</h5>
+                <p>20 вопросов · Вчера</p>
+              </div>
+              <div class="r-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+            <div class="r-card">
+              <div class="r-icon" style="background:rgba(248,87,166,.12)"><svg viewBox="0 0 24 24" style="stroke:var(--accent)"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+              <div class="r-info">
+                <h5>Современная литература</h5>
+                <p>12 вопросов · 3 дня назад</p>
+              </div>
+              <div class="r-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FAB -->
+      <div class="fab">
+        <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </div>
+
+      <!-- BOTTOM NAV -->
+      <div class="bottom-nav">
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/></svg>
+          <span>Главная</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>Тесты</span>
+        </div>
+        <div style="width:50px"></div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span>Профиль</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          <span>Ещё</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PHONE 2: EDITOR -->
+<div class="phone-wrapper">
+  <span class="screen-label">Редактор теста</span>
+  <div class="phone" style="animation-delay:.12s">
+    <div class="phone-screen">
+      <div class="dynamic-island">
+        <div class="island-cam"></div>
+        <div class="island-dot"></div>
+      </div>
+      <div class="status-bar">
+        <span class="status-time">9:52</span>
+        <div class="status-icons">
+          <svg viewBox="0 0 24 24"><path d="M1 6l4.5 4.5L12 3l6.5 7.5L23 6"/></svg>
+          <svg viewBox="0 0 24 24"><path d="M5 12.55a11 11 0 0 1 14.08 0M1.42 9a16 16 0 0 1 21.16 0M8.53 16.11a6 6 0 0 1 6.95 0M12 20h.01"/></svg>
+          <svg viewBox="0 0 24 24"><rect x="2" y="7" width="18" height="11" rx="2"/><path d="M22 11v3" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+
+      <div class="screen-scroll">
+        <div class="s-editor-header">
+          <div class="back-ico"><svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg></div>
+          <h3>История Рима</h3>
+          <button class="head-btn">Экспорт</button>
+        </div>
+
+        <div class="q-list-mobile">
+          <div class="q-card-mobile">
+            <div class="qh">
+              <div class="qnum-m">1</div>
+              <span class="qtype-m t-sc">Одиночный</span>
+            </div>
+            <div class="qb">
+              <div class="qtext">Кто был первым императором Рима?</div>
+              <div class="q-opts-mobile">
+                <div class="q-opt"><div class="ol">A</div>Юлий Цезарь</div>
+                <div class="q-opt ok"><div class="ol">B</div>Август</div>
+                <div class="q-opt"><div class="ol">C</div>Нерон</div>
+                <div class="q-opt"><div class="ol">D</div>Марк Аврелий</div>
+              </div>
+            </div>
+            <div class="qf">
+              <button class="qf-btn">Изменить</button>
+              <button class="qf-btn">Перегенерировать</button>
+            </div>
+          </div>
+
+          <div class="q-card-mobile">
+            <div class="qh">
+              <div class="qnum-m">2</div>
+              <span class="qtype-m t-mc">Множественный</span>
+            </div>
+            <div class="qb">
+              <div class="qtext">Достижения Римской империи (выберите все верные)</div>
+              <div class="q-opts-mobile">
+                <div class="q-opt ok"><div class="ol">A</div>Акведуки</div>
+                <div class="q-opt ok"><div class="ol">B</div>Правовые системы</div>
+                <div class="q-opt"><div class="ol">C</div>Печатный станок</div>
+                <div class="q-opt ok"><div class="ol">D</div>Дорожная сеть</div>
+              </div>
+            </div>
+            <div class="qf">
+              <button class="qf-btn">Изменить</button>
+              <button class="qf-btn">Перегенерировать</button>
+            </div>
+          </div>
+
+          <div class="q-card-mobile">
+            <div class="qh">
+              <div class="qnum-m">3</div>
+              <span class="qtype-m t-tf">Верно/Неверно</span>
+            </div>
+            <div class="qb">
+              <div class="qtext">Рим пал в 476 году н.э.</div>
+              <div class="q-opts-mobile">
+                <div class="q-opt ok"><div class="ol">В</div>Верно</div>
+                <div class="q-opt"><div class="ol">Н</div>Неверно</div>
+              </div>
+            </div>
+            <div class="qf">
+              <button class="qf-btn">Изменить</button>
+              <button class="qf-btn">Перегенерировать</button>
+            </div>
+          </div>
+
+          <div class="q-card-mobile" style="border-style:dashed; opacity:.6; cursor:pointer; background:transparent; display:flex; align-items:center; justify-content:center; padding:1rem; gap:.5rem; font-size:.82rem; color:var(--muted);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Добавить вопрос
+          </div>
+        </div>
+      </div>
+
+      <!-- BOTTOM NAV -->
+      <div class="bottom-nav">
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/></svg>
+          <span>Главная</span>
+        </div>
+        <div class="nav-item active">
+          <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+          <span>Тесты</span>
+        </div>
+        <div style="width:50px"></div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span>Профиль</span>
+        </div>
+        <div class="nav-item">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+          <span>Ещё</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
