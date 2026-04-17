@@ -3,6 +3,7 @@ import pytest
 from backend.app.domain.errors import FileValidationError
 from backend.app.parsing.files import UploadedFileValidator
 from backend.tests.docx_samples import build_docx_bytes
+from backend.tests.pdf_samples import build_pdf_bytes
 
 
 def build_validator(max_file_size_bytes: int = 1024) -> UploadedFileValidator:
@@ -39,14 +40,29 @@ def test_validator_accepts_supported_docx_file() -> None:
     assert validated_file.file_size_bytes == len(content)
 
 
+def test_validator_accepts_supported_pdf_file() -> None:
+    validator = build_validator()
+    content = build_pdf_bytes(["First page"])
+
+    validated_file = validator.validate(
+        filename="lecture.pdf",
+        media_type="application/pdf",
+        content=content,
+    )
+
+    assert validated_file.filename == "lecture.pdf"
+    assert validated_file.media_type == "application/pdf"
+    assert validated_file.file_size_bytes == len(content)
+
+
 def test_validator_rejects_unsupported_extension() -> None:
     validator = build_validator()
 
     with pytest.raises(FileValidationError, match="extension"):
         validator.validate(
-            filename="lecture.pdf",
-            media_type="application/pdf",
-            content=b"fake pdf",
+            filename="lecture.pptx",
+            media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            content=b"fake presentation",
         )
 
 
