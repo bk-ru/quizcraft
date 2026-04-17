@@ -38,16 +38,17 @@
   <type>(<scope>): <short description>
 - Keep commits atomic.
 
-## Planning and execution
-- For multi-step work, plan before coding.
-- Group remaining backlog into small implementation stages.
-- Each stage must produce a reviewable increment.
-- Each commit must be atomic and map to one logical change group.
-- Do not mix unrelated layers in the same commit.
-- Before implementation, identify dependencies and the minimal next stage.
+## Stage completion policy
+- A stage is not considered complete until it is:
+  1. implemented,
+  2. tested,
+  3. reviewed against the base branch,
+  4. integrated back into the main development branch,
+  5. confirmed with a clean working tree.
+- Do not start the next stage before the current one is integrated.
+- If using a worktree branch, explicitly report the integration method: merge or cherry-pick.
 
-## Commit policy
-- Use focused commits only.
-- Use Conventional Commits.
-- Do not stage everything at once.
-- Prefer separate commits for feat / test / docs / refactor when they are logically independent.
+## Review gate
+- No stage may be integrated until review findings are resolved or explicitly accepted.
+- If review says "not safe to merge", do not start the next stage.
+- Fix findings in the stage branch/worktree, rerun tests, rerun review, then integrate.
