@@ -11,7 +11,7 @@ _EXCESSIVE_BLANK_LINES_PATTERN = re.compile(r"\n{3,}")
 
 
 def normalize_text(raw_text: str) -> str:
-    """Normalize TXT content into a deterministic canonical form."""
+    """Normalize extracted document content into a deterministic canonical form."""
 
     normalized_text = raw_text.replace("\r\n", "\n").replace("\r", "\n").replace("\ufeff", "").replace("\t", " ")
     normalized_text = "".join(
@@ -25,9 +25,14 @@ def normalize_text(raw_text: str) -> str:
     return normalized_text.strip()
 
 
-def build_document_metadata(validated_file: ValidatedFile, normalized_text: str) -> dict[str, int]:
-    """Build the base TXT metadata required for the early ingestion flow."""
+def build_document_metadata(
+    validated_file: ValidatedFile,
+    normalized_text: str,
+    extra_metadata: dict[str, int] | None = None,
+) -> dict[str, int]:
+    """Build base document metadata for the ingestion flow."""
 
-    return {
-        "text_length": len(normalized_text),
-    }
+    metadata = {"text_length": len(normalized_text)}
+    if extra_metadata:
+        metadata.update(extra_metadata)
+    return metadata
