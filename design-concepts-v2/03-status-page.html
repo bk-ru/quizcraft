@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ru" data-theme="dark">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QuizCraft — Генерация теста</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0d0f17; --surface: #13161f; --surface2: #1b1f2e; --surface3: #222638;
+      --border: rgba(255,255,255,0.07); --border2: rgba(255,255,255,0.12);
+      --primary: #6f6af8; --primary2: #9c8fff;
+      --accent: #f857a6; --success: #22d3a0; --warn: #f5a524; --error: #f87171;
+      --text: #e8eaf2; --muted: #8a8fa8;
+    }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg); color: var(--text);
+      min-height: 100vh; display: flex; flex-direction: column;
+      align-items: center; justify-content: flex-start;
+      padding: 2rem 1rem;
+    }
+
+    /* BG glow */
+    body::before {
+      content: ''; position: fixed; top: 0; left: 50%; transform: translateX(-50%);
+      width: 800px; height: 500px;
+      background: radial-gradient(ellipse at top, rgba(111,106,248,.14) 0%, transparent 65%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* TOPBAR */
+    .topbar {
+      position: fixed; top: 0; left: 0; right: 0; height: 56px;
+      display: flex; align-items: center; padding: 0 2rem;
+      background: rgba(13,15,23,.8); backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border); z-index: 100;
+    }
+    .logo { font-weight: 800; font-size: 1.15rem; letter-spacing: -.5px; }
+    .logo span { color: var(--primary); }
+    .nav-sep { width: 1px; height: 20px; background: var(--border2); margin: 0 1.25rem; }
+    .nav-crumb { font-size: .875rem; color: var(--muted); }
+    .nav-crumb a { color: var(--muted); text-decoration: none; transition: color .2s; }
+    .nav-crumb a:hover { color: var(--text); }
+    .nav-crumb .sep { margin: 0 .4rem; }
+
+    /* CONTENT */
+    .content {
+      position: relative; z-index: 1;
+      margin-top: 80px; width: 100%; max-width: 760px;
+      display: flex; flex-direction: column; gap: 1.25rem;
+    }
+
+    /* STATUS CARD */
+    .status-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; padding: 2.5rem;
+      box-shadow: 0 30px 60px rgba(0,0,0,.35);
+      animation: fadeUp .6s ease;
+    }
+    .status-header { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 2rem; }
+    .orbit-wrap { position: relative; width: 64px; height: 64px; flex-shrink: 0; }
+    .orbit-ring {
+      position: absolute; inset: 0; border-radius: 50%;
+      border: 2px solid rgba(111,106,248,.2);
+      animation: spin 3s linear infinite;
+    }
+    .orbit-ring::before {
+      content: ''; position: absolute; top: -3px; left: 50%; transform: translateX(-50%);
+      width: 8px; height: 8px; border-radius: 50%; background: var(--primary);
+      box-shadow: 0 0 12px var(--primary);
+    }
+    .orbit-inner {
+      position: absolute; inset: 8px; border-radius: 50%;
+      background: rgba(111,106,248,.12);
+      display: flex; align-items: center; justify-content: center;
+    }
+    .orbit-inner svg { width: 26px; height: 26px; stroke: var(--primary); fill: none; stroke-width: 1.5; }
+    /* completed state */
+    .orbit-done .orbit-ring { animation: none; border-color: var(--success); }
+    .orbit-done .orbit-inner { background: rgba(34,211,160,.15); }
+    .orbit-done .orbit-inner svg { stroke: var(--success); }
+
+    .status-info h2 { font-size: 1.4rem; font-weight: 800; margin-bottom: .35rem; }
+    .status-info p { color: var(--muted); font-size: .9rem; line-height: 1.6; }
+
+    /* PROGRESS */
+    .progress-wrap { margin-bottom: 2rem; }
+    .progress-header { display: flex; justify-content: space-between; font-size: .82rem; margin-bottom: .55rem; }
+    .progress-header .pct { font-weight: 700; font-size: 1rem; color: var(--primary); }
+    .progress-track {
+      height: 8px; background: var(--surface2); border-radius: 50px; overflow: hidden;
+      position: relative;
+    }
+    .progress-fill {
+      height: 100%; border-radius: 50px;
+      background: linear-gradient(90deg, var(--primary), #a855f7);
+      transition: width .8s cubic-bezier(.4,0,.2,1);
+      position: relative; overflow: hidden;
+    }
+    .progress-fill::after {
+      content: ''; position: absolute; top: 0; left: -100%; width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.25), transparent);
+      animation: shimmer 1.8s ease-in-out infinite;
+    }
+
+    /* PIPELINE STEPS */
+    .pipeline { display: flex; flex-direction: column; gap: .55rem; }
+    .step {
+      display: flex; align-items: center; gap: .9rem;
+      padding: .85rem 1.1rem; border-radius: 10px;
+      border: 1px solid var(--border); background: var(--surface2);
+      transition: all .3s;
+    }
+    .step.active { border-color: rgba(111,106,248,.4); background: rgba(111,106,248,.08); }
+    .step.done { border-color: rgba(34,211,160,.25); background: rgba(34,211,160,.06); }
+    .step.pending { opacity: .5; }
+    .step-icon {
+      width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step.done .step-icon { background: rgba(34,211,160,.15); }
+    .step.active .step-icon { background: rgba(111,106,248,.18); }
+    .step.pending .step-icon { background: var(--surface3); }
+    .step-icon svg { width: 16px; height: 16px; fill: none; stroke-width: 2; }
+    .step.done .step-icon svg { stroke: var(--success); }
+    .step.active .step-icon svg { stroke: var(--primary); animation: pulse-opacity 1.4s ease-in-out infinite; }
+    .step.pending .step-icon svg { stroke: var(--muted); }
+    .step-body { flex: 1; }
+    .step-title { font-size: .9rem; font-weight: 600; margin-bottom: .15rem; }
+    .step-desc { font-size: .78rem; color: var(--muted); }
+    .step-badge {
+      font-size: .72rem; font-weight: 700; padding: .2rem .6rem; border-radius: 50px;
+    }
+    .badge-done { background: rgba(34,211,160,.15); color: var(--success); }
+    .badge-active { background: rgba(111,106,248,.15); color: var(--primary2); }
+    .badge-pending { background: var(--surface3); color: var(--muted); }
+    /* active spinner */
+    .step-spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(111,106,248,.2);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin .8s linear infinite; flex-shrink: 0;
+    }
+
+    /* METADATA CARDS */
+    .meta-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem; }
+    .meta-box {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 1rem; text-align: center;
+    }
+    .meta-val { font-size: 1.5rem; font-weight: 800; color: var(--primary); line-height: 1; margin-bottom: .2rem; }
+    .meta-lbl { font-size: .72rem; color: var(--muted); }
+
+    /* LOG */
+    .log-card {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+      overflow: hidden; animation: fadeUp .6s ease .2s both;
+    }
+    .log-header {
+      padding: .9rem 1.25rem; border-bottom: 1px solid var(--border);
+      background: var(--surface2); display: flex; justify-content: space-between; align-items: center;
+    }
+    .log-header span { font-size: .8rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+    .log-body { padding: .9rem 1.25rem; font-size: .78rem; font-family: 'Courier New', monospace; color: var(--muted); max-height: 160px; overflow-y: auto; line-height: 1.8; }
+    .log-line { display: flex; gap: .75rem; }
+    .log-time { color: var(--primary); flex-shrink: 0; }
+    .log-msg.ok { color: var(--success); }
+    .log-msg.info { color: var(--text); }
+    .log-msg.active { color: var(--primary2); }
+
+    /* ACTIONS */
+    .actions {
+      display: flex; gap: .75rem; justify-content: flex-end;
+      animation: fadeUp .5s ease .35s both;
+    }
+    .btn {
+      padding: .65rem 1.5rem; border-radius: 10px; font-size: .9rem; font-weight: 600;
+      cursor: pointer; border: none; font-family: inherit; transition: all .2s;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border2); }
+    .btn-ghost:hover { color: var(--text); border-color: var(--muted); }
+    .btn-primary {
+      background: var(--primary); color: #fff;
+      box-shadow: 0 4px 15px rgba(111,106,248,.35);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(111,106,248,.4); }
+    .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* DONE STATE (hidden by default) */
+    #doneState { display: none; }
+    #doneState.show { display: block; animation: fadeUp .5s ease; }
+
+    /* KEYFRAMES */
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes pulse-opacity { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+    @keyframes shimmer { 0% { left: -100%; } 100% { left: 200%; } }
+    @keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes popIn { from { opacity: 0; transform: scale(.8); } to { opacity: 1; transform: scale(1); } }
+
+    ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 2px; }
+    @media (max-width: 600px) { .meta-row { grid-template-columns: 1fr 1fr; } .status-header { flex-direction: column; text-align: center; } }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">QuizCraft<span>.</span></div>
+  <div class="nav-sep"></div>
+  <div class="nav-crumb">
+    <a href="01-homepage.html">Главная</a>
+    <span class="sep">/</span>
+    <span>Генерация</span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- STATUS CARD -->
+  <div class="status-card">
+    <div class="status-header">
+      <div class="orbit-wrap" id="orbitWrap">
+        <div class="orbit-ring"></div>
+        <div class="orbit-inner">
+          <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        </div>
+      </div>
+      <div class="status-info">
+        <h2 id="statusTitle">Генерация теста…</h2>
+        <p id="statusDesc">ИИ анализирует загруженный документ и создаёт вопросы. Обычно занимает 1–3 минуты.</p>
+      </div>
+    </div>
+
+    <!-- PROGRESS -->
+    <div class="progress-wrap">
+      <div class="progress-header">
+        <span id="progLabel" style="color:var(--muted);font-size:.82rem;">Обработка…</span>
+        <span class="pct" id="pctLabel">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <!-- PIPELINE -->
+    <div class="pipeline" id="pipeline">
+      <div class="step done" id="step0">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+        <div class="step-body">
+          <div class="step-title">Загрузка и парсинг документа</div>
+          <div class="step-desc">Текст извлечён и очищен · 3,240 слов</div>
+        </div>
+        <span class="step-badge badge-done">Готово</span>
+      </div>
+      <div class="step done" id="step1">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
+        <div class="step-body">
+          <div class="step-title">Разбивка на чанки (RAG)</div>
+          <div class="step-desc">18 фрагментов по 700 токенов с перекрытием 120</div>
+        </div>
+        <span class="step-badge badge-done">Готово</span>
+      </div>
+      <div class="step done" id="step2">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg></div>
+        <div class="step-body">
+          <div class="step-title">Векторизация (embeddings)</div>
+          <div class="step-desc">Создано 18 векторных представлений · pgvector</div>
+        </div>
+        <span class="step-badge badge-done">Готово</span>
+      </div>
+      <div class="step active" id="step3">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg></div>
+        <div class="step-body">
+          <div class="step-title">Генерация вопросов (LLM)</div>
+          <div class="step-desc" id="step3desc">Создано 7 из 15 вопросов…</div>
+        </div>
+        <div class="step-spinner" id="step3spinner"></div>
+      </div>
+      <div class="step pending" id="step4">
+        <div class="step-icon"><svg viewBox="0 0 24 24"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></div>
+        <div class="step-body">
+          <div class="step-title">Финализация и валидация</div>
+          <div class="step-desc">Форматирование, проверка ответов</div>
+        </div>
+        <span class="step-badge badge-pending">Ожидание</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- METADATA -->
+  <div class="meta-row">
+    <div class="meta-box">
+      <div class="meta-val" id="metaWords">3,240</div>
+      <div class="meta-lbl">Слов обработано</div>
+    </div>
+    <div class="meta-box">
+      <div class="meta-val" id="metaQ">7</div>
+      <div class="meta-lbl">Вопросов создано</div>
+    </div>
+    <div class="meta-box">
+      <div class="meta-val">18</div>
+      <div class="meta-lbl">Чанков RAG</div>
+    </div>
+    <div class="meta-box">
+      <div class="meta-val" id="metaTime">0:52</div>
+      <div class="meta-lbl">Прошло времени</div>
+    </div>
+  </div>
+
+  <!-- LOG -->
+  <div class="log-card">
+    <div class="log-header">
+      <span>Лог обработки</span>
+      <span style="color:var(--success);font-size:.75rem;font-weight:600;">● live</span>
+    </div>
+    <div class="log-body" id="logBody">
+      <div class="log-line"><span class="log-time">00:00</span><span class="log-msg ok">Документ загружен: istoriya_rima.docx (142 KB)</span></div>
+      <div class="log-line"><span class="log-time">00:02</span><span class="log-msg ok">Текст извлечён: 3240 слов, 19840 символов</span></div>
+      <div class="log-line"><span class="log-time">00:04</span><span class="log-msg ok">Разбивка: 18 чанков сгенерированы</span></div>
+      <div class="log-line"><span class="log-time">00:08</span><span class="log-msg ok">Embeddings: 18/18 векторов записаны в pgvector</span></div>
+      <div class="log-line"><span class="log-time">00:15</span><span class="log-msg info">Режим: RAG (текст &gt; 6000 токенов)</span></div>
+      <div class="log-line"><span class="log-time">00:18</span><span class="log-msg ok">Вопрос 1 сгенерирован [single_choice]</span></div>
+      <div class="log-line"><span class="log-time">00:24</span><span class="log-msg ok">Вопрос 2 сгенерирован [multiple_choice]</span></div>
+      <div class="log-line"><span class="log-time">00:31</span><span class="log-msg ok">Вопрос 3 сгенерирован [true_false]</span></div>
+      <div class="log-line"><span class="log-time">00:38</span><span class="log-msg ok">Вопрос 4 сгенерирован [single_choice]</span></div>
+      <div class="log-line"><span class="log-time">00:45</span><span class="log-msg ok">Вопрос 5 сгенерирован [multiple_choice]</span></div>
+      <div class="log-line"><span class="log-time">00:51</span><span class="log-msg ok">Вопрос 6 сгенерирован [single_choice]</span></div>
+      <div class="log-line"><span class="log-time">00:52</span><span class="log-msg active" id="lastLog">Генерация вопроса 7…</span></div>
+    </div>
+  </div>
+
+  <!-- DONE STATE -->
+  <div id="doneState">
+    <div class="status-card" style="border-color:rgba(34,211,160,.3); background:rgba(34,211,160,.04); text-align:center; padding: 2rem;">
+      <div style="font-size:3.5rem; margin-bottom:.75rem; animation: popIn .4s ease;">✓</div>
+      <h2 style="font-size:1.5rem; font-weight:800; color:var(--success); margin-bottom:.5rem;">Тест готов!</h2>
+      <p style="color:var(--muted); margin-bottom:1.5rem;">Сгенерировано 15 вопросов · 3 типа · Готово к редактированию</p>
+      <div style="display:flex; gap:.75rem; justify-content:center; flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="window.location.href='02-quiz-editor.html'">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Открыть редактор
+        </button>
+        <button class="btn btn-ghost" onclick="window.location.href='05-export-page.html'">Экспортировать</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="actions" id="actionsRow">
+    <button class="btn btn-ghost" onclick="if(confirm('Отменить генерацию?')) window.location.href='01-homepage.html'">Отмена</button>
+    <button class="btn btn-primary" id="viewBtn" disabled>
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Просмотр теста
+    </button>
+  </div>
+
+</div>
+
+<script>
+  // Timer
+  let seconds = 52;
+  const timeEl = document.getElementById('metaTime');
+  const timerInterval = setInterval(() => {
+    seconds++;
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    timeEl.textContent = m + ':' + String(s).padStart(2,'0');
+  }, 1000);
+
+  // Progress simulation
+  let progress = 48;
+  let qCount = 7;
+  const logMessages = [
+    { t: null, msg: 'Вопрос 8 сгенерирован [true_false]', cls: 'ok' },
+    { t: null, msg: 'Вопрос 9 сгенерирован [multiple_choice]', cls: 'ok' },
+    { t: null, msg: 'Вопрос 10 сгенерирован [single_choice]', cls: 'ok' },
+    { t: null, msg: 'Вопрос 11 сгенерирован [single_choice]', cls: 'ok' },
+    { t: null, msg: 'Вопрос 12 сгенерирован [multiple_choice]', cls: 'ok' },
+    { t: null, msg: 'Вопрос 13 сгенерирован [true_false]', cls: 'ok' },
+    { t: null, msg: 'Вопрос 14 сгенерирован [single_choice]', cls: 'ok' },
+    { t: null, msg: 'Все вопросы сгенерированы (15/15)', cls: 'ok' },
+    { t: null, msg: 'Валидация ответов…', cls: 'active' },
+    { t: null, msg: 'Форматирование завершено', cls: 'ok' },
+    { t: null, msg: 'Тест сохранён в базе данных', cls: 'ok' },
+  ];
+  let logIdx = 0;
+
+  function addLog(msg, cls) {
+    const body = document.getElementById('logBody');
+    const lastLine = document.getElementById('lastLog');
+    if (lastLine) lastLine.id = '';
+    const div = document.createElement('div');
+    div.className = 'log-line';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    div.innerHTML = `<span class="log-time">${m}:${String(s).padStart(2,'0')}</span><span class="log-msg ${cls}" ${logIdx === logMessages.length - 1 ? 'id="lastLog"' : ''}>${msg}</span>`;
+    body.appendChild(div);
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function tick() {
+    if (progress >= 100) return;
+
+    progress = Math.min(100, progress + (Math.random() * 6 + 3));
+    const pct = Math.round(progress);
+
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('pctLabel').textContent = pct + '%';
+
+    // Update questions count
+    if (qCount < 15 && progress > qCount * 7) {
+      qCount = Math.min(15, qCount + 1);
+      document.getElementById('metaQ').textContent = qCount;
+    }
+
+    // Log entry
+    if (logIdx < logMessages.length && progress > 48 + logIdx * 4.5) {
+      addLog(logMessages[logIdx].msg, logMessages[logIdx].cls);
+      logIdx++;
+    }
+
+    // Step transitions
+    if (progress >= 75 && !document.getElementById('step3').classList.contains('done')) {
+      document.getElementById('step3desc').textContent = 'Создано 15 из 15 вопросов';
+    }
+    if (progress >= 85) {
+      const s3 = document.getElementById('step3');
+      if (!s3.classList.contains('done')) {
+        s3.classList.remove('active'); s3.classList.add('done');
+        document.getElementById('step3spinner').remove();
+        s3.insertAdjacentHTML('beforeend', '<span class="step-badge badge-done">Готово</span>');
+        const s4 = document.getElementById('step4');
+        s4.classList.remove('pending'); s4.classList.add('active');
+        s4.querySelector('.step-badge').remove();
+        s4.insertAdjacentHTML('beforeend', '<div class="step-spinner"></div>');
+        document.getElementById('progLabel').textContent = 'Финализация…';
+      }
+    }
+    if (progress >= 100) complete();
+    else setTimeout(tick, 1800 + Math.random() * 1200);
+  }
+
+  function complete() {
+    clearInterval(timerInterval);
+    const s4 = document.getElementById('step4');
+    s4.classList.remove('active'); s4.classList.add('done');
+    s4.querySelector('.step-spinner')?.remove();
+    s4.insertAdjacentHTML('beforeend', '<span class="step-badge badge-done">Готово</span>');
+
+    document.getElementById('progressFill').style.width = '100%';
+    document.getElementById('pctLabel').textContent = '100%';
+    document.getElementById('progLabel').textContent = 'Завершено';
+    document.getElementById('metaQ').textContent = '15';
+
+    // Orbit done
+    document.getElementById('orbitWrap').classList.add('orbit-done');
+    const orbitSvg = document.querySelector('.orbit-inner svg');
+    orbitSvg.innerHTML = '<polyline points="20 6 9 17 4 12"/>';
+
+    document.getElementById('statusTitle').textContent = 'Тест успешно создан!';
+    document.getElementById('statusDesc').textContent = 'Сгенерировано 15 вопросов трёх типов. Можно редактировать или сразу экспортировать.';
+
+    document.getElementById('viewBtn').disabled = false;
+    document.getElementById('viewBtn').onclick = () => window.location.href = '02-quiz-editor.html';
+    document.getElementById('actionsRow').querySelector('.btn-ghost').style.display = 'none';
+
+    document.getElementById('doneState').classList.add('show');
+  }
+
+  // Start after 1.5s
+  setTimeout(tick, 1500);
+</script>
+</body>
+</html>
