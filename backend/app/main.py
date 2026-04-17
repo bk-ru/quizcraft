@@ -19,5 +19,9 @@ def create_app(config: AppConfig | None = None) -> ApplicationBootstrap:
     """Create the minimal application bootstrap container."""
 
     resolved_config = config or AppConfig.from_env()
-    logging.basicConfig(level=getattr(logging, resolved_config.log_level, logging.INFO))
+    logging.basicConfig(
+        level=getattr(logging, resolved_config.log_level, logging.INFO),
+        format=resolved_config.log_format,
+        force=True,
+    )
     return ApplicationBootstrap(config=resolved_config)

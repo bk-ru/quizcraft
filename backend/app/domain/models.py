@@ -41,6 +41,8 @@ class Quiz:
     quiz_id: str
     document_id: str
     title: str
+    version: int
+    last_edited_at: str
     questions: tuple[Question, ...]
 
     def to_dict(self) -> dict[str, Any]:
@@ -50,6 +52,8 @@ class Quiz:
             "quiz_id": self.quiz_id,
             "document_id": self.document_id,
             "title": self.title,
+            "version": self.version,
+            "last_edited_at": self.last_edited_at,
             "questions": [
                 {
                     "question_id": question.question_id,
@@ -75,6 +79,8 @@ class Quiz:
             quiz_id=payload["quiz_id"],
             document_id=payload["document_id"],
             title=payload["title"],
+            version=payload["version"],
+            last_edited_at=payload["last_edited_at"],
             questions=tuple(
                 Question(
                     question_id=question_payload["question_id"],

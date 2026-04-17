@@ -17,6 +17,16 @@ class AppConfig:
     request_timeout: int = 30
     max_file_size_mb: int = 10
     log_level: str = "INFO"
+    log_format: str = "%(asctime)s %(levelname)s %(name)s %(message)s"
+
+    @staticmethod
+    def _load_int(env_name: str, default: str) -> int:
+        """Load an integer setting from the environment."""
+
+        try:
+            return int(os.getenv(env_name, default))
+        except ValueError as error:
+            raise ConfigurationError(f"{env_name} must be a valid integer") from error
 
     @classmethod
     def from_env(cls) -> "AppConfig":
@@ -30,9 +40,10 @@ class AppConfig:
         if not lm_studio_model:
             raise ConfigurationError("LM_STUDIO_MODEL is required")
 
-        request_timeout = int(os.getenv("REQUEST_TIMEOUT", "30"))
-        max_file_size_mb = int(os.getenv("MAX_FILE_SIZE_MB", "10"))
+        request_timeout = cls._load_int("REQUEST_TIMEOUT", "30")
+        max_file_size_mb = cls._load_int("MAX_FILE_SIZE_MB", "10")
         log_level = os.getenv("LOG_LEVEL", "INFO").upper()
+        log_format = os.getenv("LOG_FORMAT", "%(asctime)s %(levelname)s %(name)s %(message)s")
 
         return cls(
             lm_studio_base_url=lm_studio_base_url,
@@ -40,4 +51,5 @@ class AppConfig:
             request_timeout=request_timeout,
             max_file_size_mb=max_file_size_mb,
             log_level=log_level,
+            log_format=log_format,
         )

@@ -20,6 +20,8 @@ def build_quiz() -> Quiz:
         quiz_id="quiz-1",
         document_id="doc-1",
         title="Sample quiz",
+        version=0,
+        last_edited_at="",
         questions=(
             Question(
                 question_id="question-1",
@@ -49,10 +51,30 @@ def test_quiz_repository_persists_and_loads_quiz(tmp_path) -> None:
     repository = FileSystemQuizRepository(tmp_path)
     quiz = build_quiz()
 
-    repository.save(quiz)
+    persisted = repository.save(quiz)
     loaded = repository.get(quiz.quiz_id)
 
-    assert loaded == quiz
+    assert persisted.version == 1
+    assert persisted.last_edited_at.endswith("Z")
+    assert loaded == persisted
+
+
+def test_quiz_repository_increments_version_and_refreshes_last_edit_timestamp(tmp_path) -> None:
+    repository = FileSystemQuizRepository(tmp_path)
+    first_saved = repository.save(build_quiz())
+    updated_quiz = Quiz(
+        quiz_id=first_saved.quiz_id,
+        document_id=first_saved.document_id,
+        title="Updated title",
+        version=first_saved.version,
+        last_edited_at=first_saved.last_edited_at,
+        questions=first_saved.questions,
+    )
+
+    second_saved = repository.save(updated_quiz)
+
+    assert second_saved.version == 2
+    assert second_saved.last_edited_at > first_saved.last_edited_at
 
 
 def test_quiz_repository_raises_not_found_for_missing_quiz(tmp_path) -> None:
