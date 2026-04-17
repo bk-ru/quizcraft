@@ -15,7 +15,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-17 15:53:15Z) Reviewed the current repository state, including the cleanup commit `4e293fb`, the current file tree, and the tracked planning artifacts.
 - [x] (2026-04-17 15:53:15Z) Re-read `docs/planning/backlog.md` and mapped all remaining backlog items into sequential implementation stages.
 - [x] (2026-04-17 15:53:15Z) Chose a conservative MVP boundary that stops after JSON export and leaves RAG, DOCX/PPTX, status streaming, and multi-provider work for later stages.
-- [ ] Implement Stage 1, `Foundation Skeleton and Core Contracts`.
+- [x] (2026-04-17 16:19:40Z) Implemented Stage 1, `Foundation Skeleton and Core Contracts`, in worktree `D:\github\diplom\.worktrees\stage-01-foundation`, including backend bootstrap, config loading, domain errors and models, `direct` mode registry, filesystem repositories, and Stage 1 tests.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -31,6 +31,9 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 - Observation: The backlog defines Python backend technology in enough detail to plan a concrete backend layout, but it does not define a frontend framework.
   Evidence: The backlog introduction explicitly mentions Python, FastAPI, Pydantic, pytest, and logging, while the UI section defines screens and behaviors but never names React, Vue, or any other framework.
+
+- Observation: Stage 1 did not need any new production dependencies.
+  Evidence: Backend bootstrap, config loading, domain modeling, validation, generation mode registration, and filesystem repositories were all implemented with the Python standard library, while pytest remained sufficient for test coverage.
 
 ## Decision Log
 
@@ -58,11 +61,15 @@ This plan does not implement code by itself. It organizes the remaining backlog 
   Rationale: `.agent/PLANS.md` is the reusable format specification for ExecPlans. The correct way to "update ExecPlan/PLANS.md" for this task is to produce a new ExecPlan that follows that specification, not to rewrite the specification itself.
   Date/Author: 2026-04-17 / Codex
 
+- Decision: Keep Stage 1 dependency-free on the production side and defer FastAPI/Pydantic introduction until the HTTP stage.
+  Rationale: The current stage only needed a runnable Python package, config, domain contracts, logging bootstrap, and filesystem persistence. Pulling in HTTP or schema libraries earlier would enlarge the foundation stage without improving the verified behavior.
+  Date/Author: 2026-04-17 / Codex
+
 ## Outcomes & Retrospective
 
 At this stopping point, the repository has a staged execution plan but still no implemented backlog code. That is intentional. The user requested planning first, with the backlog and current repository state treated as the source of truth, and this document now provides the missing delivery structure that the backlog lacked.
 
-The key outcome is that the remaining work is now grouped into narrow, verifiable increments with explicit dependencies and commit guidance. The next contributor should be able to start at Stage 1 without re-planning the entire MVP.
+The key outcome is that the remaining work is now grouped into narrow, verifiable increments with explicit dependencies and commit guidance. Stage 1 is now complete, so the next contributor can move directly to document ingestion and parsing instead of revisiting foundation work.
 
 ## Context and Orientation
 
