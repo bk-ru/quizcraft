@@ -112,3 +112,9 @@ class UnsupportedProviderCapabilityError(LLMProviderError):
     """Raised when a provider capability is declared but not implemented yet."""
 
     code = "unsupported_provider_capability"
+
+
+class PromptResolutionError(BackendError):
+    """Raised when a prompt key cannot be resolved from the registry."""
+
+    code = "prompt_resolution_error"
