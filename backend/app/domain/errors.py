@@ -25,6 +25,12 @@ class DomainValidationError(BackendError):
     code = "validation_error"
 
 
+class GenerationQualityError(DomainValidationError):
+    """Raised when normalized generation output is structurally valid but unusable."""
+
+    code = "generation_quality_error"
+
+
 class ParsingError(BackendError):
     """Raised when document validation or parsing fails."""
 
