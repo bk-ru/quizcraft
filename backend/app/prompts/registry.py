@@ -10,6 +10,7 @@ from backend.app.domain.errors import PromptResolutionError
 from backend.app.domain.schema import QUIZ_JSON_SCHEMA
 
 DIRECT_GENERATION_PROMPT_KEY = "direct_generation"
+REPAIR_GENERATION_PROMPT_KEY = "repair_generation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,7 +51,24 @@ class PromptRegistry:
                 "Document text:\n{document_text}"
             ),
             inference_parameters={"temperature": 0.2},
-        )
+        ),
+        REPAIR_GENERATION_PROMPT_KEY: PromptDefinition(
+            key=REPAIR_GENERATION_PROMPT_KEY,
+            version="repair-v1",
+            schema_name="quiz_payload",
+            schema=QUIZ_JSON_SCHEMA,
+            system_template=(
+                "You repair invalid quiz JSON. "
+                "Return only corrected JSON that matches the supplied JSON Schema. "
+                "Preserve valid content, remove invalid fields, and do not add explanations outside the schema."
+            ),
+            user_template=(
+                "Repair the invalid quiz JSON below.\n"
+                "Validation error: {validation_error}\n"
+                "Invalid JSON:\n{invalid_json}"
+            ),
+            inference_parameters={"temperature": 0.0},
+        ),
     }
 
     @classmethod
