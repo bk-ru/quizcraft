@@ -52,3 +52,48 @@
 - No stage may be integrated until review findings are resolved or explicitly accepted.
 - If review says "not safe to merge", do not start the next stage.
 - Fix findings in the stage branch/worktree, rerun tests, rerun review, then integrate.
+
+## Batch integration policy
+- Do not start the next batch until the current batch is reviewed, integrated into main, and main is in a known clean or explicitly acknowledged state.
+- Keep integration separate from implementation.
+
+## Planning artifacts
+- For multi-step work, create or update an ExecPlan before large implementation changes.
+- If an ExecPlan changes delivery sequencing or stage status, commit that plan separately from feature work.
+- Do not mark a stage complete until implementation, tests, review, and integration are all finished.
+
+## Batch execution policy
+- For each stage, break work into small reviewable batches before implementation.
+- Implement only one batch at a time unless explicitly told otherwise.
+- Keep each batch limited to one coherent slice of functionality.
+- Do not mix unrelated architectural layers in the same batch.
+
+## Review output
+- Every completed batch or stage must include a review result against the base branch.
+- The review report must explicitly state:
+  - critical issues,
+  - medium issues,
+  - minor issues,
+  - safe to merge or not.
+
+## Integration policy
+- Keep implementation commits separate from integration commits.
+- If using a worktree branch, integrate only after tests and review are green.
+- Prefer merge when the whole branch is valid as a unit.
+- Use cherry-pick only when excluding specific commits is intentional and documented.
+
+## Working tree safety
+- Before starting a new batch or stage, report whether the target branch working tree is clean.
+- If it is not clean, explicitly state whether that blocks safe implementation or integration.
+- Do not silently proceed across unrelated local modifications.
+
+## Standard delivery report
+- At the end of each implementation batch or stage, provide:
+  1. summary of changes,
+  2. list of touched files,
+  3. tests/checks run,
+  4. review result,
+  5. safe to merge or not,
+  6. integration action taken or deferred,
+  7. commit hashes,
+  8. commit messages.
