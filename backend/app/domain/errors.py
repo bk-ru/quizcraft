@@ -58,3 +58,57 @@ class RepositoryNotFoundError(BackendError):
         super().__init__(f"{entity_name} '{entity_id}' was not found")
         self.entity_name = entity_name
         self.entity_id = entity_id
+
+
+class LLMProviderError(BackendError):
+    """Base error type for provider-related failures."""
+
+    code = "llm_provider_error"
+    retryable = False
+
+
+class LLMConnectionError(LLMProviderError):
+    """Raised when the provider cannot be reached."""
+
+    code = "llm_connection_error"
+    retryable = True
+
+
+class LLMTimeoutError(LLMProviderError):
+    """Raised when the provider does not respond before the timeout."""
+
+    code = "llm_timeout_error"
+    retryable = True
+
+
+class LLMRequestError(LLMProviderError):
+    """Raised when the provider rejects a request as invalid."""
+
+    code = "llm_request_error"
+
+    def __init__(self, status_code: int, message: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class LLMServerError(LLMProviderError):
+    """Raised when the provider fails with a retriable upstream error."""
+
+    code = "llm_server_error"
+    retryable = True
+
+    def __init__(self, status_code: int, message: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+
+
+class LLMResponseFormatError(LLMProviderError):
+    """Raised when the provider returns an invalid or malformed payload."""
+
+    code = "llm_response_format_error"
+
+
+class UnsupportedProviderCapabilityError(LLMProviderError):
+    """Raised when a provider capability is declared but not implemented yet."""
+
+    code = "unsupported_provider_capability"
