@@ -22,6 +22,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-17 18:28:07Z) Implemented Batch 3 of Stage 2 in worktree `D:\github\diplom\.worktrees\stage-02-batch-03-pdf-ingestion`, adding PDF validation, page-by-page PDF text extraction, PDF page-count metadata, and PDF pytest coverage, including invalid and no-text PDF cases.
 - [x] (2026-04-18) Implemented, reviewed, and integrated Batch 1 of Stage 3 on `main` via merge commit `88dc67f`, covering `LM-001`, `LM-002`, `LM-004`, and the client slice of `TS-004` with the provider contract, structured LM Studio client, retry-timeout wrapper, and client-slice pytest coverage.
 - [x] (2026-04-18) Implemented, reviewed, and integrated Batch 2 of Stage 3 on `main` via merge commit `b65f58d`, covering `LM-003` and the healthcheck slice of `TS-004` with LM Studio health classification for available, timeout, connection-failure, and malformed-response states.
+- [x] (2026-04-18) Implemented, reviewed, and integrated Batch 1 of Stage 4 on `main` via merge commit `3c595a2`, covering `PM-001`, `PM-002`, and `GN-001` with the versioned prompt registry, direct-generation master prompt, and provider request builder.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -221,6 +222,8 @@ Recommended commit breakdown:
 1. `feat(prompts): add prompt registry and direct generation prompt`
 2. `feat(generation): add direct generation request builder`
 3. `test(generation): cover prompt resolution and request assembly`
+
+Current status on `main`: implemented and integrated via merge commit `3c595a2`.
 
 ### Batch 2: Output Normalization and Quality Validation
 
@@ -482,12 +485,14 @@ Current integrated state:
     75fa87c merge(stage2): integrate pdf ingestion batch 3
     88dc67f merge(stage3): integrate lm client batch 1
     b65f58d merge(stage3): integrate lm healthcheck batch 2
+    3c595a2 merge(stage4): integrate prompt registry batch 1
 
 Current backlog completion status:
 
     Stage 1: integrated on main
     Stage 2: integrated on main
     Stage 3: fully integrated on main
+    Stage 4 Batch 1 (`PM-001`, `PM-002`, `GN-001`): integrated on main
 
 Next recommended stage:
 
@@ -495,7 +500,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 4 Batch 1: Prompt Registry and Request Assembly
+    Stage 4 Batch 2: Output Normalization and Quality Validation
 
 ## Interfaces and Dependencies
 
