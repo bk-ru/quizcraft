@@ -237,6 +237,8 @@ Recommended commit breakdown:
 1. `feat(domain): add quiz output normalizer and quality checks`
 2. `test(generation): cover normalization and business validation`
 
+Current status on `main`: implemented and integrated via merge commit `43ce420`.
+
 ### Batch 3: Direct Orchestrator, Repair Loop, and Persistence
 
 Task IDs: `PM-003`, `GN-002`, `GN-004`, `GN-005`, `LG-003`, `TS-006`.
@@ -500,7 +502,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 4 Batch 2: Output Normalization and Quality Validation
+    Stage 4 Batch 3: Direct Orchestrator, Repair Loop, and Persistence
 
 ## Interfaces and Dependencies
 
