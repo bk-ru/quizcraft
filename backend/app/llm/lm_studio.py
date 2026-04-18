@@ -46,9 +46,42 @@ class LMStudioClient(LLMProvider):
         self._retrying_caller = retrying_caller or RetryingCaller(retry_policy or RetryPolicy())
 
     def healthcheck(self) -> ProviderHealthStatus:
-        """Raise a controlled placeholder until the dedicated healthcheck batch lands."""
+        """Check whether the LM Studio OpenAI-compatible API is reachable."""
 
-        raise UnsupportedProviderCapabilityError("LM Studio healthcheck is not implemented in Batch 1")
+        request = Request(
+            url=f"{self._base_url}/models",
+            headers={"Accept": "application/json"},
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=self._timeout_seconds) as response:
+                raw_response = response.read().decode("utf-8")
+        except HTTPError as error:
+            raise self._map_http_error(error) from error
+        except URLError as error:
+            raise self._map_url_error(error) from error
+        except TimeoutError as error:
+            raise LLMTimeoutError("LM Studio request timed out") from error
+        except socket.timeout as error:
+            raise LLMTimeoutError("LM Studio request timed out") from error
+
+        try:
+            response_payload = json.loads(raw_response)
+        except JSONDecodeError as error:
+            raise LLMResponseFormatError("LM Studio healthcheck returned malformed response") from error
+
+        if not isinstance(response_payload, dict):
+            raise LLMResponseFormatError("LM Studio healthcheck returned malformed response")
+
+        models = response_payload.get("data")
+        if not isinstance(models, list):
+            raise LLMResponseFormatError("LM Studio healthcheck returned malformed response")
+
+        logger.info("LM Studio healthcheck succeeded")
+        return ProviderHealthStatus(
+            status="available",
+            message="LM Studio is available",
+        )
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
         """Submit a structured generation request to LM Studio."""
