@@ -1,8 +1,9 @@
-"""Core domain models for QuizCraft foundation work."""
+"""Core domain models for QuizCraft foundation and provider contracts."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Any
 
 from backend.app.core.modes import GenerationMode
@@ -158,3 +159,48 @@ class DocumentRecord:
             normalized_text=payload["normalized_text"],
             metadata=dict(payload["metadata"]),
         )
+
+
+@dataclass(frozen=True, slots=True)
+class ProviderHealthStatus:
+    """Provider availability status returned by later healthcheck operations."""
+
+    status: str
+    message: str
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredGenerationRequest:
+    """Provider-facing request for structured JSON generation."""
+
+    system_prompt: str
+    user_prompt: str
+    schema_name: str
+    schema: dict[str, Any]
+    inference_parameters: dict[str, Any] = field(default_factory=dict)
+    model_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class StructuredGenerationResponse:
+    """Provider-facing structured generation result."""
+
+    model_name: str
+    content: dict[str, Any]
+    raw_response: dict[str, Any]
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingRequest:
+    """Provider-facing embeddings request reserved for later stages."""
+
+    texts: tuple[str, ...]
+    model_name: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingResponse:
+    """Provider-facing embeddings result reserved for later stages."""
+
+    model_name: str
+    vectors: tuple[tuple[float, ...], ...]
