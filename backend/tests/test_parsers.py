@@ -4,8 +4,10 @@ from backend.app.domain.errors import TextExtractionError
 from backend.app.parsing.files import ValidatedFile
 from backend.app.parsing.normalization import normalize_text
 from backend.app.parsing.docx import DocxParser
+from backend.app.parsing.pdf import PdfParser
 from backend.app.parsing.txt import TxtParser
 from backend.tests.docx_samples import build_docx_bytes
+from backend.tests.pdf_samples import build_pdf_bytes
 
 
 def build_validated_file(content: bytes) -> ValidatedFile:
@@ -21,6 +23,15 @@ def build_docx_validated_file(content: bytes) -> ValidatedFile:
     return ValidatedFile(
         filename="lecture.docx",
         media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        file_size_bytes=len(content),
+        content=content,
+    )
+
+
+def build_pdf_validated_file(content: bytes) -> ValidatedFile:
+    return ValidatedFile(
+        filename="lecture.pdf",
+        media_type="application/pdf",
         file_size_bytes=len(content),
         content=content,
     )
@@ -62,6 +73,28 @@ def test_docx_parser_raises_controlled_error_for_corrupted_document() -> None:
 
     with pytest.raises(TextExtractionError, match="docx"):
         parser.parse(build_docx_validated_file(b"not a zip archive"))
+
+
+def test_pdf_parser_extracts_text_page_by_page() -> None:
+    parser = PdfParser()
+
+    text = parser.parse(build_pdf_validated_file(build_pdf_bytes(["First page", "Second page"])))
+
+    assert text == "First page\n\nSecond page"
+
+
+def test_pdf_parser_raises_controlled_error_for_invalid_pdf() -> None:
+    parser = PdfParser()
+
+    with pytest.raises(TextExtractionError, match="pdf"):
+        parser.parse(build_pdf_validated_file(b"not a pdf"))
+
+
+def test_pdf_parser_raises_controlled_error_for_pdf_without_extractable_text() -> None:
+    parser = PdfParser()
+
+    with pytest.raises(TextExtractionError, match="extractable text"):
+        parser.parse(build_pdf_validated_file(build_pdf_bytes([None])))
 
 
 def test_normalize_text_canonicalizes_whitespace_and_control_characters() -> None:
