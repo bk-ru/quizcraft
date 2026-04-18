@@ -7,6 +7,7 @@ from dataclasses import field
 from typing import Any
 
 from backend.app.core.modes import GenerationMode
+from backend.app.core.modes import GenerationModeRegistry
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,6 +114,29 @@ class GenerationRequest:
     quiz_type: str
     generation_mode: GenerationMode
 
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the generation request into a JSON-compatible dictionary."""
+
+        return {
+            "question_count": self.question_count,
+            "language": self.language,
+            "difficulty": self.difficulty,
+            "quiz_type": self.quiz_type,
+            "generation_mode": self.generation_mode.value,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "GenerationRequest":
+        """Deserialize a generation request from a JSON-compatible dictionary."""
+
+        return cls(
+            question_count=payload["question_count"],
+            language=payload["language"],
+            difficulty=payload["difficulty"],
+            quiz_type=payload["quiz_type"],
+            generation_mode=GenerationModeRegistry.ensure_supported(payload["generation_mode"]),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class GenerationResult:
@@ -122,6 +146,27 @@ class GenerationResult:
     request: GenerationRequest
     model_name: str
     prompt_version: str
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize the generation result into a JSON-compatible dictionary."""
+
+        return {
+            "quiz": self.quiz.to_dict(),
+            "request": self.request.to_dict(),
+            "model_name": self.model_name,
+            "prompt_version": self.prompt_version,
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "GenerationResult":
+        """Deserialize a generation result from a JSON-compatible dictionary."""
+
+        return cls(
+            quiz=Quiz.from_dict(payload["quiz"]),
+            request=GenerationRequest.from_dict(payload["request"]),
+            model_name=payload["model_name"],
+            prompt_version=payload["prompt_version"],
+        )
 
 
 @dataclass(frozen=True, slots=True)
