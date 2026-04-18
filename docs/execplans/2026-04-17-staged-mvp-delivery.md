@@ -21,6 +21,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-17 18:04:18Z) Implemented Batch 2 of Stage 2 in worktree `D:\github\diplom\.worktrees\stage-02-batch-02-docx-ingestion`, extending the existing ingestion flow with DOCX validation, DOCX parsing, reused normalization and metadata assembly, and DOCX pytest coverage.
 - [x] (2026-04-17 18:28:07Z) Implemented Batch 3 of Stage 2 in worktree `D:\github\diplom\.worktrees\stage-02-batch-03-pdf-ingestion`, adding PDF validation, page-by-page PDF text extraction, PDF page-count metadata, and PDF pytest coverage, including invalid and no-text PDF cases.
 - [x] (2026-04-18) Implemented, reviewed, and integrated Batch 1 of Stage 3 on `main` via merge commit `88dc67f`, covering `LM-001`, `LM-002`, `LM-004`, and the client slice of `TS-004` with the provider contract, structured LM Studio client, retry-timeout wrapper, and client-slice pytest coverage.
+- [x] (2026-04-18) Implemented, reviewed, and integrated Batch 2 of Stage 3 on `main` via merge commit `b65f58d`, covering `LM-003` and the healthcheck slice of `TS-004` with LM Studio health classification for available, timeout, connection-failure, and malformed-response states.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -88,13 +89,13 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 ## Outcomes & Retrospective
 
-At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, and Stage 3 Batch 1 for LM Studio structured client integration. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
+At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, and the complete Stage 3 LM Studio provider integration scope. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
 
-The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 3 Batch 2 rather than revisiting foundation, parsing, or the LM Studio client request path.
+The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 4 rather than revisiting foundation, parsing, or LM Studio integration work.
 
 ## Context and Orientation
 
-The current repository has both planning artifacts and implemented backend slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the foundation, storage, parsing, and LM Studio client layers covered by Stages 1, 2, and Stage 3 Batch 1. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` now covers the implemented backend behavior. There is still no HTTP API surface, no generation orchestration, no runnable frontend, and no export implementation yet.
+The current repository has both planning artifacts and implemented backend slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the foundation, storage, parsing, and LM Studio integration layers covered by Stages 1, 2, and 3. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` now covers the implemented backend behavior. There is still no HTTP API surface, no generation orchestration, no runnable frontend, and no export implementation yet.
 
 The backlog assumes a Python backend with typed contracts, FastAPI/Pydantic-style API models, pytest tests, standard-library logging, and LM Studio as the only model provider for the MVP. The backlog does not pick a frontend framework. Because the repository currently contains only HTML concepts, this plan assumes a thin frontend in `frontend/` that can start as plain HTML, CSS, and JavaScript while reusing the visual structure from the concept files. If a richer framework is chosen later, the plan should be revised before Stage 7.
 
@@ -198,24 +199,53 @@ Recommended commit breakdown:
 1. `feat(llm): add lm studio healthcheck behavior`
 2. `test(llm): cover healthcheck availability and failure modes`
 
-Current status on `main`: pending. `LM-003` and the healthcheck slice of `TS-004` remain the next Stage 3 batch and are not implemented yet.
+Current status on `main`: implemented and integrated via merge commit `b65f58d`.
 
 ## Stage 4: Direct Generation Pipeline
 
 Task IDs: `PM-001`, `PM-002`, `PM-003`, `GN-001`, `GN-002`, `GN-003`, `GN-004`, `GN-005`, `DM-003`, `TS-005`, `TS-006`, `LG-003`.
 
-Rationale for grouping: This is the core application value path. Prompt registry, prompt templates, request assembly, provider invocation, output normalization, output quality control, repair-loop behavior, result persistence, and safe logging all collaborate to produce one stable direct-generation workflow.
+Rationale for grouping: This is the core application value path. Stage 4 is now split into three batches so prompt/version contracts, output normalization rules, and the full direct-generation orchestrator can be reviewed independently without mixing too many moving parts in one batch.
 
 Dependencies: Stages 1 through 3.
 
-Definition of done: Given an already stored document and a generation request, the backend can build the direct-mode prompt payload, call LM Studio, normalize the model response into the domain model, validate the output, attempt a bounded repair-pass when needed, redact sensitive text in logs, and persist the final quiz with prompt and model metadata.
+### Batch 1: Prompt Registry and Request Assembly
 
-Required tests/checks: Run `python -m pytest backend/tests/test_quiz_validation.py backend/tests/test_generation_request_builder.py backend/tests/test_generation_orchestrator.py -q` and expect all tests to pass. The orchestrator tests must cover a clean success path, a repair-pass success path, and a final failure path after repair is exhausted.
+Task IDs: `PM-001`, `PM-002`, `GN-001`.
+
+Definition of done: The backend has a versioned prompt registry, a direct-generation master prompt, and a single request builder that converts a stored document and generation command into one provider-facing structured request.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_prompt_registry.py backend/tests/test_generation_request_builder.py -q` and expect all tests to pass. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green.
 
 Recommended commit breakdown:
-1. `feat(prompts): add prompt registry, direct prompt, and repair prompt`
-2. `feat(generation): add request builder, direct orchestrator, repair loop, and persistence metadata`
-3. `test(generation): cover normalization, business validation, safe logging, and orchestrator behavior`
+1. `feat(prompts): add prompt registry and direct generation prompt`
+2. `feat(generation): add direct generation request builder`
+3. `test(generation): cover prompt resolution and request assembly`
+
+### Batch 2: Output Normalization and Quality Validation
+
+Task IDs: `DM-003`, `GN-003`, `TS-005`.
+
+Definition of done: Raw model output is normalized into the canonical quiz structure, extra fields are dropped, strings are trimmed, invalid or empty options are filtered, and quality checks reject structurally valid but unusable quizzes.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_quiz_normalization.py backend/tests/test_quiz_validation.py -q` and expect all tests to pass. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green.
+
+Recommended commit breakdown:
+1. `feat(domain): add quiz output normalizer and quality checks`
+2. `test(generation): cover normalization and business validation`
+
+### Batch 3: Direct Orchestrator, Repair Loop, and Persistence
+
+Task IDs: `PM-003`, `GN-002`, `GN-004`, `GN-005`, `LG-003`, `TS-006`.
+
+Definition of done: Given an already stored document and a generation request, the backend can build the direct-mode prompt payload, call LM Studio, normalize and validate the model response, attempt a bounded repair-pass when needed, redact sensitive text in logs, and persist the final quiz with prompt and model metadata.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_generation_orchestrator.py backend/tests/test_safe_logging.py -q` and expect all tests to pass. The orchestrator tests must cover a clean success path, a repair-pass success path, and a final failure path after repair is exhausted. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green.
+
+Recommended commit breakdown:
+1. `feat(prompts): add repair prompt`
+2. `feat(generation): add direct orchestrator, repair loop, and metadata persistence`
+3. `test(generation): cover direct pipeline success, repair, terminal failure, and safe logging`
 
 ## Stage 5: API Bootstrap, Health, Upload, and Generate
 
@@ -451,17 +481,21 @@ Current integrated state:
     cd570dd merge(stage2): integrate docx ingestion batch 2
     75fa87c merge(stage2): integrate pdf ingestion batch 3
     88dc67f merge(stage3): integrate lm client batch 1
+    b65f58d merge(stage3): integrate lm healthcheck batch 2
 
 Current backlog completion status:
 
     Stage 1: integrated on main
     Stage 2: integrated on main
-    Stage 3 Batch 1 (`LM-001`, `LM-002`, `LM-004`, `TS-004` client slice): integrated on main
-    Stage 3 Batch 2 (`LM-003`, `TS-004` healthcheck slice): pending
+    Stage 3: fully integrated on main
+
+Next recommended stage:
+
+    Stage 4: Direct Generation Pipeline
 
 Next recommended batch:
 
-    Stage 3 Batch 2: LM Studio Healthcheck Behavior
+    Stage 4 Batch 1: Prompt Registry and Request Assembly
 
 ## Interfaces and Dependencies
 
