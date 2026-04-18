@@ -23,6 +23,8 @@ from backend.app.domain.models import ProviderHealthStatus
 from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.llm.provider import LLMProvider
+from backend.app.llm.retry import RetryPolicy
+from backend.app.llm.retry import RetryingCaller
 
 logger = logging.getLogger(__name__)
 
@@ -35,10 +37,13 @@ class LMStudioClient(LLMProvider):
         base_url: str,
         default_model: str,
         timeout_seconds: int,
+        retry_policy: RetryPolicy | None = None,
+        retrying_caller: RetryingCaller | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._default_model = default_model
         self._timeout_seconds = timeout_seconds
+        self._retrying_caller = retrying_caller or RetryingCaller(retry_policy or RetryPolicy())
 
     def healthcheck(self) -> ProviderHealthStatus:
         """Raise a controlled placeholder until the dedicated healthcheck batch lands."""
@@ -48,7 +53,7 @@ class LMStudioClient(LLMProvider):
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
         """Submit a structured generation request to LM Studio."""
 
-        return self._generate_structured_once(request)
+        return self._retrying_caller.execute(lambda: self._generate_structured_once(request))
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
         """Raise a controlled placeholder until the embeddings stage lands."""
