@@ -20,6 +20,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-17 17:36:28Z) Implemented Batch 1 of Stage 2 in worktree `D:\github\diplom\.worktrees\stage-02-batch-01-txt-ingestion`, covering TXT file validation, TXT parsing, TXT normalization, base TXT metadata assembly, and TXT ingestion persistence with dedicated pytest coverage.
 - [x] (2026-04-17 18:04:18Z) Implemented Batch 2 of Stage 2 in worktree `D:\github\diplom\.worktrees\stage-02-batch-02-docx-ingestion`, extending the existing ingestion flow with DOCX validation, DOCX parsing, reused normalization and metadata assembly, and DOCX pytest coverage.
 - [x] (2026-04-17 18:28:07Z) Implemented Batch 3 of Stage 2 in worktree `D:\github\diplom\.worktrees\stage-02-batch-03-pdf-ingestion`, adding PDF validation, page-by-page PDF text extraction, PDF page-count metadata, and PDF pytest coverage, including invalid and no-text PDF cases.
+- [x] (2026-04-18) Implemented, reviewed, and integrated Batch 1 of Stage 3 on `main` via merge commit `88dc67f`, covering `LM-001`, `LM-002`, `LM-004`, and the client slice of `TS-004` with the provider contract, structured LM Studio client, retry-timeout wrapper, and client-slice pytest coverage.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -81,15 +82,19 @@ This plan does not implement code by itself. It organizes the remaining backlog 
   Rationale: The Python standard library does not provide PDF parsing or text extraction. `pypdf` is the smallest dependency that satisfies the backlog requirement for page-by-page text extraction and understandable errors for PDFs without extractable text, while keeping OCR and heavier PDF stacks out of scope.
   Date/Author: 2026-04-17 / Codex
 
+- Decision: Split Stage 3 into two batches so the provider request path can land before healthcheck behavior.
+  Rationale: `LM-001`, `LM-002`, `LM-004`, and the client slice of `TS-004` form one reviewable unit around structured generation requests, while `LM-003` and the healthcheck slice of `TS-004` are a separate operational concern that should follow only after the client path is integrated.
+  Date/Author: 2026-04-18 / Codex
+
 ## Outcomes & Retrospective
 
-At this stopping point, the repository has a staged execution plan but still no implemented backlog code. That is intentional. The user requested planning first, with the backlog and current repository state treated as the source of truth, and this document now provides the missing delivery structure that the backlog lacked.
+At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, and Stage 3 Batch 1 for LM Studio structured client integration. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
 
-The key outcome is that the remaining work is now grouped into narrow, verifiable increments with explicit dependencies and commit guidance. Stage 1 is now verified complete after the review-driven contract fixes, so the next contributor can move directly to document ingestion and parsing instead of revisiting foundation work.
+The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 3 Batch 2 rather than revisiting foundation, parsing, or the LM Studio client request path.
 
 ## Context and Orientation
 
-The current repository has four kinds of artifacts. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` is the source-of-truth feature inventory. `docs/design/concepts/v2/` contains static mockups for the intended product screens. `tests/test_repository_layout.py` only checks the repository structure and does not validate any application behavior. There is no backend package, no frontend application, no runtime configuration, no parser implementation, no LM Studio client, no repositories, no HTTP API, and no executable UI yet.
+The current repository has both planning artifacts and implemented backend slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the foundation, storage, parsing, and LM Studio client layers covered by Stages 1, 2, and Stage 3 Batch 1. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` now covers the implemented backend behavior. There is still no HTTP API surface, no generation orchestration, no runnable frontend, and no export implementation yet.
 
 The backlog assumes a Python backend with typed contracts, FastAPI/Pydantic-style API models, pytest tests, standard-library logging, and LM Studio as the only model provider for the MVP. The backlog does not pick a frontend framework. Because the repository currently contains only HTML concepts, this plan assumes a thin frontend in `frontend/` that can start as plain HTML, CSS, and JavaScript while reusing the visual structure from the concept files. If a richer framework is chosen later, the plan should be revised before Stage 7.
 
@@ -114,7 +119,7 @@ The planned runtime layout for implementation is:
       src/
       assets/
 
-This layout is not implemented yet. It is the target layout that future stages should create.
+This layout is now partially implemented. `backend/` exists with `core`, `domain`, `parsing`, `storage`, and `llm` packages, while the HTTP API, generation, prompt, export, and `frontend/` portions remain target layout for later stages.
 
 ## Plan of Work
 
@@ -162,18 +167,38 @@ Recommended commit breakdown:
 
 Task IDs: `LM-001`, `LM-002`, `LM-003`, `LM-004`, `TS-004`.
 
-Rationale for grouping: The provider abstraction, concrete LM Studio client, healthcheck behavior, and retry/timeout policy are all one unit of responsibility. This stage must stay separate from orchestration so the client can be verified in isolation with mocked HTTP responses.
+Rationale for grouping: Stage 3 owns the LM Studio integration boundary, but it is now split into two batches. Batch 1 lands the provider contract, structured request path, and centralized retry-timeout behavior. Batch 2 adds only the provider-facing healthcheck behavior. This keeps the request path reviewable and integrated before adding the operational status slice.
 
 Dependencies: Stage 1 for config, error model, logging, and generation mode registry.
 
-Definition of done: The backend defines a provider interface that hides LM Studio details from callers, the LM Studio client can request structured quiz data through `/v1/chat/completions`, healthcheck behavior distinguishes connection failures from malformed responses, and retry/timeout handling is centralized rather than duplicated.
+### Batch 1: Provider Contract, Structured Client, and Retry Wrapper
 
-Required tests/checks: Run `python -m pytest backend/tests/test_lm_studio_client.py backend/tests/test_lm_studio_healthcheck.py -q` and expect all tests to pass. Mock LM Studio responses for success, timeout, invalid JSON, and 5xx cases.
+Task IDs: `LM-001`, `LM-002`, `LM-004`, `TS-004` client slice.
+
+Definition of done: The backend defines a provider interface that hides LM Studio details from callers, the LM Studio client can request structured quiz data through `/v1/chat/completions`, and retry-timeout handling for generation requests is centralized rather than duplicated.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_lm_studio_client.py -q` and expect all tests to pass. Mock LM Studio responses for `200`, timeout, invalid JSON, `5xx`, and malformed structured response cases.
 
 Recommended commit breakdown:
 1. `feat(llm): add provider abstraction and structured LM Studio client`
-2. `feat(llm): add healthcheck and retry-timeout wrapper`
-3. `test(llm): cover client success and failure paths`
+2. `feat(llm): add retry-timeout wrapper for generation requests`
+3. `test(llm): cover structured client success and failure paths`
+
+Current status on `main`: implemented and integrated via merge commit `88dc67f`.
+
+### Batch 2: LM Studio Healthcheck Behavior
+
+Task IDs: `LM-003`, `TS-004` healthcheck slice.
+
+Definition of done: The LM Studio healthcheck behavior distinguishes connection failures, timeout failures, and malformed responses, and maps them to controlled domain errors without introducing orchestration or API work.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_lm_studio_healthcheck.py backend/tests/test_lm_studio_client.py -q` and expect all tests to pass. Mock LM Studio responses for available, timeout, connection failure, and malformed response cases.
+
+Recommended commit breakdown:
+1. `feat(llm): add lm studio healthcheck behavior`
+2. `test(llm): cover healthcheck availability and failure modes`
+
+Current status on `main`: pending. `LM-003` and the healthcheck slice of `TS-004` remain the next Stage 3 batch and are not implemented yet.
 
 ## Stage 4: Direct Generation Pipeline
 
@@ -419,21 +444,24 @@ Do not mix repository-organization edits, planning-doc edits, or `AGENTS.md` cha
 
 ## Artifacts and Notes
 
-Current state before implementation:
+Current integrated state:
 
-    4e293fb chore(repo): reorganize planning artifacts
-    docs/planning/backlog.md
-    docs/design/concepts/v2/*.html
-    tests/test_repository_layout.py
+    0fa0789 merge(stage1): integrate foundation skeleton
+    c74f97d merge(stage2): integrate txt ingestion batch 1
+    cd570dd merge(stage2): integrate docx ingestion batch 2
+    75fa87c merge(stage2): integrate pdf ingestion batch 3
+    88dc67f merge(stage3): integrate lm client batch 1
 
 Current backlog completion status:
 
-    Backlog feature implementation: not started
-    Repository cleanup and planning setup: done
+    Stage 1: integrated on main
+    Stage 2: integrated on main
+    Stage 3 Batch 1 (`LM-001`, `LM-002`, `LM-004`, `TS-004` client slice): integrated on main
+    Stage 3 Batch 2 (`LM-003`, `TS-004` healthcheck slice): pending
 
-Next recommended stage:
+Next recommended batch:
 
-    Stage 1: Foundation Skeleton and Core Contracts
+    Stage 3 Batch 2: LM Studio Healthcheck Behavior
 
 ## Interfaces and Dependencies
 
