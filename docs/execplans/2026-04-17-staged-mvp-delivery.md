@@ -210,6 +210,8 @@ Rationale for grouping: This is the core application value path. Stage 4 is now 
 
 Dependencies: Stages 1 through 3.
 
+Current status on `main`: fully implemented and integrated via merge commit `b70ff27`.
+
 ### Batch 1: Prompt Registry and Request Assembly
 
 Task IDs: `PM-001`, `PM-002`, `GN-001`.
@@ -252,22 +254,41 @@ Recommended commit breakdown:
 2. `feat(generation): add direct orchestrator, repair loop, and metadata persistence`
 3. `test(generation): cover direct pipeline success, repair, terminal failure, and safe logging`
 
+Current status on `main`: implemented and integrated via merge commit `b70ff27`.
+
 ## Stage 5: API Bootstrap, Health, Upload, and Generate
 
 Task IDs: `BE-004`, `BE-005`, `BE-006`, `BE-007`, `LG-002`, `LG-004`, `TS-007` (health, upload, generate slice).
 
-Rationale for grouping: These endpoints are the minimum HTTP surface needed to prove that the backend is usable from outside unit tests. Health, LM Studio connectivity, upload, and generation belong together because they form the first end-to-end flow from file submission to generated quiz creation.
+Rationale for grouping: These endpoints are the minimum HTTP surface needed to prove that the backend is usable from outside unit tests. Stage 5 is now split into two batches so the HTTP runtime shell and operational health behavior land before the upload-plus-generate flow.
 
 Dependencies: Stages 1 through 4.
 
-Definition of done: The backend starts as an HTTP service, exposes a health endpoint that does not depend on LM Studio, exposes an LM Studio connectivity endpoint, accepts a document upload with validation, creates a stored document record, accepts a generation request for that document, attaches a correlation ID to logs, and maps expected domain exceptions into stable HTTP error responses.
+### Batch 1: HTTP bootstrap, correlation IDs, error mapping, and health endpoints
 
-Required tests/checks: Run `python -m pytest backend/tests/test_api_health.py backend/tests/test_api_upload_and_generate.py -q` and expect all tests to pass. Start the server with `python -m uvicorn backend.app.main:app --reload` and verify that `/health` returns HTTP 200 and that an upload-plus-generate request produces a `quiz_id`.
+Task IDs: `BE-004`, `BE-005`, `LG-002`, `LG-004`, `TS-007` (health slice).
+
+Definition of done: The backend starts as an HTTP service, exposes a health endpoint that does not depend on LM Studio, exposes an LM Studio connectivity endpoint, attaches a correlation ID to logs, and maps expected domain exceptions into stable HTTP error responses.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_api_health.py backend/tests/test_api_lm_studio.py -q` and expect all tests to pass. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green.
 
 Recommended commit breakdown:
-1. `feat(api): bootstrap http app, correlation ids, and error-to-http mapping`
-2. `feat(api): add health, lm-studio, upload, and generate endpoints`
-3. `test(api): cover health, upload validation, and generation endpoint flows`
+1. `feat(api): bootstrap http app and request correlation ids`
+2. `feat(api): add health endpoints and error-to-http mapping`
+3. `test(api): cover backend and lm studio health flows`
+
+### Batch 2: Upload and generate endpoints
+
+Task IDs: `BE-006`, `BE-007`, `TS-007` (upload, generate slice).
+
+Definition of done: The backend accepts a document upload with validation, creates a stored document record, accepts a generation request for that document, and returns the generated canonical quiz structure with `quiz_id`.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_api_upload_and_generate.py -q` and expect all tests to pass. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green. Start the server with `python -m uvicorn backend.app.main:app --reload` and verify that `/health` returns HTTP 200 and that an upload-plus-generate request produces a `quiz_id`.
+
+Recommended commit breakdown:
+1. `feat(api): add document upload endpoint`
+2. `feat(api): add direct generation endpoint`
+3. `test(api): cover upload validation and generation flows`
 
 ## Stage 6: API Quiz Read and Update
 
@@ -498,11 +519,11 @@ Current backlog completion status:
 
 Next recommended stage:
 
-    Stage 4: Direct Generation Pipeline
+    Stage 5: API Bootstrap, Health, Upload, and Generate
 
 Next recommended batch:
 
-    Stage 4 Batch 3: Direct Orchestrator, Repair Loop, and Persistence
+    Stage 5 Batch 1: HTTP bootstrap, correlation IDs, error mapping, and health endpoints
 
 ## Interfaces and Dependencies
 
