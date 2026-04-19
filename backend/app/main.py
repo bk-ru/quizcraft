@@ -17,6 +17,7 @@ from backend.app.api.documents import register_document_routes
 from backend.app.api.errors import handle_backend_error
 from backend.app.api.generation import register_generation_routes
 from backend.app.api.health import register_health_routes
+from backend.app.api.quizzes import register_quiz_routes
 from backend.app.api.runtime import resolve_default_storage_root
 from backend.app.core.config import AppConfig
 from backend.app.domain.errors import BackendError
@@ -51,6 +52,7 @@ def create_app(
     register_health_routes(app, resolved_config)
     register_document_routes(app)
     register_generation_routes(app)
+    register_quiz_routes(app)
 
     @app.middleware("http")
     async def correlation_id_middleware(request: Request, call_next):
