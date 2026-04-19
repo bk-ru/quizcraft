@@ -529,6 +529,7 @@ Current integrated state:
     b70ff27 merge(stage4): integrate orchestrator batch 3
     6094481 merge(stage5): integrate api health batch 1
     53eb42a merge(stage5): integrate upload and generate batch 2
+    752cb26 merge(stage6): integrate quiz read batch 1
 
 Current backlog completion status:
 
@@ -539,6 +540,7 @@ Current backlog completion status:
     Stage 5 Batch 1 (`BE-004`, `BE-005`, `LG-002`, `LG-004`, `TS-007` health slice): integrated on main
     Stage 5 Batch 2 (`BE-006`, `BE-007`, `TS-007` upload/generate slice): integrated on main
     Stage 5: fully integrated on main
+    Stage 6 Batch 1 (`BE-008`, `TS-007` read slice): integrated on main
 
 Next recommended stage:
 
@@ -546,7 +548,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 6 Batch 1: Quiz read endpoint
+    Stage 6 Batch 2: Quiz update endpoint
 
 ## Interfaces and Dependencies
 
