@@ -15,6 +15,7 @@ from backend.app.api.correlation import install_correlation_log_record_factory
 from backend.app.api.correlation import reset_correlation_id
 from backend.app.api.documents import register_document_routes
 from backend.app.api.errors import handle_backend_error
+from backend.app.api.generation import register_generation_routes
 from backend.app.api.health import register_health_routes
 from backend.app.api.runtime import resolve_default_storage_root
 from backend.app.core.config import AppConfig
@@ -49,6 +50,7 @@ def create_app(
     app.add_exception_handler(BackendError, handle_backend_error)
     register_health_routes(app, resolved_config)
     register_document_routes(app)
+    register_generation_routes(app)
 
     @app.middleware("http")
     async def correlation_id_middleware(request: Request, call_next):
