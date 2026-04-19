@@ -12,7 +12,10 @@ from backend.app.api.correlation import REQUEST_ID_HEADER
 from backend.app.api.correlation import bind_correlation_id
 from backend.app.api.correlation import install_correlation_log_record_factory
 from backend.app.api.correlation import reset_correlation_id
+from backend.app.api.errors import handle_backend_error
+from backend.app.api.health import register_health_routes
 from backend.app.core.config import AppConfig
+from backend.app.domain.errors import BackendError
 from backend.app.llm.lm_studio import LMStudioClient
 
 logger = logging.getLogger(__name__)
@@ -35,6 +38,8 @@ def create_app(config: AppConfig | None = None, provider=None) -> FastAPI:
         default_model=resolved_config.lm_studio_model,
         timeout_seconds=resolved_config.request_timeout,
     )
+    app.add_exception_handler(BackendError, handle_backend_error)
+    register_health_routes(app, resolved_config)
 
     @app.middleware("http")
     async def correlation_id_middleware(request: Request, call_next):
