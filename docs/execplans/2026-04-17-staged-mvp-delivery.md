@@ -298,13 +298,29 @@ Rationale for grouping: Reading and updating a quiz are the smallest coherent fo
 
 Dependencies: Stage 5 and the Stage 1 quiz repository.
 
-Definition of done: The HTTP API can fetch a persisted quiz by `quiz_id`, accept validated quiz edits, reject invalid quiz updates, and return the saved canonical structure after a successful update.
+### Batch 1: Quiz read endpoint
 
-Required tests/checks: Run `python -m pytest backend/tests/test_api_quiz_read_update.py -q` and expect all tests to pass. Manually verify with the running server that a generated quiz can be fetched, modified, and saved.
+Task IDs: `BE-008`, `TS-007` (read slice).
+
+Definition of done: The HTTP API can fetch a persisted quiz by `quiz_id` and return the canonical stored quiz structure with stable error handling for missing identifiers.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_api_quiz_read.py -q` and expect all tests to pass. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green.
 
 Recommended commit breakdown:
-1. `feat(api): add quiz read and update endpoints`
-2. `test(api): cover quiz retrieval and update validation`
+1. `feat(api): add quiz read endpoint`
+2. `test(api): cover quiz read flows`
+
+### Batch 2: Quiz update endpoint
+
+Task IDs: `BE-009`, `TS-007` (update slice).
+
+Definition of done: The HTTP API can accept validated quiz edits, reject invalid quiz updates through stable domain-to-HTTP mapping, persist the updated canonical quiz structure, and return the saved result with the expected version bump.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_api_quiz_update.py -q` and expect all tests to pass. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green. Manually verify with the running server that a generated quiz can be fetched, modified, and saved.
+
+Recommended commit breakdown:
+1. `feat(api): add quiz update endpoint`
+2. `test(api): cover quiz update validation and persistence flows`
 
 ## Stage 7: UI Upload, Parameters, and Result View
 
@@ -509,21 +525,28 @@ Current integrated state:
     88dc67f merge(stage3): integrate lm client batch 1
     b65f58d merge(stage3): integrate lm healthcheck batch 2
     3c595a2 merge(stage4): integrate prompt registry batch 1
+    43ce420 merge(stage4): integrate normalization batch 2
+    b70ff27 merge(stage4): integrate orchestrator batch 3
+    6094481 merge(stage5): integrate api health batch 1
+    53eb42a merge(stage5): integrate upload and generate batch 2
 
 Current backlog completion status:
 
     Stage 1: integrated on main
     Stage 2: integrated on main
-    Stage 3: fully integrated on main
-    Stage 4 Batch 1 (`PM-001`, `PM-002`, `GN-001`): integrated on main
+    Stage 3: integrated on main
+    Stage 4: integrated on main
+    Stage 5 Batch 1 (`BE-004`, `BE-005`, `LG-002`, `LG-004`, `TS-007` health slice): integrated on main
+    Stage 5 Batch 2 (`BE-006`, `BE-007`, `TS-007` upload/generate slice): integrated on main
+    Stage 5: fully integrated on main
 
 Next recommended stage:
 
-    Stage 5: API Bootstrap, Health, Upload, and Generate
+    Stage 6: API Quiz Read and Update
 
 Next recommended batch:
 
-    Stage 5 Batch 1: HTTP bootstrap, correlation IDs, error mapping, and health endpoints
+    Stage 6 Batch 1: Quiz read endpoint
 
 ## Interfaces and Dependencies
 
