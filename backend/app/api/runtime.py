@@ -1,4 +1,4 @@
-"""Lazy runtime wiring for API endpoints that need upload services."""
+"""Lazy runtime wiring for API endpoints that need backend services."""
 
 from __future__ import annotations
 
@@ -7,12 +7,18 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from backend.app.core.config import AppConfig
+from backend.app.generation import DirectGenerationOrchestrator
+from backend.app.generation import DirectGenerationRequestBuilder
+from backend.app.generation import GenerationQualityChecker
 from backend.app.parsing.docx import DocxParser
 from backend.app.parsing.files import UploadedFileValidator
 from backend.app.parsing.ingestion import DocumentIngestionService
 from backend.app.parsing.pdf import PdfParser
 from backend.app.parsing.txt import TxtParser
+from backend.app.prompts.registry import PromptRegistry
 from backend.app.storage.documents import FileSystemDocumentRepository
+from backend.app.storage.generation_results import FileSystemGenerationResultRepository
+from backend.app.storage.quizzes import FileSystemQuizRepository
 
 DEFAULT_STORAGE_DIRECTORY_NAME = ".quizcraft"
 
@@ -36,6 +42,26 @@ def get_document_ingestion_service(app: FastAPI) -> DocumentIngestionService:
     return service
 
 
+def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
+    """Get or lazily build the direct-generation orchestrator for the FastAPI app."""
+
+    orchestrator = getattr(app.state, "generation_orchestrator", None)
+    if orchestrator is None:
+        document_repository = _get_document_repository(app.state.storage_root)
+        quiz_repository = FileSystemQuizRepository(app.state.storage_root)
+        generation_result_repository = FileSystemGenerationResultRepository(app.state.storage_root)
+        orchestrator = DirectGenerationOrchestrator(
+            document_repository=document_repository,
+            quiz_repository=quiz_repository,
+            generation_result_repository=generation_result_repository,
+            request_builder=DirectGenerationRequestBuilder(prompt_registry=PromptRegistry),
+            provider=app.state.provider,
+            quality_checker=GenerationQualityChecker(),
+        )
+        app.state.generation_orchestrator = orchestrator
+    return orchestrator
+
+
 def _build_document_ingestion_service(
     config: AppConfig,
     storage_root: Path,
@@ -51,3 +77,9 @@ def _build_document_ingestion_service(
         docx_parser=DocxParser(),
         pdf_parser=PdfParser(),
     )
+
+
+def _get_document_repository(storage_root: Path) -> FileSystemDocumentRepository:
+    """Build the shared document repository for upload and generation flows."""
+
+    return FileSystemDocumentRepository(storage_root)
