@@ -20,11 +20,14 @@ def register_document_routes(app: FastAPI) -> None:
 
     @app.post("/documents")
     async def upload_document(request: Request) -> JSONResponse:
-        filename = request.headers.get(UPLOAD_FILENAME_HEADER, "").strip()
+        filename = (
+            request.query_params.get("filename", "").strip()
+            or request.headers.get(UPLOAD_FILENAME_HEADER, "").strip()
+        )
         media_type = request.headers.get("Content-Type", "").strip()
         content = await request.body()
         if not filename:
-            raise FileValidationError("x-filename header is required")
+            raise FileValidationError("filename is required")
 
         document = get_document_ingestion_service(request.app).ingest(
             filename=filename,

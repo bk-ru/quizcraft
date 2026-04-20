@@ -13,8 +13,8 @@
       <p class="eyebrow">QuizCraft</p>
       <h1 id="shell-title">Панель состояния</h1>
       <p class="hero-copy">
-        Минимальная фронтенд-оболочка для подключения к текущему backend API.
-        Этот слой показывает только доступность сервиса и готовит client foundation для следующих batch-ов.
+        Минимальный frontend-срез для загрузки документа и запуска генерации через текущий backend API.
+        Batch 2 сохраняет shell маленьким, русскоязычным и не начинает отрисовку результата.
       </p>
       <dl class="status-strip" aria-label="Состояние сервисов">
         <div class="status-item" data-status-surface="backend">
@@ -30,12 +30,103 @@
 
     <section class="workspace" aria-labelledby="workspace-title">
       <div class="workspace-header">
-        <h2 id="workspace-title">Frontend shell</h2>
+        <h2 id="workspace-title">Upload flow</h2>
         <p>
-          Batch 1 не включает загрузку документа, параметры генерации или отрисовку результата.
-          Здесь остаётся только безопасная точка входа и карта уже доступных endpoint-ов.
+          Этот batch добавляет только ввод документа, параметры генерации и безопасный submit flow.
+          Отрисовка квиза и редактирование остаются в следующих batch-ах.
         </p>
       </div>
+
+      <form id="generation-form" class="workspace-grid" novalidate>
+        <section class="panel panel-form" aria-labelledby="upload-title">
+          <div class="panel-heading">
+            <div>
+              <h3 id="upload-title">Загрузить документ</h3>
+              <p class="panel-copy">Поддерживаются TXT, DOCX и PDF. Кириллица и русский текст должны пройти без искажения.</p>
+            </div>
+            <span class="badge">Stage 7 • Batch 2</span>
+          </div>
+          <label class="field field-file" for="document-file">
+            <span class="field-label">Файл документа</span>
+            <input
+              id="document-file"
+              name="document"
+              type="file"
+              accept=".txt,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              required
+            >
+          </label>
+          <p id="file-summary" class="field-hint">Загрузите документ в формате TXT, DOCX или PDF.</p>
+        </section>
+
+        <section class="panel panel-form" aria-labelledby="parameters-title">
+          <div class="panel-heading">
+            <div>
+              <h3 id="parameters-title">Параметры генерации</h3>
+              <p class="panel-copy">Форма готовит payload для текущего direct-generation API без преждевременной отрисовки результата.</p>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label class="field" for="question-count">
+              <span class="field-label">Количество вопросов</span>
+              <input id="question-count" name="question_count" type="number" min="1" max="20" step="1" value="5" required>
+            </label>
+            <label class="field" for="difficulty">
+              <span class="field-label">Сложность</span>
+              <select id="difficulty" name="difficulty">
+                <option value="easy">Базовая</option>
+                <option value="medium" selected>Средняя</option>
+                <option value="hard">Продвинутая</option>
+              </select>
+            </label>
+            <label class="field" for="quiz-type">
+              <span class="field-label">Формат квиза</span>
+              <select id="quiz-type" name="quiz_type">
+                <option value="single_choice" selected>Один правильный вариант</option>
+              </select>
+            </label>
+            <label class="field" for="language">
+              <span class="field-label">Язык квиза</span>
+              <select id="language" name="language">
+                <option value="ru" selected>Русский</option>
+              </select>
+            </label>
+          </div>
+          <input id="generation-mode" name="generation_mode" type="hidden" value="direct">
+          <div class="form-actions">
+            <button id="submit-button" class="primary-action" type="submit">Сгенерировать квиз</button>
+            <p id="submit-hint" class="action-hint">Сначала документ загружается в backend, затем запускается генерация по `document_id`.</p>
+          </div>
+        </section>
+      </form>
+
+      <section class="panel" aria-labelledby="operation-title">
+        <div class="panel-heading">
+          <div>
+            <h3 id="operation-title">Состояние submit flow</h3>
+            <p class="panel-copy">Здесь фиксируются только технические результаты текущего batch-а: идентификаторы и статус запроса.</p>
+          </div>
+        </div>
+        <p id="submission-status" class="submission-status">Форма готова. Выберите документ и запустите генерацию.</p>
+        <dl class="summary-grid">
+          <div>
+            <dt>Имя файла</dt>
+            <dd id="last-filename">Ещё не загружен</dd>
+          </div>
+          <div>
+            <dt>Document ID</dt>
+            <dd id="last-document-id">Ещё нет</dd>
+          </div>
+          <div>
+            <dt>Quiz ID</dt>
+            <dd id="last-quiz-id">Ещё нет</dd>
+          </div>
+          <div>
+            <dt>Request ID</dt>
+            <dd id="last-request-id">Ещё нет</dd>
+          </div>
+        </dl>
+      </section>
 
       <section class="panel" aria-labelledby="config-title">
         <div class="panel-heading">
@@ -56,16 +147,14 @@
 
       <section class="panel" aria-labelledby="endpoint-title">
         <div class="panel-heading">
-          <h3 id="endpoint-title">API client foundation</h3>
-          <p class="panel-copy">Подготовленные методы для уже существующих backend endpoint-ов.</p>
+          <div>
+            <h3 id="endpoint-title">API flow этого batch-а</h3>
+            <p class="panel-copy">Frontend использует только уже существующие endpoint-ы и не меняет result rendering contract.</p>
+          </div>
         </div>
         <ul class="endpoint-list">
-          <li><span class="http-method">GET</span><code>/health</code><span>Проверка доступности backend</span></li>
-          <li><span class="http-method">GET</span><code>/health/lm-studio</code><span>Проверка связи с LM Studio</span></li>
-          <li><span class="http-method">POST</span><code>/documents</code><span>Загрузка документа без UI-формы</span></li>
-          <li><span class="http-method">POST</span><code>/documents/{document_id}/generate</code><span>Запуск генерации по document_id</span></li>
-          <li><span class="http-method">GET</span><code>/quizzes/{quiz_id}</code><span>Чтение сохранённого квиза</span></li>
-          <li><span class="http-method">PUT</span><code>/quizzes/{quiz_id}</code><span>Обновление сохранённого квиза</span></li>
+          <li><span class="http-method">POST</span><code>/documents</code><span>Загрузка документа и получение `document_id`</span></li>
+          <li><span class="http-method">POST</span><code>/documents/{document_id}/generate</code><span>Запуск генерации с выбранными параметрами</span></li>
         </ul>
       </section>
 
@@ -73,7 +162,7 @@
         <div class="panel-heading">
           <h3 id="log-title">Последняя проверка</h3>
         </div>
-        <p id="shell-log-message" class="log-message">Фронтенд-оболочка ещё не выполнила запросы.</p>
+        <p id="shell-log-message" class="log-message">Frontend-оболочка ещё не выполнила запросы загрузки и генерации.</p>
       </section>
     </section>
   </main>
