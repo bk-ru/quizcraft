@@ -1,5 +1,11 @@
+from contextlib import contextmanager
+from functools import partial
+from http.server import SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer
 from pathlib import Path
 import re
+from threading import Thread
+from urllib.request import urlopen
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +17,22 @@ APP_JS = FRONTEND_DIR / "app.js"
 API_CLIENT_JS = FRONTEND_DIR / "api" / "client.js"
 
 
+@contextmanager
+def serve_frontend():
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", 0),
+        partial(SimpleHTTPRequestHandler, directory=str(FRONTEND_DIR)),
+    )
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        yield f"http://127.0.0.1:{server.server_port}"
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
+
+
 def test_frontend_shell_files_exist() -> None:
     assert FRONTEND_DIR.is_dir()
     assert INDEX_HTML.is_file()
@@ -20,13 +42,19 @@ def test_frontend_shell_files_exist() -> None:
     assert API_CLIENT_JS.is_file()
 
 
-def test_frontend_index_references_local_assets_and_uses_russian_defaults() -> None:
+def test_frontend_index_references_local_assets_and_uses_russian_upload_defaults() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
     assert '<html lang="ru">' in content
     assert '<meta charset="utf-8"' in content.lower()
     assert "QuizCraft" in content
     assert "Панель состояния" in content
+    assert "Загрузить документ" in content
+    assert "Параметры генерации" in content
+    assert "Сгенерировать квиз" in content
+    assert 'id="generation-form"' in content
+    assert 'type="file"' in content
+    assert 'name="question_count"' in content
     assert "./styles.css" in content
     assert "./config.js" in content
     assert "./app.js" in content
@@ -59,3 +87,29 @@ def test_frontend_config_exposes_backend_base_url() -> None:
 
     assert "backendBaseUrl" in content
     assert "window.QuizCraftConfig" in content
+
+
+def test_frontend_app_wires_russian_upload_and_generation_defaults() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    assert "uploadDocument" in content
+    assert "generateQuiz" in content
+    assert '"ru"' in content
+    assert '"direct"' in content
+    assert "Загрузите документ" in content
+    assert "Квиз создан" in content
+
+
+def test_frontend_static_smoke_serves_russian_upload_flow_assets() -> None:
+    with serve_frontend() as base_url:
+        html = urlopen(f"{base_url}/").read().decode("utf-8")
+        config_js = urlopen(f"{base_url}/config.js").read().decode("utf-8")
+        app_js = urlopen(f"{base_url}/app.js").read().decode("utf-8")
+        client_js = urlopen(f"{base_url}/api/client.js").read().decode("utf-8")
+
+    assert "Загрузить документ" in html
+    assert "Параметры генерации" in html
+    assert "Сгенерировать квиз" in html
+    assert "backendBaseUrl" in config_js
+    assert "uploadDocument" in app_js
+    assert "generateQuiz" in client_js
