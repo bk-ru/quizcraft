@@ -20,7 +20,7 @@ class FileSystemDocumentRepository:
         """Persist a document record to disk."""
 
         target_path = self._storage_path / f"{document.document_id}.json"
-        target_path.write_text(json.dumps(document.to_dict(), ensure_ascii=True, indent=2), encoding="utf-8")
+        target_path.write_text(json.dumps(document.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
         return document
 
     def get(self, document_id: str) -> DocumentRecord:

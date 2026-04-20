@@ -37,19 +37,19 @@ def build_quiz() -> Quiz:
     return Quiz(
         quiz_id="quiz-1",
         document_id="doc-1",
-        title="Generated quiz",
+        title="Русский квиз",
         version=0,
         last_edited_at="",
         questions=(
             Question(
                 question_id="q-1",
-                prompt="Question 1?",
+                prompt="Какой город является столицей России?",
                 options=(
-                    Option(option_id="opt-1", text="Option A"),
-                    Option(option_id="opt-2", text="Option B"),
+                    Option(option_id="opt-1", text="Москва"),
+                    Option(option_id="opt-2", text="Казань"),
                 ),
                 correct_option_index=0,
-                explanation=Explanation(text="Explanation 1."),
+                explanation=Explanation(text="Москва является столицей России."),
             ),
         ),
     )
@@ -61,9 +61,12 @@ def test_quiz_update_endpoint_persists_valid_changes_and_returns_saved_quiz(tmp_
     app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
     client = TestClient(app)
     updated_payload = original_quiz.to_dict()
-    updated_payload["title"] = "Edited quiz title"
-    updated_payload["questions"][0]["prompt"] = "Edited question?"
-    updated_payload["questions"][0]["explanation"] = {"text": "Updated explanation."}
+    updated_payload["title"] = "Обновлённый русский квиз"
+    updated_payload["questions"][0]["prompt"] = "Какой город находится на Неве?"
+    updated_payload["questions"][0]["options"][0]["text"] = "Санкт-Петербург"
+    updated_payload["questions"][0]["options"][1]["text"] = "Москва"
+    updated_payload["questions"][0]["correct_option_index"] = 0
+    updated_payload["questions"][0]["explanation"] = {"text": "Санкт-Петербург стоит на Неве."}
 
     response = client.put(f"/quizzes/{original_quiz.quiz_id}", json={"quiz": updated_payload})
 
@@ -71,9 +74,10 @@ def test_quiz_update_endpoint_persists_valid_changes_and_returns_saved_quiz(tmp_
     body = response.json()
     persisted_quiz = repository.get(original_quiz.quiz_id)
     assert body["quiz_id"] == original_quiz.quiz_id
-    assert body["quiz"]["title"] == "Edited quiz title"
-    assert body["quiz"]["questions"][0]["prompt"] == "Edited question?"
-    assert body["quiz"]["questions"][0]["explanation"] == {"text": "Updated explanation."}
+    assert body["quiz"]["title"] == "Обновлённый русский квиз"
+    assert body["quiz"]["questions"][0]["prompt"] == "Какой город находится на Неве?"
+    assert body["quiz"]["questions"][0]["options"][0]["text"] == "Санкт-Петербург"
+    assert body["quiz"]["questions"][0]["explanation"] == {"text": "Санкт-Петербург стоит на Неве."}
     assert body["quiz"]["version"] == original_quiz.version + 1
     assert body["quiz"]["last_edited_at"] != original_quiz.last_edited_at
     assert body["quiz"] == persisted_quiz.to_dict()
@@ -86,7 +90,7 @@ def test_quiz_update_endpoint_rejects_invalid_quiz_payload(tmp_path) -> None:
     app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
     client = TestClient(app)
     invalid_payload = original_quiz.to_dict()
-    invalid_payload["questions"][0]["options"][1]["text"] = "Option A"
+    invalid_payload["questions"][0]["options"][1]["text"] = "Москва"
 
     response = client.put(f"/quizzes/{original_quiz.quiz_id}", json={"quiz": invalid_payload})
 
