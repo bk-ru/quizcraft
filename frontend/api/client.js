@@ -33,12 +33,12 @@ export class QuizCraftApiClient {
     const resolvedMediaType = typeof mediaType === "string" && mediaType.trim()
       ? mediaType.trim()
       : "application/octet-stream";
+    const query = new URLSearchParams({ filename: filename.trim() });
 
-    return this._request("/documents", {
+    return this._request(`/documents?${query.toString()}`, {
       method: "POST",
       headers: {
         "Content-Type": resolvedMediaType,
-        "X-Filename": filename.trim(),
       },
       body: content,
     });
