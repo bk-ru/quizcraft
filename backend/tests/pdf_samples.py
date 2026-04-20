@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
+
+def build_russian_pdf_bytes() -> bytes:
+    fixture_path = Path(__file__).with_name("fixtures") / "russian-sample.pdf"
+    return fixture_path.read_bytes()
+
 
 def _escape_pdf_text(value: str) -> str:
     return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")

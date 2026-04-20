@@ -29,7 +29,7 @@ class FileSystemQuizRepository:
             last_edited_at=self._build_last_edited_at(existing_quiz),
         )
         target_path.write_text(
-            json.dumps(persisted_quiz.to_dict(), ensure_ascii=True, indent=2),
+            json.dumps(persisted_quiz.to_dict(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return persisted_quiz

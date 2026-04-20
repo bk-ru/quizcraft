@@ -37,19 +37,19 @@ def build_quiz() -> Quiz:
     return Quiz(
         quiz_id="quiz-1",
         document_id="doc-1",
-        title="Generated quiz",
+        title="Русский квиз",
         version=0,
         last_edited_at="",
         questions=(
             Question(
                 question_id="q-1",
-                prompt="Question 1?",
+                prompt="Какой город является столицей России?",
                 options=(
-                    Option(option_id="opt-1", text="Option A"),
-                    Option(option_id="opt-2", text="Option B"),
+                    Option(option_id="opt-1", text="Москва"),
+                    Option(option_id="opt-2", text="Казань"),
                 ),
                 correct_option_index=0,
-                explanation=Explanation(text="Explanation 1."),
+                explanation=Explanation(text="Москва является столицей России."),
             ),
         ),
     )

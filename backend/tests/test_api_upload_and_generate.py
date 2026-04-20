@@ -102,6 +102,16 @@ def upload_document(client: TestClient) -> str:
     return response.json()["document_id"]
 
 
+def upload_russian_document(client: TestClient) -> str:
+    response = client.post(
+        "/documents",
+        content="Первый факт.\nВторой факт.".encode("utf-8"),
+        headers={"X-Filename": "lecture.txt", "Content-Type": "text/plain"},
+    )
+    assert response.status_code == 201
+    return response.json()["document_id"]
+
+
 def test_document_upload_endpoint_persists_valid_file_and_returns_metadata(tmp_path) -> None:
     app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
     client = TestClient(app)
@@ -175,3 +185,71 @@ def test_direct_generation_endpoint_maps_provider_timeout_to_gateway_timeout(tmp
 
     assert response.status_code == 504
     assert response.json()["error"]["code"] == "llm_timeout_error"
+
+
+def test_document_upload_endpoint_preserves_russian_text_in_storage(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/documents",
+        content="Первый факт.\nВторой факт.".encode("utf-8"),
+        headers={"X-Filename": "lecture.txt", "Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 201
+    persisted = FileSystemDocumentRepository(tmp_path).get(response.json()["document_id"])
+    assert persisted.normalized_text == "Первый факт.\nВторой факт."
+
+
+def test_direct_generation_endpoint_returns_russian_quiz_for_russian_document(tmp_path) -> None:
+    provider = StubProvider(
+        responses=[
+            StructuredGenerationResponse(
+                model_name="local-model",
+                content={
+                    "quiz_id": "quiz-ru",
+                    "document_id": "ignored-by-normalizer",
+                    "title": "Русский квиз",
+                    "version": 1,
+                    "last_edited_at": "2026-04-18T12:00:00Z",
+                    "questions": [
+                        {
+                            "question_id": "q-1",
+                            "prompt": "Что указано в документе?",
+                            "options": [
+                                {"option_id": "opt-1", "text": "Первый факт"},
+                                {"option_id": "opt-2", "text": "Третий факт"},
+                            ],
+                            "correct_option_index": 0,
+                            "explanation": {"text": "В документе есть первый факт."},
+                        },
+                        {
+                            "question_id": "q-2",
+                            "prompt": "Сколько фактов перечислено?",
+                            "options": [
+                                {"option_id": "opt-1", "text": "Два"},
+                                {"option_id": "opt-2", "text": "Четыре"},
+                            ],
+                            "correct_option_index": 0,
+                            "explanation": {"text": "В документе перечислены два факта."},
+                        },
+                    ],
+                },
+                raw_response={"id": "resp-ru-1", "choices": [{"index": 0}]},
+            )
+        ]
+    )
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_russian_document(client)
+
+    response = client.post(f"/documents/{document_id}/generate", json=build_generation_payload())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["quiz"]["title"] == "Русский квиз"
+    assert payload["quiz"]["document_id"] == document_id
+    assert payload["quiz"]["questions"][0]["prompt"] == "Что указано в документе?"
+    assert payload["quiz"]["questions"][0]["options"][0]["text"] == "Первый факт"
+    assert payload["quiz"]["questions"][0]["explanation"] == {"text": "В документе есть первый факт."}
