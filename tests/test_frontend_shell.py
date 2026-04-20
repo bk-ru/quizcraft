@@ -42,7 +42,7 @@ def test_frontend_shell_files_exist() -> None:
     assert API_CLIENT_JS.is_file()
 
 
-def test_frontend_index_references_local_assets_and_uses_russian_upload_defaults() -> None:
+def test_frontend_index_exposes_russian_result_view_shell() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
     assert '<html lang="ru">' in content
@@ -52,9 +52,10 @@ def test_frontend_index_references_local_assets_and_uses_russian_upload_defaults
     assert "Загрузить документ" in content
     assert "Параметры генерации" in content
     assert "Сгенерировать квиз" in content
-    assert 'id="generation-form"' in content
-    assert 'type="file"' in content
-    assert 'name="question_count"' in content
+    assert "Результат генерации" in content
+    assert "Квиз появится здесь после успешной генерации." in content
+    assert 'id="generation-result"' in content
+    assert 'id="quiz-title"' in content
     assert "./styles.css" in content
     assert "./config.js" in content
     assert "./app.js" in content
@@ -89,18 +90,22 @@ def test_frontend_config_exposes_backend_base_url() -> None:
     assert "window.QuizCraftConfig" in content
 
 
-def test_frontend_app_wires_russian_upload_and_generation_defaults() -> None:
+def test_frontend_app_wires_result_view_states_with_russian_text() -> None:
     content = APP_JS.read_text(encoding="utf-8")
 
     assert "uploadDocument" in content
     assert "generateQuiz" in content
+    assert "renderQuizResult" in content
+    assert "setResultState" in content
     assert '"ru"' in content
     assert '"direct"' in content
     assert "Загрузите документ" in content
     assert "Квиз создан" in content
+    assert "Результат готов" in content
+    assert "Квиз появится здесь после успешной генерации." in content
 
 
-def test_frontend_static_smoke_serves_russian_upload_flow_assets() -> None:
+def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     with serve_frontend() as base_url:
         html = urlopen(f"{base_url}/").read().decode("utf-8")
         config_js = urlopen(f"{base_url}/config.js").read().decode("utf-8")
@@ -110,6 +115,7 @@ def test_frontend_static_smoke_serves_russian_upload_flow_assets() -> None:
     assert "Загрузить документ" in html
     assert "Параметры генерации" in html
     assert "Сгенерировать квиз" in html
+    assert "Результат генерации" in html
     assert "backendBaseUrl" in config_js
-    assert "uploadDocument" in app_js
+    assert "renderQuizResult" in app_js
     assert "generateQuiz" in client_js
