@@ -27,6 +27,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-19) Completed and integrated all of Stage 6 on `main`, covering both quiz read and quiz update API flows.
 - [x] (2026-04-20) Integrated the Cyrillic compatibility audit/fix on `main` via merge commit `dd0861f`, adding targeted UTF-8 JSON persistence fixes, a Russian fallback quiz title, and Russian-language regression coverage across implemented parsing, storage, normalization, generation, and API flows.
 - [x] (2026-04-20) Implemented, reviewed, and integrated Batch 1 of Stage 7 on `main` via merge commit `3ebc9d1`, covering the thin `frontend/` shell, plain JavaScript API client foundation, frontend runtime config, and minimal smoke coverage.
+- [x] (2026-04-20) Implemented, reviewed, and integrated Batch 2 of Stage 7 on `main` via direct commits `b5f9cf7`, `79a9e51`, and `5762736`, covering the upload surface, generation parameter form, UTF-8-safe submit flow to the current backend API, and frontend smoke coverage with Russian UI text.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -96,7 +97,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, the complete Stage 3 LM Studio provider integration scope, the full Stage 4 direct generation pipeline, the full Stage 5 HTTP bootstrap/upload/generate API surface, the full Stage 6 quiz read/update API surface, the accepted Cyrillic compatibility fixes, and the Stage 7 frontend shell foundation. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
 
-The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 7 Batch 2 rather than revisiting already integrated backend foundations, API slices, or the frontend shell.
+The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 7 Batch 3 rather than revisiting already integrated backend foundations, API slices, or the frontend shell.
 
 ## Context and Orientation
 
@@ -537,6 +538,9 @@ Current integrated state:
     e29e229 merge(stage6): integrate quiz update batch 2
     dd0861f merge(i18n): integrate cyrillic compatibility audit
     3ebc9d1 merge(frontend): integrate stage 7 batch 1 shell
+    b5f9cf7 feat(frontend): add upload surface
+    79a9e51 feat(frontend): add generation parameter form and submit flow
+    5762736 test(frontend): cover upload and parameter flow smoke paths
 
 Current backlog completion status:
 
@@ -552,6 +556,7 @@ Current backlog completion status:
     Stage 6: fully integrated on main
     Cyrillic compatibility audit/fix: integrated on main
     Stage 7 Batch 1 (`UI-001` shell slice): integrated on main
+    Stage 7 Batch 2 (`UI-001` flow slice, `UI-002`): integrated on main
 
 Next recommended stage:
 
@@ -559,7 +564,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 7 Batch 2: Upload and generation parameter flow
+    Stage 7 Batch 3: Result view
 
 ## Interfaces and Dependencies
 
