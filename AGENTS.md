@@ -17,8 +17,20 @@
 
 ## Tests
 - Add or update pytest tests for positive and negative scenarios for every behavior change.
+- For text-processing, API, storage, and generation features, include at least one Russian/Cyrillic example.
 - Do not finish the task without running relevant tests.
 - If tests cannot be run, explain exactly why.
+
+## Delivery report
+- At the end of each implementation batch or stage, provide:
+  1. summary of changes
+  2. touched files
+  3. tests/checks run
+  4. review result
+  5. safe to merge or not
+  6. integration action taken or deferred
+  7. commit hashes
+  8. commit messages
 
 ## Dependencies
 - Do not add new production dependencies unless strictly necessary.
@@ -87,13 +99,25 @@
 - If it is not clean, explicitly state whether that blocks safe implementation or integration.
 - Do not silently proceed across unrelated local modifications.
 
-## Standard delivery report
-- At the end of each implementation batch or stage, provide:
-  1. summary of changes,
-  2. list of touched files,
-  3. tests/checks run,
-  4. review result,
-  5. safe to merge or not,
-  6. integration action taken or deferred,
-  7. commit hashes,
-  8. commit messages.
+  ## Russian language requirement
+- All user-facing document processing in this project must work correctly with Russian-language content and Cyrillic text.
+- Uploaded documents should be tested primarily on Russian/Cyrillic fixtures.
+- Quiz generation, validation, storage, API responses, and UI rendering must preserve Cyrillic text without corruption or lossy normalization.
+- New parsing, generation, export, and API features must include tests with Russian-language examples.
+- Do not assume ASCII-only or English-only inputs anywhere in the pipeline.
+
+## Cyrillic test coverage
+- For every feature that reads, transforms, stores, returns, or displays document content, include at least one positive test with Cyrillic/Russian text.
+- For parsers and API flows, verify UTF-8 handling and round-trip preservation of Cyrillic text.
+- For generation-related flows, verify that resulting quiz fields remain in Russian when the source document is in Russian.
+
+## Cyrillic compatibility policy
+- Broad refactoring for Russian/Cyrillic support is not required unless a concrete defect is found.
+- Treat Cyrillic compatibility as test-proven, not assumption-based.
+- If a Russian/Cyrillic test passes for an existing flow, do not refactor that flow just for precaution.
+- If a Russian/Cyrillic test fails, apply the smallest targeted fix and add regression coverage.
+
+## Text integrity policy
+- Preserve Russian/Cyrillic text across request -> parsing -> storage -> generation -> response without corruption.
+- Prefer targeted fixes over broad i18n refactors.
+- Do not introduce English fallback text into Russian-language flows unless explicitly required.
