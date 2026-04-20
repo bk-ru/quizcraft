@@ -10,6 +10,7 @@ from backend.app.parsing.txt import TxtParser
 from backend.app.storage.documents import FileSystemDocumentRepository
 from backend.tests.docx_samples import build_docx_bytes
 from backend.tests.pdf_samples import build_pdf_bytes
+from backend.tests.pdf_samples import build_russian_pdf_bytes
 
 
 def build_service(tmp_path, max_file_size_bytes: int = 1024) -> DocumentIngestionService:
@@ -50,6 +51,21 @@ def test_ingestion_service_surfaces_validation_errors(tmp_path) -> None:
             media_type="text/plain",
             content=b"12345",
         )
+
+
+def test_ingestion_service_persists_russian_txt_document(tmp_path) -> None:
+    service = build_service(tmp_path)
+    content = "  Первый факт\r\n\r\n\tВторой факт  ".encode("utf-8")
+
+    document = service.ingest(
+        filename="lecture.txt",
+        media_type="text/plain",
+        content=content,
+    )
+
+    assert document.normalized_text == "Первый факт\n\nВторой факт"
+    assert document.metadata == {"text_length": len("Первый факт\n\nВторой факт")}
+    assert FileSystemDocumentRepository(tmp_path).get(document.document_id) == document
 
 
 def test_ingestion_service_persists_normalized_docx_document(tmp_path) -> None:
@@ -134,3 +150,19 @@ def test_ingestion_service_surfaces_unsupported_pdf_content_path(tmp_path) -> No
             media_type="application/octet-stream",
             content=build_pdf_bytes(["First page"]),
         )
+
+
+def test_ingestion_service_persists_russian_pdf_document(tmp_path) -> None:
+    service = build_service(tmp_path, max_file_size_bytes=32 * 1024)
+    content = build_russian_pdf_bytes()
+
+    document = service.ingest(
+        filename="lecture.pdf",
+        media_type="application/pdf",
+        content=content,
+    )
+
+    assert "Привет, мир" in document.normalized_text
+    assert "Это русский PDF для теста." in document.normalized_text
+    assert document.metadata["page_count"] == 1
+    assert FileSystemDocumentRepository(tmp_path).get(document.document_id) == document

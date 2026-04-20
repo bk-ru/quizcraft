@@ -75,3 +75,28 @@ def test_request_builder_uses_direct_generation_prompt_key() -> None:
     resolved_key = builder.resolve_prompt_key(build_generation_request())
 
     assert resolved_key == DIRECT_GENERATION_PROMPT_KEY
+
+
+def test_request_builder_preserves_russian_document_text_and_language() -> None:
+    builder = DirectGenerationRequestBuilder(prompt_registry=PromptRegistry)
+    document = DocumentRecord(
+        document_id="doc-ru-1",
+        filename="lecture.txt",
+        media_type="text/plain",
+        file_size_bytes=64,
+        normalized_text="Первый факт.\n\nВторой факт.",
+        metadata={"text_length": 26},
+    )
+    generation_request = GenerationRequest(
+        question_count=3,
+        language="русский",
+        difficulty="средний",
+        quiz_type="single_choice",
+        generation_mode=GenerationMode.DIRECT,
+    )
+
+    provider_request = builder.build(document=document, generation_request=generation_request)
+
+    assert "Первый факт.\n\nВторой факт." in provider_request.user_prompt
+    assert "Language: русский" in provider_request.user_prompt
+    assert "Difficulty: средний" in provider_request.user_prompt

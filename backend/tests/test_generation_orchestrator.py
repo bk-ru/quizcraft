@@ -167,3 +167,62 @@ def test_direct_generation_orchestrator_raises_after_repair_is_exhausted(tmp_pat
     assert len(provider.requests) == 2
     with pytest.raises(RepositoryNotFoundError):
         result_repository.get("quiz-generated")
+
+
+def test_direct_generation_orchestrator_preserves_russian_quiz_fields(tmp_path) -> None:
+    provider = StubProvider(
+        [
+            build_response(
+                {
+                    "quiz_id": "quiz-ru",
+                    "document_id": "ignored-by-normalizer",
+                    "title": "Квиз по документу",
+                    "version": 1,
+                    "last_edited_at": "2026-04-18T12:00:00Z",
+                    "questions": [
+                        {
+                            "question_id": "q-1",
+                            "prompt": "Что говорится в первом факте?",
+                            "options": [
+                                {"option_id": "opt-1", "text": "Первый факт"},
+                                {"option_id": "opt-2", "text": "Второй факт"},
+                            ],
+                            "correct_option_index": 0,
+                            "explanation": {"text": "Первый факт указан в документе."},
+                        },
+                        {
+                            "question_id": "q-2",
+                            "prompt": "Сколько фактов перечислено?",
+                            "options": [
+                                {"option_id": "opt-1", "text": "Два"},
+                                {"option_id": "opt-2", "text": "Пять"},
+                            ],
+                            "correct_option_index": 0,
+                            "explanation": {"text": "В документе два факта."},
+                        },
+                    ],
+                }
+            )
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(
+        DocumentRecord(
+            document_id="doc-1",
+            filename="lecture.txt",
+            media_type="text/plain",
+            file_size_bytes=64,
+            normalized_text="Первый факт.\nВторой факт.",
+            metadata={"text_length": 25},
+        )
+    )
+
+    result = orchestrator.generate("doc-1", build_generation_request(question_count=2))
+    persisted = result_repository.get(result.quiz.quiz_id)
+
+    assert result.quiz.title == "Квиз по документу"
+    assert result.quiz.questions[0].prompt == "Что говорится в первом факте?"
+    assert result.quiz.questions[0].options[0].text == "Первый факт"
+    assert result.quiz.questions[0].explanation is not None
+    assert result.quiz.questions[0].explanation.text == "Первый факт указан в документе."
+    assert persisted == result

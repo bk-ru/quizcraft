@@ -90,3 +90,28 @@ def test_generation_quality_checker_accepts_valid_quiz() -> None:
     checker = GenerationQualityChecker()
 
     checker.ensure_quality(build_valid_quiz(), expected_question_count=2)
+
+
+def test_generation_quality_checker_accepts_valid_russian_quiz() -> None:
+    checker = GenerationQualityChecker()
+    russian_quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Итоговый квиз",
+        version=1,
+        last_edited_at="2026-04-18T12:00:00Z",
+        questions=(
+            Question(
+                question_id="q-1",
+                prompt="Как называется спутник Земли?",
+                options=(
+                    Option(option_id="opt-1", text="Луна"),
+                    Option(option_id="opt-2", text="Марс"),
+                ),
+                correct_option_index=0,
+                explanation=Explanation(text="Луна — естественный спутник Земли."),
+            ),
+        ),
+    )
+
+    checker.ensure_quality(russian_quiz, expected_question_count=1)

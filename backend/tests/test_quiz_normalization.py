@@ -69,3 +69,58 @@ def test_normalize_quiz_output_rejects_non_numeric_answer_index() -> None:
 
     with pytest.raises(DomainValidationError, match="correct option"):
         normalize_quiz_output(raw_payload)
+
+
+def test_normalize_quiz_output_preserves_russian_fields() -> None:
+    raw_payload = {
+        "quiz_id": " quiz-ru ",
+        "document_id": " doc-ru ",
+        "title": "  Тренировочный квиз  ",
+        "version": "1",
+        "last_edited_at": " 2026-04-18T12:00:00Z ",
+        "questions": [
+            {
+                "question_id": " q-1 ",
+                "prompt": "  Какой город является столицей России?  ",
+                "correct_option_number": "1",
+                "options": [
+                    {"option_id": " opt-1 ", "text": " Москва "},
+                    {"option_id": " opt-2 ", "text": " Санкт-Петербург "},
+                ],
+                "explanation": {"text": " Потому что Москва — столица России. "},
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    assert quiz.title == "Тренировочный квиз"
+    assert quiz.questions[0].prompt == "Какой город является столицей России?"
+    assert tuple(option.text for option in quiz.questions[0].options) == ("Москва", "Санкт-Петербург")
+    assert quiz.questions[0].explanation is not None
+    assert quiz.questions[0].explanation.text == "Потому что Москва — столица России."
+
+
+def test_normalize_quiz_output_uses_russian_default_title_when_missing() -> None:
+    raw_payload = {
+        "quiz_id": "quiz-ru",
+        "document_id": "doc-ru",
+        "version": 1,
+        "last_edited_at": "2026-04-18T12:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "prompt": "Что изучает информатика?",
+                "correct_option_index": 0,
+                "options": [
+                    {"option_id": "opt-1", "text": "Информационные процессы"},
+                    {"option_id": "opt-2", "text": "Только числа"},
+                ],
+                "explanation": {"text": "Информатика изучает работу с информацией."},
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    assert quiz.title == "Сгенерированный квиз"
