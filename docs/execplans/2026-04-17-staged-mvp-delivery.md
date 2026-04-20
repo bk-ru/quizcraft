@@ -23,6 +23,10 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-18) Implemented, reviewed, and integrated Batch 1 of Stage 3 on `main` via merge commit `88dc67f`, covering `LM-001`, `LM-002`, `LM-004`, and the client slice of `TS-004` with the provider contract, structured LM Studio client, retry-timeout wrapper, and client-slice pytest coverage.
 - [x] (2026-04-18) Implemented, reviewed, and integrated Batch 2 of Stage 3 on `main` via merge commit `b65f58d`, covering `LM-003` and the healthcheck slice of `TS-004` with LM Studio health classification for available, timeout, connection-failure, and malformed-response states.
 - [x] (2026-04-18) Implemented, reviewed, and integrated Batch 1 of Stage 4 on `main` via merge commit `3c595a2`, covering `PM-001`, `PM-002`, and `GN-001` with the versioned prompt registry, direct-generation master prompt, and provider request builder.
+- [x] (2026-04-19) Implemented, reviewed, and integrated Batch 2 of Stage 6 on `main` via merge commit `e29e229`, covering `BE-009` and the update slice of `TS-007` with persisted quiz update behavior, canonical-structure preservation, domain validation, version bumping, and timestamp refresh on save.
+- [x] (2026-04-19) Completed and integrated all of Stage 6 on `main`, covering both quiz read and quiz update API flows.
+- [x] (2026-04-20) Integrated the Cyrillic compatibility audit/fix on `main` via merge commit `dd0861f`, adding targeted UTF-8 JSON persistence fixes, a Russian fallback quiz title, and Russian-language regression coverage across implemented parsing, storage, normalization, generation, and API flows.
+- [x] (2026-04-20) Implemented, reviewed, and integrated Batch 1 of Stage 7 on `main` via merge commit `3ebc9d1`, covering the thin `frontend/` shell, plain JavaScript API client foundation, frontend runtime config, and minimal smoke coverage.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -90,13 +94,13 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 ## Outcomes & Retrospective
 
-At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, and the complete Stage 3 LM Studio provider integration scope. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
+At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, the complete Stage 3 LM Studio provider integration scope, the full Stage 4 direct generation pipeline, the full Stage 5 HTTP bootstrap/upload/generate API surface, the full Stage 6 quiz read/update API surface, the accepted Cyrillic compatibility fixes, and the Stage 7 frontend shell foundation. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
 
-The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 4 rather than revisiting foundation, parsing, or LM Studio integration work.
+The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 7 Batch 2 rather than revisiting already integrated backend foundations, API slices, or the frontend shell.
 
 ## Context and Orientation
 
-The current repository has both planning artifacts and implemented backend slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the foundation, storage, parsing, and LM Studio integration layers covered by Stages 1, 2, and 3. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` now covers the implemented backend behavior. There is still no HTTP API surface, no generation orchestration, no runnable frontend, and no export implementation yet.
+The current repository has both planning artifacts and implemented product slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the implemented foundation, storage, parsing, LM Studio integration, direct generation pipeline, and HTTP API layers covered by Stages 1 through 6. `frontend/` now contains the thin Stage 7 shell and plain JavaScript API client foundation. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` and the minimal frontend smoke coverage now cover the implemented behavior. Export, editing UI, and later-stage features remain pending.
 
 The backlog assumes a Python backend with typed contracts, FastAPI/Pydantic-style API models, pytest tests, standard-library logging, and LM Studio as the only model provider for the MVP. The backlog does not pick a frontend framework. Because the repository currently contains only HTML concepts, this plan assumes a thin frontend in `frontend/` that can start as plain HTML, CSS, and JavaScript while reusing the visual structure from the concept files. If a richer framework is chosen later, the plan should be revised before Stage 7.
 
@@ -530,6 +534,9 @@ Current integrated state:
     6094481 merge(stage5): integrate api health batch 1
     53eb42a merge(stage5): integrate upload and generate batch 2
     752cb26 merge(stage6): integrate quiz read batch 1
+    e29e229 merge(stage6): integrate quiz update batch 2
+    dd0861f merge(i18n): integrate cyrillic compatibility audit
+    3ebc9d1 merge(frontend): integrate stage 7 batch 1 shell
 
 Current backlog completion status:
 
@@ -541,14 +548,18 @@ Current backlog completion status:
     Stage 5 Batch 2 (`BE-006`, `BE-007`, `TS-007` upload/generate slice): integrated on main
     Stage 5: fully integrated on main
     Stage 6 Batch 1 (`BE-008`, `TS-007` read slice): integrated on main
+    Stage 6 Batch 2 (`BE-009`, `TS-007` update slice): integrated on main
+    Stage 6: fully integrated on main
+    Cyrillic compatibility audit/fix: integrated on main
+    Stage 7 Batch 1 (`UI-001` shell slice): integrated on main
 
 Next recommended stage:
 
-    Stage 6: API Quiz Read and Update
+    Stage 7: UI Upload, Parameters, and Result View
 
 Next recommended batch:
 
-    Stage 6 Batch 2: Quiz update endpoint
+    Stage 7 Batch 2: Upload and generation parameter flow
 
 ## Interfaces and Dependencies
 
