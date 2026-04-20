@@ -21,7 +21,7 @@ class FileSystemGenerationResultRepository:
 
         target_path = self._storage_path / f"{result.quiz.quiz_id}.json"
         target_path.write_text(
-            json.dumps(result.to_dict(), ensure_ascii=True, indent=2),
+            json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
         return result

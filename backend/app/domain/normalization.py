@@ -12,7 +12,7 @@ from backend.app.domain.models import Quiz
 
 DEFAULT_QUIZ_ID = "quiz-generated"
 DEFAULT_DOCUMENT_ID = "document-generated"
-DEFAULT_QUIZ_TITLE = "Generated quiz"
+DEFAULT_QUIZ_TITLE = "Сгенерированный квиз"
 DEFAULT_VERSION = 1
 DEFAULT_LAST_EDITED_AT = "1970-01-01T00:00:00Z"
 
