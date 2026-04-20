@@ -202,6 +202,25 @@ def test_document_upload_endpoint_preserves_russian_text_in_storage(tmp_path) ->
     assert persisted.normalized_text == "Первый факт.\nВторой факт."
 
 
+def test_document_upload_endpoint_accepts_russian_filename_query_param(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/documents",
+        params={"filename": "тестовый-конспект.txt"},
+        content="Первый факт.\nВторой факт.".encode("utf-8"),
+        headers={"Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 201
+    payload = response.json()
+    persisted = FileSystemDocumentRepository(tmp_path).get(payload["document_id"])
+    assert payload["filename"] == "тестовый-конспект.txt"
+    assert persisted.filename == "тестовый-конспект.txt"
+    assert persisted.normalized_text == "Первый факт.\nВторой факт."
+
+
 def test_direct_generation_endpoint_returns_russian_quiz_for_russian_document(tmp_path) -> None:
     provider = StubProvider(
         responses=[
