@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuizCraft | Панель состояния</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="shell-background" aria-hidden="true"></div>
+  <main class="shell">
+    <section class="hero" aria-labelledby="shell-title">
+      <p class="eyebrow">QuizCraft</p>
+      <h1 id="shell-title">Панель состояния</h1>
+      <p class="hero-copy">
+        Минимальная фронтенд-оболочка для подключения к текущему backend API.
+        Этот слой показывает только доступность сервиса и готовит client foundation для следующих batch-ов.
+      </p>
+      <dl class="status-strip" aria-label="Состояние сервисов">
+        <div class="status-item" data-status-surface="backend">
+          <dt>Backend API</dt>
+          <dd id="backend-status-text">Проверка…</dd>
+        </div>
+        <div class="status-item" data-status-surface="provider">
+          <dt>LM Studio</dt>
+          <dd id="provider-status-text">Проверка…</dd>
+        </div>
+      </dl>
+    </section>
+
+    <section class="workspace" aria-labelledby="workspace-title">
+      <div class="workspace-header">
+        <h2 id="workspace-title">Frontend shell</h2>
+        <p>
+          Batch 1 не включает загрузку документа, параметры генерации или отрисовку результата.
+          Здесь остаётся только безопасная точка входа и карта уже доступных endpoint-ов.
+        </p>
+      </div>
+
+      <section class="panel" aria-labelledby="config-title">
+        <div class="panel-heading">
+          <h3 id="config-title">Текущая конфигурация</h3>
+          <span id="shell-runtime-badge" class="badge">Статическая сборка</span>
+        </div>
+        <dl class="config-grid">
+          <div>
+            <dt>Backend base URL</dt>
+            <dd id="backend-base-url">Загрузка…</dd>
+          </div>
+          <div>
+            <dt>Request timeout</dt>
+            <dd id="request-timeout">Загрузка…</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel" aria-labelledby="endpoint-title">
+        <div class="panel-heading">
+          <h3 id="endpoint-title">API client foundation</h3>
+          <p class="panel-copy">Подготовленные методы для уже существующих backend endpoint-ов.</p>
+        </div>
+        <ul class="endpoint-list">
+          <li><span class="http-method">GET</span><code>/health</code><span>Проверка доступности backend</span></li>
+          <li><span class="http-method">GET</span><code>/health/lm-studio</code><span>Проверка связи с LM Studio</span></li>
+          <li><span class="http-method">POST</span><code>/documents</code><span>Загрузка документа без UI-формы</span></li>
+          <li><span class="http-method">POST</span><code>/documents/{document_id}/generate</code><span>Запуск генерации по document_id</span></li>
+          <li><span class="http-method">GET</span><code>/quizzes/{quiz_id}</code><span>Чтение сохранённого квиза</span></li>
+          <li><span class="http-method">PUT</span><code>/quizzes/{quiz_id}</code><span>Обновление сохранённого квиза</span></li>
+        </ul>
+      </section>
+
+      <section class="panel panel-log" aria-labelledby="log-title">
+        <div class="panel-heading">
+          <h3 id="log-title">Последняя проверка</h3>
+        </div>
+        <p id="shell-log-message" class="log-message">Фронтенд-оболочка ещё не выполнила запросы.</p>
+      </section>
+    </section>
+  </main>
+
+  <script src="./config.js"></script>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
