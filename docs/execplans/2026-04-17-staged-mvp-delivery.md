@@ -28,6 +28,8 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-20) Integrated the Cyrillic compatibility audit/fix on `main` via merge commit `dd0861f`, adding targeted UTF-8 JSON persistence fixes, a Russian fallback quiz title, and Russian-language regression coverage across implemented parsing, storage, normalization, generation, and API flows.
 - [x] (2026-04-20) Implemented, reviewed, and integrated Batch 1 of Stage 7 on `main` via merge commit `3ebc9d1`, covering the thin `frontend/` shell, plain JavaScript API client foundation, frontend runtime config, and minimal smoke coverage.
 - [x] (2026-04-20) Implemented, reviewed, and integrated Batch 2 of Stage 7 on `main` via direct commits `b5f9cf7`, `79a9e51`, and `5762736`, covering the upload surface, generation parameter form, UTF-8-safe submit flow to the current backend API, and frontend smoke coverage with Russian UI text.
+- [x] (2026-04-22) Implemented, reviewed, and integrated Batch 3 of Stage 7 on `main` via merge commit `a7f3cd3`, covering `UI-003` with the result view, plain JavaScript rendering of generated quiz content, loading/error/result states, and Russian-language smoke coverage.
+- [x] (2026-04-22) Completed and integrated all of Stage 7 on `main`, covering the full upload-to-result frontend flow.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -95,15 +97,15 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 ## Outcomes & Retrospective
 
-At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, the complete Stage 3 LM Studio provider integration scope, the full Stage 4 direct generation pipeline, the full Stage 5 HTTP bootstrap/upload/generate API surface, the full Stage 6 quiz read/update API surface, the accepted Cyrillic compatibility fixes, and the Stage 7 frontend shell foundation. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
+At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, the complete Stage 3 LM Studio provider integration scope, the full Stage 4 direct generation pipeline, the full Stage 5 HTTP bootstrap/upload/generate API surface, the full Stage 6 quiz read/update API surface, the accepted Cyrillic compatibility fixes, and the full Stage 7 frontend upload-to-result flow. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
 
-The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 7 Batch 3 rather than revisiting already integrated backend foundations, API slices, or the frontend shell.
+The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 8 rather than revisiting already integrated backend foundations, API slices, or the completed upload-to-result frontend flow.
 
 ## Context and Orientation
 
-The current repository has both planning artifacts and implemented product slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the implemented foundation, storage, parsing, LM Studio integration, direct generation pipeline, and HTTP API layers covered by Stages 1 through 6. `frontend/` now contains the thin Stage 7 shell and plain JavaScript API client foundation. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` and the minimal frontend smoke coverage now cover the implemented behavior. Export, editing UI, and later-stage features remain pending.
+The current repository has both planning artifacts and implemented product slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the implemented foundation, storage, parsing, LM Studio integration, direct generation pipeline, and HTTP API layers covered by Stages 1 through 6. `frontend/` now contains the plain JavaScript Stage 7 shell, upload flow, generation parameter form, and result view. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` and the frontend smoke coverage now cover the implemented behavior. Editing, export, and later-stage features remain pending.
 
-The backlog assumes a Python backend with typed contracts, FastAPI/Pydantic-style API models, pytest tests, standard-library logging, and LM Studio as the only model provider for the MVP. The backlog does not pick a frontend framework. Because the repository currently contains only HTML concepts, this plan assumes a thin frontend in `frontend/` that can start as plain HTML, CSS, and JavaScript while reusing the visual structure from the concept files. If a richer framework is chosen later, the plan should be revised before Stage 7.
+The backlog assumes a Python backend with typed contracts, FastAPI/Pydantic-style API models, pytest tests, standard-library logging, and LM Studio as the only model provider for the MVP. The backlog does not pick a frontend framework. The implemented frontend currently stays on plain HTML, CSS, and JavaScript in `frontend/`, and later stages should preserve that minimal stack unless a separate framework decision is explicitly made and recorded.
 
 The planned runtime layout for implementation is:
 
@@ -352,6 +354,10 @@ Rationale for grouping: Editing is a separate flow from generation and deserves 
 
 Dependencies: Stage 6 for the read and update endpoints, and Stage 7 for the initial UI shell.
 
+Planned batch breakdown:
+1. Batch 1: edit view and quiz loading
+2. Batch 2: save flow and validation handling
+
 Definition of done: The UI can open a generated quiz, edit question text, options, correct answers, and explanations, submit valid changes to the backend, and show validation errors when the edit payload is invalid.
 
 Required tests/checks: Keep backend API tests green. Run a manual browser smoke test that edits a quiz, refreshes the page, and confirms the saved data persists.
@@ -541,6 +547,7 @@ Current integrated state:
     b5f9cf7 feat(frontend): add upload surface
     79a9e51 feat(frontend): add generation parameter form and submit flow
     5762736 test(frontend): cover upload and parameter flow smoke paths
+    a7f3cd3 merge(frontend): integrate stage 7 batch 3 result view
 
 Current backlog completion status:
 
@@ -557,14 +564,16 @@ Current backlog completion status:
     Cyrillic compatibility audit/fix: integrated on main
     Stage 7 Batch 1 (`UI-001` shell slice): integrated on main
     Stage 7 Batch 2 (`UI-001` flow slice, `UI-002`): integrated on main
+    Stage 7 Batch 3 (`UI-003`): integrated on main
+    Stage 7: fully integrated on main
 
 Next recommended stage:
 
-    Stage 7: UI Upload, Parameters, and Result View
+    Stage 8: UI Quiz Editing
 
 Next recommended batch:
 
-    Stage 7 Batch 3: Result view
+    Stage 8 Batch 1: edit view and quiz loading
 
 ## Interfaces and Dependencies
 
