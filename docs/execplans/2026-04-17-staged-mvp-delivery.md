@@ -31,12 +31,14 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-22) Implemented, reviewed, and integrated Batch 3 of Stage 7 on `main` via merge commit `a7f3cd3`, covering `UI-003` with the result view, plain JavaScript rendering of generated quiz content, loading/error/result states, and Russian-language smoke coverage.
 - [x] (2026-04-22) Completed and integrated all of Stage 7 on `main`, covering the full upload-to-result frontend flow.
 - [x] (2026-04-22) Implemented, reviewed, and integrated Batch 1 of Stage 8 on `main` via merge commit `16fc33b`, covering the quiz edit read-shell with persisted quiz loading into editable Russian/Cyrillic fields and frontend smoke coverage.
+- [x] (2026-04-22) Implemented, reviewed, and integrated Batch 2 of Stage 8 on `main` via merge commit `7082baf`, covering the quiz save flow, validation-state handling, save-and-reload persistence behavior, and Russian/Cyrillic smoke coverage.
+- [x] (2026-04-22) Completed and integrated all of Stage 8 on `main`, covering the full quiz edit flow from load through validated save and reload.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
 
-- Observation: The repository still contains no executable backend or frontend source code; it currently contains only planning documents, one layout test, and static design concepts.
-  Evidence: `README.md` states that application source code is not present yet, and the tracked files outside `docs/` are limited to `AGENTS.md`, `.agent/PLANS.md`, `README.md`, `LICENSE`, and `tests/test_repository_layout.py`.
+- Observation: The repository now contains executable backend and frontend source code through Stage 8, while some older narrative plan text still reflects the earlier planning-only state.
+  Evidence: `backend/` and `frontend/` are implemented on `main`, and the integrated-history section below records completed stages through Stage 8.
 
 - Observation: The backlog is detailed at the task level, but it is not yet grouped into implementation-sized increments; a direct "MVP all at once" reading would create stages that touch too many layers at once.
   Evidence: `docs/planning/backlog.md` lists twelve MVP task groups and three later priority groups, but its built-in MVP summary still groups the work into one broad tranche rather than reviewable delivery stages.
@@ -375,6 +377,10 @@ Rationale for grouping: JSON export is the clean closeout for the early MVP. The
 
 Dependencies: Stages 6 through 8.
 
+Planned batch breakdown:
+1. Batch 1: canonical JSON exporter and download endpoint
+2. Batch 2: frontend JSON export action
+
 Definition of done: The backend can export a quiz from the canonical domain model into a deterministic JSON file, the API exposes a download endpoint, and the UI offers an export button that downloads the JSON after generation or editing.
 
 Required tests/checks: Run `python -m pytest backend/tests/test_json_exporter.py backend/tests/test_api_export_json.py -q` and expect all tests to pass. Manually verify in the browser that the exported file downloads with the expected name and content after editing a quiz.
@@ -569,14 +575,16 @@ Current backlog completion status:
     Stage 7 Batch 3 (`UI-003`): integrated on main
     Stage 7: fully integrated on main
     Stage 8 Batch 1 (`UI-004` read/edit shell slice): integrated on main
+    Stage 8 Batch 2 (`UI-004` save slice): integrated on main
+    Stage 8: fully integrated on main
 
 Next recommended stage:
 
-    Stage 8: UI Quiz Editing
+    Stage 9: JSON Export and MVP Closeout
 
 Next recommended batch:
 
-    Stage 8 Batch 2: save flow and validation handling
+    Stage 9 Batch 1: canonical JSON exporter and download endpoint
 
 ## Interfaces and Dependencies
 
