@@ -7,10 +7,12 @@ from typing import Any
 
 from fastapi import FastAPI
 from fastapi import Request
+from fastapi.responses import Response
 
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.models import Quiz
 from backend.app.domain.validation import validate_quiz
+from backend.app.export.json_exporter import QuizJsonExporter
 from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
@@ -21,6 +23,15 @@ def register_quiz_routes(app: FastAPI) -> None:
     async def get_quiz(request: Request, quiz_id: str) -> dict[str, Any]:
         quiz = FileSystemQuizRepository(request.app.state.storage_root).get(quiz_id)
         return _serialize_quiz(quiz, request.state.correlation_id)
+
+    @app.get("/quizzes/{quiz_id}/export/json")
+    async def export_quiz_json(request: Request, quiz_id: str) -> Response:
+        quiz = FileSystemQuizRepository(request.app.state.storage_root).get(quiz_id)
+        exported_file = QuizJsonExporter().export(quiz)
+        response = Response(content=exported_file.content_bytes, media_type="application/json")
+        response.headers["content-disposition"] = f'attachment; filename="{exported_file.filename}"'
+        response.headers["content-type"] = exported_file.media_type
+        return response
 
     @app.put("/quizzes/{quiz_id}")
     async def update_quiz(request: Request, quiz_id: str, payload: dict[str, Any]) -> dict[str, Any]:
