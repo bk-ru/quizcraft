@@ -74,11 +74,13 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
     assert "Открыть существующий квиз" in content
     assert "Идентификатор квиза" in content
     assert "Загрузить квиз" in content
-    assert "Сохранение будет добавлено в следующем batch-е." in content
+    assert "Сохранить изменения" in content
+    assert "Изменения пока не сохранены." in content
     assert 'id="quiz-editor-loader"' in content
     assert 'id="quiz-id-input"' in content
     assert 'id="quiz-editor-fields"' in content
     assert 'id="quiz-editor-status"' in content
+    assert 'id="save-quiz-button"' in content
 
 
 def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
@@ -104,7 +106,7 @@ def test_frontend_config_exposes_backend_base_url() -> None:
     assert "window.QuizCraftConfig" in content
 
 
-def test_frontend_app_wires_result_view_states_with_russian_text() -> None:
+def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     content = APP_JS.read_text(encoding="utf-8")
 
     assert "uploadDocument" in content
@@ -114,13 +116,18 @@ def test_frontend_app_wires_result_view_states_with_russian_text() -> None:
     assert '"ru"' in content
     assert '"direct"' in content
     assert "getQuiz" in content
+    assert "updateQuiz" in content
     assert "renderQuizEditor" in content
     assert "loadQuizForEditing" in content
+    assert "buildQuizUpdatePayload" in content
+    assert "submitQuizEdits" in content
     assert "Загрузите документ" in content
     assert "Квиз создан" in content
     assert "Результат готов" in content
     assert "Квиз появится здесь после успешной генерации." in content
-    assert "Сохранение будет доступно в следующем batch-е." in content
+    assert "Изменения пока не сохранены." in content
+    assert "Изменения сохранены." in content
+    assert "Исправьте ошибки и повторите сохранение." in content
 
 
 def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
@@ -136,7 +143,9 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "Результат генерации" in html
     assert "Редактирование квиза" in html
     assert "Открыть существующий квиз" in html
+    assert "Сохранить изменения" in html
     assert "backendBaseUrl" in config_js
     assert "renderQuizResult" in app_js
     assert "renderQuizEditor" in app_js
+    assert "submitQuizEdits" in app_js
     assert "generateQuiz" in client_js
