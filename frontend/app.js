@@ -17,6 +17,10 @@ const submitButton = document.getElementById("submit-button");
 const resultPanel = document.getElementById("generation-result");
 const resultStateBadge = document.getElementById("result-state-badge");
 const questionList = document.getElementById("quiz-question-list");
+const quizEditorLoader = document.getElementById("quiz-editor-loader");
+const quizIdInput = document.getElementById("quiz-id-input");
+const loadQuizButton = document.getElementById("load-quiz-button");
+const quizEditorFields = document.getElementById("quiz-editor-fields");
 
 const statusMap = {
   ok: "ok",
@@ -78,6 +82,19 @@ function setSubmissionStatus(text, tone) {
   }
 }
 
+function setEditorStatus(text, tone) {
+  const element = document.getElementById("quiz-editor-status");
+  if (!element) {
+    return;
+  }
+  element.textContent = text;
+  if (tone) {
+    element.dataset.statusTone = tone;
+  } else {
+    delete element.dataset.statusTone;
+  }
+}
+
 function setResultState(text, tone, badgeText) {
   const element = document.getElementById("result-status");
   if (element) {
@@ -125,6 +142,20 @@ function setBusyState(isBusy) {
   }
   if (submitButton) {
     submitButton.textContent = isBusy ? "Генерация…" : "Сгенерировать квиз";
+  }
+}
+
+function setEditorBusyState(isBusy) {
+  if (!quizEditorLoader) {
+    return;
+  }
+  for (const element of quizEditorLoader.elements) {
+    if (element instanceof HTMLElement) {
+      element.disabled = isBusy;
+    }
+  }
+  if (loadQuizButton) {
+    loadQuizButton.textContent = isBusy ? "Загрузка…" : "Загрузить квиз";
   }
 }
 
@@ -185,6 +216,13 @@ function updateOperationSummary(uploadPayload, generationPayload) {
   setTextContent("last-request-id", generationPayload.request_id ?? "Ещё нет");
 }
 
+function setQuizEditorSummary(quiz) {
+  setTextContent("editor-quiz-id", quiz.quiz_id ?? "Ещё не загружен");
+  setTextContent("editor-document-id", quiz.document_id ?? "Ещё не загружен");
+  setTextContent("editor-quiz-version", Number.isInteger(quiz.version) ? String(quiz.version) : "Ещё не загружен");
+  setTextContent("editor-last-edited", quiz.last_edited_at || "Ещё не загружен");
+}
+
 function clearQuizResult() {
   setTextContent("quiz-title", "Ещё нет результата");
   setTextContent("quiz-question-count", "0");
@@ -192,6 +230,16 @@ function clearQuizResult() {
   setTextContent("quiz-prompt-version", "Ещё нет результата");
   if (questionList) {
     questionList.replaceChildren();
+  }
+}
+
+function clearQuizEditor() {
+  setQuizEditorSummary({});
+  if (quizEditorFields) {
+    const placeholder = document.createElement("p");
+    placeholder.className = "field-hint";
+    placeholder.textContent = "Сохранение будет добавлено в следующем batch-е.";
+    quizEditorFields.replaceChildren(placeholder);
   }
 }
 
@@ -248,6 +296,107 @@ function buildQuestionCard(question, index) {
   return item;
 }
 
+function createEditorField(labelText, control) {
+  const wrapper = document.createElement("label");
+  wrapper.className = "field";
+
+  const label = document.createElement("span");
+  label.className = "field-label";
+  label.textContent = labelText;
+
+  wrapper.append(label, control);
+  return wrapper;
+}
+
+function createEditorInput(value) {
+  const input = document.createElement("input");
+  input.type = "text";
+  input.value = typeof value === "string" ? value : "";
+  return input;
+}
+
+function createEditorTextarea(value, rows = 3) {
+  const textarea = document.createElement("textarea");
+  textarea.rows = rows;
+  textarea.value = typeof value === "string" ? value : "";
+  return textarea;
+}
+
+function buildQuestionEditor(question, index) {
+  const article = document.createElement("article");
+  article.className = "editor-card";
+  article.dataset.questionId = question.question_id ?? `question-${index + 1}`;
+
+  const header = document.createElement("div");
+  header.className = "editor-card-header";
+
+  const badge = document.createElement("span");
+  badge.className = "question-index";
+  badge.textContent = `Вопрос ${index + 1}`;
+
+  const note = document.createElement("p");
+  note.className = "panel-copy";
+  note.textContent = "Поле можно редактировать локально. Сохранение будет доступно в следующем batch-е.";
+
+  header.append(badge, note);
+  article.append(header);
+
+  const promptField = createEditorField("Текст вопроса", createEditorTextarea(question.prompt ?? "", 3));
+  article.append(promptField);
+
+  const optionsGrid = document.createElement("div");
+  optionsGrid.className = "editor-options";
+
+  const options = Array.isArray(question.options) ? question.options : [];
+  options.forEach((option, optionIndex) => {
+    const optionField = createEditorField(
+      `Вариант ${optionIndex + 1}`,
+      createEditorInput(option.text ?? ""),
+    );
+    optionField.dataset.optionId = option.option_id ?? `option-${optionIndex + 1}`;
+    optionsGrid.append(optionField);
+  });
+  article.append(optionsGrid);
+
+  const correctAnswerSelect = document.createElement("select");
+  options.forEach((option, optionIndex) => {
+    const selectOption = document.createElement("option");
+    selectOption.value = String(optionIndex);
+    selectOption.textContent = `Вариант ${optionIndex + 1}: ${option.text ?? ""}`;
+    if (optionIndex === question.correct_option_index) {
+      selectOption.selected = true;
+    }
+    correctAnswerSelect.append(selectOption);
+  });
+  article.append(createEditorField("Правильный ответ", correctAnswerSelect));
+
+  const explanationText = question.explanation?.text ?? "";
+  article.append(createEditorField("Пояснение", createEditorTextarea(explanationText, 4)));
+
+  return article;
+}
+
+function renderQuizEditor(quiz) {
+  if (!quizEditorFields) {
+    return;
+  }
+
+  const fragment = document.createDocumentFragment();
+  fragment.append(createEditorField("Заголовок квиза", createEditorInput(quiz.title ?? "")));
+
+  const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+  questions.forEach((question, index) => {
+    fragment.append(buildQuestionEditor(question, index));
+  });
+
+  const note = document.createElement("p");
+  note.className = "editor-readonly-note";
+  note.textContent = "Сохранение будет доступно в следующем batch-е.";
+  fragment.append(note);
+
+  quizEditorFields.replaceChildren(fragment);
+}
+
 function renderQuizResult(generationPayload) {
   const quiz = generationPayload.quiz ?? {};
   const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
@@ -264,11 +413,39 @@ function renderQuizResult(generationPayload) {
   setResultState("Результат готов. Квиз отображён ниже.", "ok", "Результат готов");
 }
 
+async function loadQuizForEditing(event) {
+  event.preventDefault();
+
+  const quizId = typeof quizIdInput?.value === "string" ? quizIdInput.value.trim() : "";
+  if (!quizId) {
+    setEditorStatus("Укажите идентификатор квиза перед загрузкой.", "bad");
+    return;
+  }
+
+  try {
+    setEditorBusyState(true);
+    setEditorStatus("Загружаем сохранённый квиз…", "warn");
+    const payload = await client.getQuiz(quizId);
+    const quiz = payload.quiz ?? {};
+
+    renderQuizEditor(quiz);
+    setQuizEditorSummary(quiz);
+    setEditorStatus("Квиз загружен в режим редактирования. Сохранение будет доступно в следующем batch-е.", "ok");
+    setLogMessage(`Открыт квиз ${payload.quiz_id ?? quizId} для локального редактирования без сохранения.`, "ok");
+  } catch (error) {
+    setEditorStatus(`Не удалось открыть квиз: ${describeError(error)}`, "bad");
+  } finally {
+    setEditorBusyState(false);
+  }
+}
+
 async function bootstrapShell() {
   setTextContent("backend-base-url", backendBaseUrl);
   setTextContent("request-timeout", `${requestTimeoutMs} мс`);
   updateSelectedFileSummary();
   clearQuizResult();
+  clearQuizEditor();
+  setEditorStatus("Загрузите существующий квиз, чтобы открыть редактируемые поля. Сохранение будет добавлено в следующем batch-е.", null);
   setResultState("Квиз появится здесь после успешной генерации.", "idle", "Ожидание результата");
 
   try {
@@ -333,6 +510,10 @@ async function submitGeneration(event) {
     );
 
     updateOperationSummary(uploadPayload, generationPayload);
+    if (quizIdInput) {
+      quizIdInput.value = generationPayload.quiz_id ?? "";
+    }
+    setEditorStatus("Новый квиз готов к открытию в режиме редактирования. Сохранение будет доступно в следующем batch-е.", "warn");
     renderQuizResult(generationPayload);
     setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");
     setLogMessage(
@@ -351,5 +532,6 @@ async function submitGeneration(event) {
 
 fileInput?.addEventListener("change", updateSelectedFileSummary);
 form?.addEventListener("submit", submitGeneration);
+quizEditorLoader?.addEventListener("submit", loadQuizForEditing);
 
 bootstrapShell();

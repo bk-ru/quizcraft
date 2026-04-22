@@ -67,6 +67,20 @@ def test_frontend_index_exposes_russian_result_view_shell() -> None:
         assert target_path.is_file(), f"missing referenced asset: {relative_asset}"
 
 
+def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "Редактирование квиза" in content
+    assert "Открыть существующий квиз" in content
+    assert "Идентификатор квиза" in content
+    assert "Загрузить квиз" in content
+    assert "Сохранение будет добавлено в следующем batch-е." in content
+    assert 'id="quiz-editor-loader"' in content
+    assert 'id="quiz-id-input"' in content
+    assert 'id="quiz-editor-fields"' in content
+    assert 'id="quiz-editor-status"' in content
+
+
 def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
     content = API_CLIENT_JS.read_text(encoding="utf-8")
 
@@ -99,10 +113,14 @@ def test_frontend_app_wires_result_view_states_with_russian_text() -> None:
     assert "setResultState" in content
     assert '"ru"' in content
     assert '"direct"' in content
+    assert "getQuiz" in content
+    assert "renderQuizEditor" in content
+    assert "loadQuizForEditing" in content
     assert "Загрузите документ" in content
     assert "Квиз создан" in content
     assert "Результат готов" in content
     assert "Квиз появится здесь после успешной генерации." in content
+    assert "Сохранение будет доступно в следующем batch-е." in content
 
 
 def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
@@ -116,6 +134,9 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "Параметры генерации" in html
     assert "Сгенерировать квиз" in html
     assert "Результат генерации" in html
+    assert "Редактирование квиза" in html
+    assert "Открыть существующий квиз" in html
     assert "backendBaseUrl" in config_js
     assert "renderQuizResult" in app_js
+    assert "renderQuizEditor" in app_js
     assert "generateQuiz" in client_js
