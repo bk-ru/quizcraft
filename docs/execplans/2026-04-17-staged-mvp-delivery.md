@@ -30,6 +30,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-20) Implemented, reviewed, and integrated Batch 2 of Stage 7 on `main` via direct commits `b5f9cf7`, `79a9e51`, and `5762736`, covering the upload surface, generation parameter form, UTF-8-safe submit flow to the current backend API, and frontend smoke coverage with Russian UI text.
 - [x] (2026-04-22) Implemented, reviewed, and integrated Batch 3 of Stage 7 on `main` via merge commit `a7f3cd3`, covering `UI-003` with the result view, plain JavaScript rendering of generated quiz content, loading/error/result states, and Russian-language smoke coverage.
 - [x] (2026-04-22) Completed and integrated all of Stage 7 on `main`, covering the full upload-to-result frontend flow.
+- [x] (2026-04-22) Implemented, reviewed, and integrated Batch 1 of Stage 8 on `main` via merge commit `16fc33b`, covering the quiz edit read-shell with persisted quiz loading into editable Russian/Cyrillic fields and frontend smoke coverage.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -548,6 +549,7 @@ Current integrated state:
     79a9e51 feat(frontend): add generation parameter form and submit flow
     5762736 test(frontend): cover upload and parameter flow smoke paths
     a7f3cd3 merge(frontend): integrate stage 7 batch 3 result view
+    16fc33b merge(frontend): integrate stage 8 batch 1 edit shell
 
 Current backlog completion status:
 
@@ -566,6 +568,7 @@ Current backlog completion status:
     Stage 7 Batch 2 (`UI-001` flow slice, `UI-002`): integrated on main
     Stage 7 Batch 3 (`UI-003`): integrated on main
     Stage 7: fully integrated on main
+    Stage 8 Batch 1 (`UI-004` read/edit shell slice): integrated on main
 
 Next recommended stage:
 
@@ -573,7 +576,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 8 Batch 1: edit view and quiz loading
+    Stage 8 Batch 2: save flow and validation handling
 
 ## Interfaces and Dependencies
 
