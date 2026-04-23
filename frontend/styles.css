@@ -963,6 +963,108 @@ button {
   gap: 12px;
 }
 
+.generation-progress {
+  margin: 4px 0 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-sunken);
+}
+
+.generation-progress[hidden] {
+  display: none;
+}
+
+.progress-steps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-items: stretch;
+}
+
+.progress-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.25;
+  transition:
+    background var(--duration-base) var(--easing),
+    border-color var(--duration-base) var(--easing),
+    color var(--duration-base) var(--easing);
+}
+
+.progress-step[data-state="active"] {
+  background: var(--brand-soft);
+  border-color: color-mix(in oklab, var(--brand) 45%, var(--line));
+  color: var(--brand);
+}
+
+.progress-step[data-state="done"] {
+  background: var(--ok-soft);
+  border-color: color-mix(in oklab, var(--ok) 40%, var(--line));
+  color: var(--ok);
+}
+
+.progress-step[data-state="failed"] {
+  background: var(--bad-soft);
+  border-color: color-mix(in oklab, var(--bad) 45%, var(--line));
+  color: var(--bad);
+}
+
+.progress-step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--line-strong);
+  flex-shrink: 0;
+  transition: background var(--duration-base) var(--easing), box-shadow var(--duration-base) var(--easing);
+}
+
+.progress-step[data-state="active"] .progress-step-dot {
+  background: var(--brand);
+  box-shadow: 0 0 0 0 var(--brand);
+  animation: progress-pulse 1.4s ease-in-out infinite;
+}
+
+.progress-step[data-state="done"] .progress-step-dot {
+  background: var(--ok);
+}
+
+.progress-step[data-state="failed"] .progress-step-dot {
+  background: var(--bad);
+}
+
+.progress-step-label {
+  font-weight: 600;
+}
+
+@keyframes progress-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--brand) 60%, transparent); }
+  50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--brand) 0%, transparent); }
+}
+
+@media (max-width: 720px) {
+  .progress-steps {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress-step[data-state="active"] .progress-step-dot {
+    animation: none;
+  }
+}
+
 .inline-details {
   margin-top: 4px;
 }

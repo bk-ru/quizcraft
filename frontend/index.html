@@ -172,6 +172,26 @@
           </div>
         </div>
         <p id="submission-status" class="submission-status">Форма готова. Выберите документ и запустите генерацию.</p>
+        <div id="generation-progress" class="generation-progress" role="status" aria-live="polite" hidden>
+          <ol class="progress-steps">
+            <li class="progress-step" data-step="upload" data-state="pending">
+              <span class="progress-step-dot" aria-hidden="true"></span>
+              <span class="progress-step-label">Загружаем документ</span>
+            </li>
+            <li class="progress-step" data-step="parse" data-state="pending">
+              <span class="progress-step-dot" aria-hidden="true"></span>
+              <span class="progress-step-label">Парсим</span>
+            </li>
+            <li class="progress-step" data-step="generate" data-state="pending">
+              <span class="progress-step-dot" aria-hidden="true"></span>
+              <span class="progress-step-label">Генерируем</span>
+            </li>
+            <li class="progress-step" data-step="validate" data-state="pending">
+              <span class="progress-step-dot" aria-hidden="true"></span>
+              <span class="progress-step-label">Валидируем</span>
+            </li>
+          </ol>
+        </div>
         <dl class="summary-grid">
           <div>
             <dt>Имя файла</dt>

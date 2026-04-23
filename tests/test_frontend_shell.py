@@ -226,6 +226,166 @@ def test_frontend_styles_define_inline_details_affordance() -> None:
     assert ".inline-details[open]" in content
 
 
+def test_frontend_app_translates_422_validation_errors_to_russian() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    assert "describeValidationError" in content, (
+        "app must expose a dedicated 422-error translator"
+    )
+    assert "VALIDATION_FIELD_EXACT_LABELS" in content, (
+        "app must keep an exact field-path to Russian-label registry"
+    )
+    assert "VALIDATION_MESSAGE_RULES" in content, (
+        "app must keep a rule registry for translating Pydantic and domain messages"
+    )
+    for russian_label in (
+        "Заголовок квиза",
+        "Количество вопросов",
+        "Язык квиза",
+        "Сложность",
+        "Формат квиза",
+    ):
+        assert russian_label in content, f"missing Russian label: {russian_label}"
+
+
+def test_frontend_app_translates_nested_question_and_option_paths() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    assert "translateValidationFieldPath" in content
+    assert r"quiz\.questions\.(\d+)" in content, (
+        "translator must match the questions.N path pattern"
+    )
+    assert r"options\.(\d+)" in content, (
+        "translator must match the options.M path pattern"
+    )
+    for russian_fragment in (
+        "текст вопроса",
+        "номер правильного варианта",
+        "текст пояснения",
+        "текст варианта",
+    ):
+        assert russian_fragment in content, (
+            f"Russian translation for nested path is missing: {russian_fragment}"
+        )
+
+
+def test_frontend_app_translates_common_pydantic_and_domain_messages() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    for russian_fragment in (
+        "обязательное поле",
+        "минимум",
+        "ожидается целое число",
+        "лишнее поле не допускается",
+        "Варианты ответа не должны повторяться",
+        "Номер правильного варианта вне диапазона",
+        "Заголовок квиза не должен быть пустым",
+    ):
+        assert russian_fragment in content, (
+            f"Russian translation for common validation message is missing: {russian_fragment}"
+        )
+
+
+def test_frontend_app_routes_422_through_russian_mapper_in_editor_save() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    submit_edits_match = re.search(
+        r"async function submitQuizEdits[\s\S]+?^}\n",
+        content,
+        re.MULTILINE,
+    )
+    assert submit_edits_match is not None, "submitQuizEdits function must exist"
+    submit_edits_body = submit_edits_match.group(0)
+
+    assert "describeValidationError(error)" in submit_edits_body, (
+        "editor save catch must invoke the Russian 422 mapper on validation errors"
+    )
+    assert "Исправьте ошибки и повторите сохранение" in submit_edits_body
+
+
+def test_frontend_app_routes_422_through_russian_mapper_in_generation() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    submit_gen_match = re.search(
+        r"async function submitGeneration[\s\S]+?^}\n",
+        content,
+        re.MULTILINE,
+    )
+    assert submit_gen_match is not None, "submitGeneration function must exist"
+    submit_gen_body = submit_gen_match.group(0)
+
+    assert "describeValidationError(error)" in submit_gen_body, (
+        "generation catch must invoke the Russian 422 mapper on validation errors"
+    )
+    assert "error.status === 422" in submit_gen_body
+
+
+def test_frontend_index_exposes_generation_progress_panel() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="generation-progress"' in content, (
+        "index must expose the generation progress panel"
+    )
+    assert 'aria-live="polite"' in content
+    for data_step in ("upload", "parse", "generate", "validate"):
+        assert f'data-step="{data_step}"' in content, (
+            f"progress panel must declare the {data_step} pseudo-step"
+        )
+    for russian_label in (
+        "Загружаем документ",
+        "Парсим",
+        "Генерируем",
+        "Валидируем",
+    ):
+        assert russian_label in content, (
+            f"progress panel must include Russian label: {russian_label}"
+        )
+
+
+def test_frontend_app_drives_generation_progress_state() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    for helper in (
+        "startGenerationProgress",
+        "advanceGenerationProgress",
+        "completeGenerationProgress",
+        "failGenerationProgress",
+        "waitForProgressVisibility",
+    ):
+        assert f"function {helper}" in content, (
+            f"app must define the {helper} progress helper"
+        )
+
+    submit_gen_match = re.search(
+        r"async function submitGeneration[\s\S]+?^}\n",
+        content,
+        re.MULTILINE,
+    )
+    assert submit_gen_match is not None
+    submit_body = submit_gen_match.group(0)
+
+    assert "startGenerationProgress()" in submit_body
+    assert 'advanceGenerationProgress("upload", "parse")' in submit_body
+    assert 'advanceGenerationProgress("parse", "generate")' in submit_body
+    assert 'advanceGenerationProgress("generate", "validate")' in submit_body
+    assert "completeGenerationProgress()" in submit_body
+    assert "failGenerationProgress(failedStep)" in submit_body
+
+
+def test_frontend_styles_theme_generation_progress() -> None:
+    content = STYLES_CSS.read_text(encoding="utf-8")
+
+    assert ".generation-progress" in content
+    assert ".progress-step" in content
+    assert '.progress-step[data-state="active"]' in content
+    assert '.progress-step[data-state="done"]' in content
+    assert '.progress-step[data-state="failed"]' in content
+    assert "progress-pulse" in content, (
+        "progress panel must pulse the active step dot"
+    )
+    assert "@media (prefers-reduced-motion: reduce)" in content
+
+
 def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     with serve_frontend() as base_url:
         html = urlopen(f"{base_url}/").read().decode("utf-8")
