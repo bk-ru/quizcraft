@@ -175,6 +175,52 @@ def test_direct_generation_endpoint_maps_missing_document_to_not_found(tmp_path)
     assert response.json()["error"]["code"] == "not_found"
 
 
+def test_direct_generation_endpoint_rejects_unknown_difficulty(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_document(client)
+    payload = build_generation_payload()
+    payload["difficulty"] = "insane"
+
+    response = client.post(f"/documents/{document_id}/generate", json=payload)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "validation_error"
+    assert "difficulty" in body["error"]["message"]
+    assert "easy" in body["error"]["message"]
+
+
+def test_direct_generation_endpoint_rejects_unknown_quiz_type(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_document(client)
+    payload = build_generation_payload()
+    payload["quiz_type"] = "multi_choice"
+
+    response = client.post(f"/documents/{document_id}/generate", json=payload)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "validation_error"
+    assert "quiz_type" in body["error"]["message"]
+
+
+def test_direct_generation_endpoint_rejects_unknown_language(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_document(client)
+    payload = build_generation_payload()
+    payload["language"] = "русский"
+
+    response = client.post(f"/documents/{document_id}/generate", json=payload)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "validation_error"
+    assert "language" in body["error"]["message"]
+
+
 def test_direct_generation_endpoint_maps_provider_timeout_to_gateway_timeout(tmp_path) -> None:
     provider = StubProvider(error=LLMTimeoutError("LM Studio timed out"))
     app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
