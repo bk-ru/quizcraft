@@ -620,6 +620,16 @@ async function submitGeneration(event) {
 
   let uploadPayload;
   let generationPayload;
+  let generationBody;
+  try {
+    generationBody = buildGenerationPayload();
+  } catch (error) {
+    setSubmissionStatus(`Операция не завершена: ${describeError(error)}`, "bad");
+    setResultState(`Результат не получен: ${describeError(error)}`, "bad", "Ошибка");
+    setLogMessage(`Submit flow остановлен: ${describeError(error)}`, "bad");
+    showToast(describeError(error), "bad");
+    return;
+  }
 
   try {
     clearQuizResult();
@@ -643,7 +653,7 @@ async function submitGeneration(event) {
 
     generationPayload = await client.generateQuiz(
       uploadPayload.document_id,
-      buildGenerationPayload(),
+      generationBody,
     );
 
     updateOperationSummary(uploadPayload, generationPayload);
