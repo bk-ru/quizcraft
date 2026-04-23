@@ -8,6 +8,7 @@ def test_loads_required_and_optional_settings(monkeypatch: pytest.MonkeyPatch) -
     monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
     monkeypatch.setenv("REQUEST_TIMEOUT", "45")
     monkeypatch.setenv("MAX_FILE_SIZE_MB", "20")
+    monkeypatch.setenv("MAX_DOCUMENT_CHARS", "12345")
     monkeypatch.setenv("LOG_LEVEL", "DEBUG")
     monkeypatch.setenv("LOG_FORMAT", "%(levelname)s:%(message)s")
 
@@ -17,8 +18,28 @@ def test_loads_required_and_optional_settings(monkeypatch: pytest.MonkeyPatch) -
     assert config.lm_studio_model == "local-model"
     assert config.request_timeout == 45
     assert config.max_file_size_mb == 20
+    assert config.max_document_chars == 12345
     assert config.log_level == "DEBUG"
     assert config.log_format == "%(levelname)s:%(message)s"
+
+
+def test_max_document_chars_defaults_when_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.delenv("MAX_DOCUMENT_CHARS", raising=False)
+
+    config = AppConfig.from_env()
+
+    assert config.max_document_chars == 50_000
+
+
+def test_max_document_chars_rejects_non_positive_value(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("MAX_DOCUMENT_CHARS", "0")
+
+    with pytest.raises(ConfigurationError, match="MAX_DOCUMENT_CHARS"):
+        AppConfig.from_env()
 
 
 def test_raises_when_required_setting_is_missing(monkeypatch: pytest.MonkeyPatch) -> None:

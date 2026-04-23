@@ -31,6 +31,12 @@ class GenerationQualityError(DomainValidationError):
     code = "generation_quality_error"
 
 
+class DocumentTooLargeForGenerationError(DomainValidationError):
+    """Raised when a stored document exceeds the allowed input size for generation."""
+
+    code = "document_too_large_for_generation"
+
+
 class ParsingError(BackendError):
     """Raised when document validation or parsing fails."""
 
