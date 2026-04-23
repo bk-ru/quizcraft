@@ -22,11 +22,23 @@ const quizIdInput = document.getElementById("quiz-id-input");
 const loadQuizButton = document.getElementById("load-quiz-button");
 const saveQuizButton = document.getElementById("save-quiz-button");
 const quizEditorFields = document.getElementById("quiz-editor-fields");
+const exportJsonButton = document.getElementById("export-json-button");
+const editShortcutButton = document.getElementById("edit-quiz-shortcut");
+const themeToggleButton = document.getElementById("theme-toggle");
+const themeToggleLabel = document.getElementById("theme-toggle-label");
+const dropzone = document.getElementById("dropzone");
+const toastRegion = document.getElementById("toast-region");
+const stepper = document.getElementById("stepper");
 
 const editorState = {
   loadedQuiz: null,
   isDirty: false,
+  lastGeneratedQuizId: null,
 };
+
+const THEME_STORAGE_KEY = "quizcraft.theme";
+const THEME_ORDER = ["auto", "light", "dark"];
+const THEME_LABELS = { auto: "Авто", light: "Светлая", dark: "Тёмная" };
 
 const statusMap = {
   ok: "ok",
@@ -493,6 +505,8 @@ function renderQuizResult(generationPayload) {
   }
 
   setResultState("Результат готов. Квиз отображён ниже.", "ok", "Результат готов");
+  setExportAvailability(generationPayload.quiz_id ?? quiz.quiz_id ?? null);
+  advanceStepper("review");
 }
 
 async function loadQuizForEditing(event) {
@@ -513,6 +527,9 @@ async function loadQuizForEditing(event) {
     renderQuizEditor(quiz);
     setQuizEditorSummary(quiz);
     setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
+    setExportAvailability(payload.quiz_id ?? quiz.quiz_id ?? quizId);
+    advanceStepper("edit");
+    showToast("Квиз загружен в редактор.", "ok");
     setLogMessage(`Открыт квиз ${payload.quiz_id ?? quizId} для локального редактирования и последующего сохранения.`, "ok");
   } catch (error) {
     setEditorStatus(`Не удалось открыть квиз: ${describeError(error)}`, "bad");
@@ -540,7 +557,9 @@ async function submitQuizEdits() {
     setQuizEditorSummary(persistedQuiz);
     setTextContent("last-quiz-id", reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id ?? "Ещё нет");
     setTextContent("last-request-id", reloadResponse.request_id ?? saveResponse.request_id ?? "Ещё нет");
+    setExportAvailability(reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id ?? null);
     setEditorStatus("Изменения сохранены.", "ok");
+    showToast("Изменения сохранены.", "ok");
     setLogMessage(
       `Изменения квиза ${persistedQuiz.quiz_id} сохранены и перечитаны из backend без потери кириллицы.`,
       "ok",
@@ -601,10 +620,22 @@ async function submitGeneration(event) {
 
   let uploadPayload;
   let generationPayload;
+  let generationBody;
+  try {
+    generationBody = buildGenerationPayload();
+  } catch (error) {
+    setSubmissionStatus(`Операция не завершена: ${describeError(error)}`, "bad");
+    setResultState(`Результат не получен: ${describeError(error)}`, "bad", "Ошибка");
+    setLogMessage(`Submit flow остановлен: ${describeError(error)}`, "bad");
+    showToast(describeError(error), "bad");
+    return;
+  }
 
   try {
     clearQuizResult();
     setBusyState(true);
+    setExportAvailability(null);
+    advanceStepper("generate");
     setSubmissionStatus("Загружаем документ…", "warn");
     setResultState("Генерируем квиз. Результат появится после ответа backend.", "warn", "Генерация…");
     setLogMessage(`Начата загрузка файла ${file.name}.`, "warn");
@@ -622,7 +653,7 @@ async function submitGeneration(event) {
 
     generationPayload = await client.generateQuiz(
       uploadPayload.document_id,
-      buildGenerationPayload(),
+      generationBody,
     );
 
     updateOperationSummary(uploadPayload, generationPayload);
@@ -632,21 +663,228 @@ async function submitGeneration(event) {
     setEditorStatus("Новый квиз готов к открытию в режиме редактирования. После загрузки можно сохранить изменения.", "warn");
     renderQuizResult(generationPayload);
     setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");
+    showToast("Квиз создан и готов к просмотру.", "ok");
     setLogMessage(
       `Квиз создан: ${generationPayload.quiz_id}. Result view отрисовал содержимое без потери кириллицы.`,
       "ok",
     );
   } catch (error) {
     clearQuizResult();
+    setExportAvailability(null);
     setSubmissionStatus(`Операция не завершена: ${describeError(error)}`, "bad");
     setResultState(`Результат не получен: ${describeError(error)}`, "bad", "Ошибка");
     setLogMessage(`Submit flow завершился ошибкой: ${describeError(error)}`, "bad");
+    showToast(describeError(error), "bad");
   } finally {
     setBusyState(false);
   }
 }
 
-fileInput?.addEventListener("change", updateSelectedFileSummary);
+function setStepState(step, state) {
+  if (!stepper) {
+    return;
+  }
+  const target = stepper.querySelector(`.step[data-step="${step}"]`);
+  if (!target) {
+    return;
+  }
+  if (state) {
+    target.dataset.state = state;
+  } else {
+    delete target.dataset.state;
+  }
+}
+
+function advanceStepper(stageName) {
+  const order = ["upload", "params", "generate", "review", "edit"];
+  const activeIndex = order.indexOf(stageName);
+  if (activeIndex < 0 || !stepper) {
+    return;
+  }
+  for (const [index, step] of order.entries()) {
+    if (index < activeIndex) {
+      setStepState(step, "done");
+    } else if (index === activeIndex) {
+      setStepState(step, "active");
+    } else {
+      setStepState(step, null);
+    }
+  }
+}
+
+function resolveStoredTheme() {
+  try {
+    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored && THEME_ORDER.includes(stored)) {
+      return stored;
+    }
+  } catch (error) {
+    return "auto";
+  }
+  return "auto";
+}
+
+function applyTheme(theme) {
+  const next = THEME_ORDER.includes(theme) ? theme : "auto";
+  document.documentElement.setAttribute("data-theme", next);
+  if (themeToggleLabel) {
+    themeToggleLabel.textContent = THEME_LABELS[next];
+  }
+  try {
+    window.localStorage.setItem(THEME_STORAGE_KEY, next);
+  } catch (error) {
+    /* ignore write failures (private mode) */
+  }
+}
+
+function cycleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") ?? "auto";
+  const index = THEME_ORDER.indexOf(current);
+  const next = THEME_ORDER[(index + 1) % THEME_ORDER.length];
+  applyTheme(next);
+}
+
+function showToast(message, tone = "ok", duration = 4200) {
+  if (!toastRegion || typeof message !== "string" || !message.trim()) {
+    return;
+  }
+  const toast = document.createElement("div");
+  toast.className = "toast";
+  toast.setAttribute("role", "status");
+  if (tone) {
+    toast.dataset.tone = tone;
+  }
+
+  const dot = document.createElement("span");
+  dot.className = "toast-dot";
+  dot.setAttribute("aria-hidden", "true");
+
+  const body = document.createElement("span");
+  body.className = "toast-body";
+  body.textContent = message;
+
+  const close = document.createElement("button");
+  close.className = "toast-close";
+  close.type = "button";
+  close.setAttribute("aria-label", "Закрыть уведомление");
+  close.textContent = "×";
+  close.addEventListener("click", () => toast.remove());
+
+  toast.append(dot, body, close);
+  toastRegion.append(toast);
+
+  if (Number.isFinite(duration) && duration > 0) {
+    window.setTimeout(() => {
+      toast.remove();
+    }, duration);
+  }
+}
+
+function attachDropzone() {
+  if (!dropzone || !fileInput) {
+    return;
+  }
+  const setDragActive = (isActive) => {
+    if (isActive) {
+      dropzone.dataset.dragActive = "true";
+    } else {
+      delete dropzone.dataset.dragActive;
+    }
+  };
+
+  for (const eventName of ["dragenter", "dragover"]) {
+    dropzone.addEventListener(eventName, (event) => {
+      event.preventDefault();
+      setDragActive(true);
+    });
+  }
+  for (const eventName of ["dragleave", "dragend"]) {
+    dropzone.addEventListener(eventName, () => setDragActive(false));
+  }
+  dropzone.addEventListener("drop", (event) => {
+    event.preventDefault();
+    setDragActive(false);
+    const dropped = event.dataTransfer?.files?.[0];
+    if (!dropped) {
+      return;
+    }
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(dropped);
+    fileInput.files = dataTransfer.files;
+    updateSelectedFileSummary();
+    advanceStepper("params");
+    showToast(`Файл «${dropped.name}» готов к загрузке.`, "ok");
+  });
+}
+
+function triggerJsonDownload(blob, suggestedName) {
+  const url = window.URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = suggestedName;
+  document.body.append(anchor);
+  anchor.click();
+  anchor.remove();
+  window.URL.revokeObjectURL(url);
+}
+
+async function exportQuizAsJson() {
+  if (!editorState.lastGeneratedQuizId) {
+    showToast("Сначала сгенерируйте или загрузите квиз.", "warn");
+    return;
+  }
+  try {
+    const response = await fetch(
+      `${backendBaseUrl}/quizzes/${encodeURIComponent(editorState.lastGeneratedQuizId)}/export/json`,
+      { headers: { Accept: "application/json" } },
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const blob = await response.blob();
+    triggerJsonDownload(blob, `${editorState.lastGeneratedQuizId}.json`);
+    showToast("JSON-файл квиза скачан.", "ok");
+  } catch (error) {
+    showToast(`Не удалось скачать JSON: ${describeError(error)}`, "bad");
+  }
+}
+
+function openEditorForCurrentQuiz() {
+  const quizId = editorState.lastGeneratedQuizId;
+  if (!quizId || !quizIdInput) {
+    return;
+  }
+  quizIdInput.value = quizId;
+  const editorPanel = document.getElementById("quiz-editor");
+  if (editorPanel) {
+    editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  loadQuizButton?.focus();
+}
+
+function setExportAvailability(quizId) {
+  editorState.lastGeneratedQuizId = typeof quizId === "string" && quizId.trim() ? quizId.trim() : null;
+  const available = Boolean(editorState.lastGeneratedQuizId);
+  if (exportJsonButton) {
+    exportJsonButton.disabled = !available;
+  }
+  if (editShortcutButton) {
+    editShortcutButton.disabled = !available;
+  }
+}
+
+applyTheme(resolveStoredTheme());
+themeToggleButton?.addEventListener("click", cycleTheme);
+attachDropzone();
+exportJsonButton?.addEventListener("click", exportQuizAsJson);
+editShortcutButton?.addEventListener("click", openEditorForCurrentQuiz);
+
+fileInput?.addEventListener("change", () => {
+  updateSelectedFileSummary();
+  if (fileInput.files?.[0]) {
+    advanceStepper("params");
+  }
+});
 form?.addEventListener("submit", submitGeneration);
 quizEditorLoader?.addEventListener("submit", loadQuizForEditing);
 quizEditorFields?.addEventListener("input", markEditorDirty);
