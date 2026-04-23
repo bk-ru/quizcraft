@@ -1,18 +1,42 @@
-# diplom
+# QuizCraft
 
-Repository for QuizCraft planning artifacts and interface concepts.
+QuizCraft is a local single-user quiz generation service backed by LM Studio. The current MVP can ingest a TXT, DOCX, or PDF document, extract text, generate a Russian-friendly quiz through the backend, let the user review and edit the result, and export the final quiz as JSON.
 
-The repository currently contains product planning documents, agent workflow instructions, execution plans, and static HTML mockups. Application source code is not present yet, so the main goal of the structure is predictable navigation.
+## Repository Layout
 
-## Repository layout
-
-- `AGENTS.md` contains repository-specific instructions for coding agents.
-- `.agent/PLANS.md` defines the ExecPlan format used for complex work.
+- `backend/` contains the FastAPI service, domain models, parsers, generation orchestration, LM Studio client, filesystem storage, and JSON export code.
+- `frontend/` contains the static Russian-language browser UI implemented with plain HTML, CSS, and JavaScript modules.
+- `frontend/api/client.js` contains the browser API client.
+- `frontend/app.js` is the frontend composition entry point. Focused modules such as `generation-flow.js`, `quiz-editor.js`, `quiz-renderer.js`, `validation-errors.js`, `progress.js`, `theme.js`, `toast.js`, and `download.js` hold feature-specific behavior.
+- `frontend/tokens.css`, `base.css`, `layout.css`, `forms.css`, `quiz.css`, `feedback.css`, and `responsive.css` split the UI styling by responsibility.
+- `backend/tests/` and `tests/` contain pytest coverage for backend behavior, frontend shell structure, and Russian/Cyrillic text preservation.
 - `docs/execplans/` stores task-specific execution plans.
 - `docs/planning/backlog.md` stores the product backlog and MVP decomposition.
-- `docs/design/concepts/v2/` stores the second iteration of static UI concepts.
-- `tests/test_repository_layout.py` verifies that planning and design artifacts stay in their expected locations.
+- `docs/design/concepts/v2/` stores earlier static UI concepts kept as design references.
+- `.agent/PLANS.md` defines the ExecPlan format used for complex work.
+- `AGENTS.md` contains repository-specific instructions for coding agents.
 
-## Working with design concepts
+## Running Checks
 
-Open `docs/design/concepts/v2/01-homepage.html` in a browser to start from the main concept screen. The remaining HTML files in the same directory link to each other with relative paths.
+From the repository root:
+
+```powershell
+python -m pytest -q
+python -m ruff check .
+```
+
+The pytest suite covers the backend and static frontend shell. Ruff currently checks the Python codebase.
+
+## Running Locally
+
+Start the backend from the repository root:
+
+```powershell
+python -m uvicorn backend.app.main:create_app --factory --reload
+```
+
+Then serve or open the static files in `frontend/`. The frontend expects the backend at `http://127.0.0.1:8000` by default and LM Studio at `http://127.0.0.1:1234`.
+
+## Russian/Cyrillic Support
+
+User-facing document processing must preserve Russian and Cyrillic text across parsing, storage, generation, API responses, UI rendering, editing, and JSON export. New text-processing, API, storage, generation, export, and UI changes should include at least one Russian/Cyrillic pytest example.

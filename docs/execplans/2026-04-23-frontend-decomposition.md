@@ -14,11 +14,12 @@ The user can verify the result by opening `frontend/index.html` through the exis
 
 - [x] (2026-04-23 22:08 MSK) Confirmed `main` is clean before starting the batch.
 - [x] (2026-04-23 22:08 MSK) Inspected the existing frontend layout, `frontend/app.js`, `frontend/styles.css`, `tests/test_frontend_shell.py`, and the current README.
-- [ ] Split frontend JavaScript into focused ES modules while keeping `frontend/app.js` as the composition and event-wiring entry point.
-- [ ] Split frontend CSS into focused static stylesheets and update `frontend/index.html` with multiple stylesheet links.
-- [ ] Update frontend smoke tests so they verify the new module and stylesheet structure without losing Russian/Cyrillic coverage.
-- [ ] Update `README.md` in a separate docs commit after the refactor commit.
-- [ ] Run `python -m pytest -q`, `python -m ruff check .`, review the diff against `main`, and confirm a clean working tree.
+- [x] (2026-04-23 22:23 MSK) Split frontend JavaScript into focused ES modules while keeping `frontend/app.js` as the composition and event-wiring entry point.
+- [x] (2026-04-23 22:23 MSK) Split frontend CSS into focused static stylesheets and update `frontend/index.html` with multiple stylesheet links.
+- [x] (2026-04-23 22:23 MSK) Updated frontend smoke tests so they verify the new module and stylesheet structure without losing Russian/Cyrillic coverage.
+- [x] (2026-04-23 22:24 MSK) Ran `python -m pytest -q`, `python -m ruff check .`, ESM syntax checks through `node --input-type=module --check`, and `git diff --cached --check`; all passed.
+- [x] (2026-04-23 22:25 MSK) Committed the frontend refactor as `0fe4cb5 refactor(frontend): split app shell and styles`.
+- [x] (2026-04-23 22:26 MSK) Updated `README.md` in a separate docs batch after the refactor commit.
 
 ## Surprises & Discoveries
 
@@ -44,7 +45,9 @@ The user can verify the result by opening `frontend/index.html` through the exis
 
 ## Outcomes & Retrospective
 
-This section will be completed after implementation, validation, review, and commits.
+The frontend now has a smaller root `frontend/app.js` that wires dependencies and browser events while focused modules own validation error translation, quiz rendering, quiz editing, generation flow, progress UI, theme persistence, toast notifications, and JSON download behavior. The previous single `frontend/styles.css` file was replaced by seven linked CSS files with stable responsibilities. The tests were adjusted to verify the new asset structure and preserve Russian/Cyrillic UI assertions.
+
+The main tradeoff is that static HTML now links several CSS files instead of one, but this keeps the no-build, no-dependency runtime model intact and makes future UI changes more local.
 
 ## Context and Orientation
 
@@ -89,3 +92,5 @@ This plan intentionally does not add new production dependencies. The existing b
 `frontend/app.js` remains the browser entry point imported by `frontend/index.html`. New JavaScript files export plain functions and constants only. New CSS files are static files linked from `frontend/index.html`. No package manager, bundler, or frontend framework is introduced.
 
 Plan revision note, 2026-04-23 / Codex: Created the plan because the requested frontend decomposition changes a large JavaScript entry point, a large stylesheet, tests, and docs; repository instructions require an ExecPlan before large implementation changes.
+
+Plan revision note, 2026-04-23 / Codex: Marked implementation, validation, and README update complete after the frontend refactor commit `0fe4cb5` and the passing `pytest`, Ruff, ESM syntax, and staged diff checks.
