@@ -29,6 +29,7 @@ const themeToggleLabel = document.getElementById("theme-toggle-label");
 const dropzone = document.getElementById("dropzone");
 const toastRegion = document.getElementById("toast-region");
 const stepper = document.getElementById("stepper");
+const generationProgressPanel = document.getElementById("generation-progress");
 
 const editorState = {
   loadedQuiz: null,
@@ -157,6 +158,136 @@ function describeError(error) {
     return error.message;
   }
   return "Неизвестная ошибка";
+}
+
+const VALIDATION_FIELD_EXACT_LABELS = {
+  "question_count": "Количество вопросов",
+  "language": "Язык квиза",
+  "difficulty": "Сложность",
+  "quiz_type": "Формат квиза",
+  "generation_mode": "Режим генерации",
+  "quiz": "Квиз",
+  "quiz.quiz_id": "Идентификатор квиза",
+  "quiz.document_id": "Идентификатор документа",
+  "quiz.title": "Заголовок квиза",
+  "quiz.version": "Версия квиза",
+  "quiz.last_edited_at": "Дата последнего редактирования",
+  "quiz.questions": "Список вопросов",
+};
+
+const VALIDATION_MESSAGE_RULES = [
+  [/^string should have at least (\d+) character/i, (m) => `минимум ${m[1]} символ(ов)`],
+  [/^string should have at most (\d+) character/i, (m) => `максимум ${m[1]} символ(ов)`],
+  [/^field required$/i, () => "обязательное поле"],
+  [/^input should be a valid integer/i, () => "ожидается целое число"],
+  [/^input should be a valid number/i, () => "ожидается число"],
+  [/^input should be a valid string/i, () => "ожидается строка"],
+  [/^input should be greater than or equal to (\S+)/i, (m) => `значение должно быть не меньше ${m[1]}`],
+  [/^input should be greater than (\S+)/i, (m) => `значение должно быть больше ${m[1]}`],
+  [/^input should be less than or equal to (\S+)/i, (m) => `значение должно быть не больше ${m[1]}`],
+  [/^input should be less than (\S+)/i, (m) => `значение должно быть меньше ${m[1]}`],
+  [/^list should have at least (\d+) item/i, (m) => `минимум ${m[1]} элемент(ов) в списке`],
+  [/^list should have at most (\d+) item/i, (m) => `максимум ${m[1]} элемент(ов) в списке`],
+  [/^extra inputs are not permitted/i, () => "лишнее поле не допускается"],
+  [/^input should be '[^']+'/i, (m) => `допустимые значения: ${m[0].replace(/input should be /i, "")}`],
+  [/^quiz title must not be empty/i, () => "Заголовок квиза не должен быть пустым"],
+  [/^quiz must contain at least one question/i, () => "Квиз должен содержать хотя бы один вопрос"],
+  [/^question prompt must not be empty/i, () => "Текст вопроса не должен быть пустым"],
+  [/^question must have at least two options/i, () => "В вопросе должно быть минимум два варианта"],
+  [/^option text must not be empty/i, () => "Текст варианта не должен быть пустым"],
+  [/^question options must not contain duplicates/i, () => "Варианты ответа не должны повторяться"],
+  [/^correct option index is out of range/i, () => "Номер правильного варианта вне диапазона"],
+  [/^quiz_id in payload must match path/i, () => "Идентификатор квиза в теле запроса не совпадает с URL"],
+  [/^document_id must match the stored quiz/i, () => "Идентификатор документа не совпадает с сохранённым квизом"],
+];
+
+function translateValidationMessage(rawMessage) {
+  const trimmed = rawMessage.trim();
+  for (const [pattern, transform] of VALIDATION_MESSAGE_RULES) {
+    const match = trimmed.match(pattern);
+    if (match) {
+      return transform(match);
+    }
+  }
+  return trimmed;
+}
+
+function translateValidationFieldPath(path) {
+  if (VALIDATION_FIELD_EXACT_LABELS[path]) {
+    return VALIDATION_FIELD_EXACT_LABELS[path];
+  }
+
+  const questionMatch = path.match(/^quiz\.questions\.(\d+)(?:\.(.+))?$/);
+  if (questionMatch) {
+    const questionNumber = Number.parseInt(questionMatch[1], 10) + 1;
+    const subPath = questionMatch[2] ?? "";
+
+    const optionMatch = subPath.match(/^options\.(\d+)(?:\.(.+))?$/);
+    if (optionMatch) {
+      const optionNumber = Number.parseInt(optionMatch[1], 10) + 1;
+      const optionSub = optionMatch[2] ?? "";
+      const optionLabels = {
+        "": `вариант ${optionNumber}`,
+        "text": `текст варианта ${optionNumber}`,
+        "option_id": `идентификатор варианта ${optionNumber}`,
+      };
+      const optionLabel = optionLabels[optionSub] ?? `вариант ${optionNumber} (${optionSub})`;
+      return `Вопрос ${questionNumber}: ${optionLabel}`;
+    }
+
+    const questionLabels = {
+      "": "данные вопроса",
+      "prompt": "текст вопроса",
+      "correct_option_index": "номер правильного варианта",
+      "explanation.text": "текст пояснения",
+      "explanation": "пояснение",
+      "question_id": "идентификатор вопроса",
+      "options": "список вариантов",
+    };
+    return `Вопрос ${questionNumber}: ${questionLabels[subPath] ?? subPath}`;
+  }
+
+  return path;
+}
+
+function translateValidationFragment(fragment) {
+  const trimmed = fragment.trim();
+  if (!trimmed) {
+    return "";
+  }
+  const colonIndex = trimmed.indexOf(":");
+  if (colonIndex === -1) {
+    return translateValidationMessage(trimmed);
+  }
+  const path = trimmed.slice(0, colonIndex).trim();
+  const message = trimmed.slice(colonIndex + 1).trim();
+  if (!path) {
+    return translateValidationMessage(message);
+  }
+  const fieldLabel = translateValidationFieldPath(path);
+  const messageTranslation = translateValidationMessage(message);
+  return `${fieldLabel} — ${messageTranslation}`;
+}
+
+function describeValidationError(error) {
+  if (!(error instanceof QuizCraftApiError) || error.status !== 422) {
+    return describeError(error);
+  }
+  const rawMessage = error.payload?.error?.message;
+  if (typeof rawMessage !== "string" || !rawMessage.trim()) {
+    return describeError(error);
+  }
+  const fragments = rawMessage
+    .split(";")
+    .map((fragment) => translateValidationFragment(fragment))
+    .filter(Boolean);
+  if (fragments.length === 0) {
+    return rawMessage.trim();
+  }
+  if (fragments.length === 1) {
+    return fragments[0];
+  }
+  return fragments.map((fragment) => `• ${fragment}`).join("\n");
 }
 
 function setBusyState(isBusy) {
@@ -569,7 +700,7 @@ async function submitQuizEdits() {
     );
   } catch (error) {
     if (error instanceof QuizCraftApiError && error.status === 422) {
-      setEditorStatus(`Исправьте ошибки и повторите сохранение. ${describeError(error)}`, "bad");
+      setEditorStatus(`Исправьте ошибки и повторите сохранение.\n${describeValidationError(error)}`, "bad");
     } else {
       setEditorStatus(`Не удалось сохранить квиз: ${describeError(error)}`, "bad");
     }
@@ -648,6 +779,7 @@ async function submitGeneration(event) {
     setBusyState(true);
     setExportAvailability(null);
     advanceStepper("generate");
+    startGenerationProgress();
     setSubmissionStatus("Загружаем документ…", "warn");
     setResultState("Генерируем квиз. Результат появится после ответа backend.", "warn", "Генерация…");
     setLogMessage(`Начата загрузка файла ${file.name}.`, "warn");
@@ -658,6 +790,10 @@ async function submitGeneration(event) {
       content: await file.arrayBuffer(),
     });
 
+    advanceGenerationProgress("upload", "parse");
+    await waitForProgressVisibility();
+    advanceGenerationProgress("parse", "generate");
+
     setTextContent("last-filename", uploadPayload.filename ?? file.name);
     setTextContent("last-document-id", uploadPayload.document_id ?? "Ещё нет");
     setSubmissionStatus("Документ загружен. Запускаем генерацию…", "warn");
@@ -667,6 +803,9 @@ async function submitGeneration(event) {
       uploadPayload.document_id,
       generationBody,
     );
+
+    advanceGenerationProgress("generate", "validate");
+    await waitForProgressVisibility();
 
     updateOperationSummary(uploadPayload, generationPayload);
     if (quizIdInput) {
@@ -683,13 +822,18 @@ async function submitGeneration(event) {
       `Квиз создан: ${generationPayload.quiz_id}. Result view отрисовал содержимое без потери кириллицы.`,
       "ok",
     );
+    completeGenerationProgress();
   } catch (error) {
     clearQuizResult();
     setExportAvailability(null);
-    setSubmissionStatus(`Операция не завершена: ${describeError(error)}`, "bad");
-    setResultState(`Результат не получен: ${describeError(error)}`, "bad", "Ошибка");
-    setLogMessage(`Submit flow завершился ошибкой: ${describeError(error)}`, "bad");
-    showToast(describeError(error), "bad");
+    const failedStep = !uploadPayload ? "upload" : (!generationPayload ? "generate" : "validate");
+    failGenerationProgress(failedStep);
+    const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
+    const message = isValidationError ? describeValidationError(error) : describeError(error);
+    setSubmissionStatus(`Операция не завершена: ${message}`, "bad");
+    setResultState(`Результат не получен: ${message}`, "bad", "Ошибка");
+    setLogMessage(`Submit flow завершился ошибкой: ${message}`, "bad");
+    showToast(message, "bad");
   } finally {
     setBusyState(false);
   }
@@ -725,6 +869,100 @@ function advanceStepper(stageName) {
       setStepState(step, null);
     }
   }
+}
+
+const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "validate"];
+const PROGRESS_STEP_VISIBILITY_MS = 300;
+const PROGRESS_SUCCESS_AUTOHIDE_MS = 900;
+const PROGRESS_FAILURE_AUTOHIDE_MS = 2400;
+
+function waitForProgressVisibility(ms = PROGRESS_STEP_VISIBILITY_MS) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function setGenerationProgressVisible(visible) {
+  if (!generationProgressPanel) {
+    return;
+  }
+  if (visible) {
+    generationProgressPanel.hidden = false;
+    generationProgressPanel.dataset.visible = "true";
+  } else {
+    generationProgressPanel.hidden = true;
+    delete generationProgressPanel.dataset.visible;
+  }
+}
+
+function setGenerationProgressStepState(step, state) {
+  if (!generationProgressPanel) {
+    return;
+  }
+  const target = generationProgressPanel.querySelector(`.progress-step[data-step="${step}"]`);
+  if (!target) {
+    return;
+  }
+  target.dataset.state = state;
+}
+
+function resetGenerationProgress() {
+  if (!generationProgressPanel) {
+    return;
+  }
+  for (const step of GENERATION_PROGRESS_ORDER) {
+    setGenerationProgressStepState(step, "pending");
+  }
+  generationProgressPanel.dataset.currentStep = "";
+}
+
+function startGenerationProgress() {
+  if (!generationProgressPanel) {
+    return;
+  }
+  resetGenerationProgress();
+  setGenerationProgressVisible(true);
+  setGenerationProgressStepState("upload", "active");
+  generationProgressPanel.dataset.currentStep = "upload";
+}
+
+function advanceGenerationProgress(completedStep, nextStep) {
+  if (!generationProgressPanel) {
+    return;
+  }
+  if (completedStep) {
+    setGenerationProgressStepState(completedStep, "done");
+  }
+  if (nextStep) {
+    setGenerationProgressStepState(nextStep, "active");
+    generationProgressPanel.dataset.currentStep = nextStep;
+  } else {
+    generationProgressPanel.dataset.currentStep = "";
+  }
+}
+
+function completeGenerationProgress() {
+  if (!generationProgressPanel) {
+    return;
+  }
+  for (const step of GENERATION_PROGRESS_ORDER) {
+    setGenerationProgressStepState(step, "done");
+  }
+  generationProgressPanel.dataset.currentStep = "done";
+  window.setTimeout(() => {
+    setGenerationProgressVisible(false);
+  }, PROGRESS_SUCCESS_AUTOHIDE_MS);
+}
+
+function failGenerationProgress(failedStep) {
+  if (!generationProgressPanel) {
+    return;
+  }
+  if (failedStep) {
+    setGenerationProgressStepState(failedStep, "failed");
+    generationProgressPanel.dataset.currentStep = "failed";
+  }
+  window.setTimeout(() => {
+    setGenerationProgressVisible(false);
+  }, PROGRESS_FAILURE_AUTOHIDE_MS);
 }
 
 function resolveStoredTheme() {
