@@ -7,8 +7,23 @@ export class QuizCraftApiError extends Error {
   }
 }
 
+const DEFAULT_TIMEOUTS = Object.freeze({
+  health: 5000,
+  upload: 30000,
+  generate: 120000,
+  quizEditor: 15000,
+});
+
+function resolveTimeout(overrides, role) {
+  const value = overrides?.[role];
+  if (Number.isFinite(value) && value > 0) {
+    return value;
+  }
+  return DEFAULT_TIMEOUTS[role];
+}
+
 export class QuizCraftApiClient {
-  constructor({ baseUrl, fetchImpl, requestTimeoutMs = 8000 }) {
+  constructor({ baseUrl, fetchImpl, timeouts } = {}) {
     const nativeFetch = typeof globalThis.fetch === "function"
       ? globalThis.fetch.bind(globalThis)
       : null;
@@ -18,15 +33,24 @@ export class QuizCraftApiClient {
     }
     this._fetch = resolvedFetch;
     this._baseUrl = baseUrl.replace(/\/+$/, "");
-    this._requestTimeoutMs = requestTimeoutMs;
+    this._timeouts = Object.freeze({
+      health: resolveTimeout(timeouts, "health"),
+      upload: resolveTimeout(timeouts, "upload"),
+      generate: resolveTimeout(timeouts, "generate"),
+      quizEditor: resolveTimeout(timeouts, "quizEditor"),
+    });
+  }
+
+  get timeouts() {
+    return this._timeouts;
   }
 
   getBackendHealth() {
-    return this._request("/health");
+    return this._request("/health", { timeoutMs: this._timeouts.health });
   }
 
   getProviderHealth() {
-    return this._request("/health/lm-studio");
+    return this._request("/health/lm-studio", { timeoutMs: this._timeouts.health });
   }
 
   uploadDocument({ filename, mediaType, content }) {
@@ -45,6 +69,7 @@ export class QuizCraftApiClient {
         "Content-Type": resolvedMediaType,
       },
       body: content,
+      timeoutMs: this._timeouts.upload,
     });
   }
 
@@ -52,23 +77,30 @@ export class QuizCraftApiClient {
     return this._request(`/documents/${encodeURIComponent(documentId)}/generate`, {
       method: "POST",
       json: payload,
+      timeoutMs: this._timeouts.generate,
     });
   }
 
   getQuiz(quizId) {
-    return this._request(`/quizzes/${encodeURIComponent(quizId)}`);
+    return this._request(`/quizzes/${encodeURIComponent(quizId)}`, {
+      timeoutMs: this._timeouts.quizEditor,
+    });
   }
 
   updateQuiz(quizId, payload) {
     return this._request(`/quizzes/${encodeURIComponent(quizId)}`, {
       method: "PUT",
       json: payload,
+      timeoutMs: this._timeouts.quizEditor,
     });
   }
 
-  async _request(path, { method = "GET", headers = {}, body, json } = {}) {
+  async _request(path, { method = "GET", headers = {}, body, json, timeoutMs } = {}) {
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), this._requestTimeoutMs);
+    const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : this._timeouts.quizEditor;
+    const timeoutId = window.setTimeout(() => controller.abort(), effectiveTimeout);
 
     try {
       const response = await this._fetch(`${this._baseUrl}${path}`, {
@@ -91,7 +123,10 @@ export class QuizCraftApiClient {
       return payload;
     } catch (error) {
       if (error?.name === "AbortError") {
-        throw new QuizCraftApiError("Request timed out", { status: 408 });
+        throw new QuizCraftApiError(
+          `Превышено время ожидания ответа backend (${effectiveTimeout} мс).`,
+          { status: 408 },
+        );
       }
       if (error instanceof QuizCraftApiError) {
         throw error;

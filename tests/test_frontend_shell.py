@@ -99,11 +99,31 @@ def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
     assert "/quizzes/" in content
 
 
+def test_api_client_uses_role_based_timeouts() -> None:
+    content = API_CLIENT_JS.read_text(encoding="utf-8")
+
+    assert "DEFAULT_TIMEOUTS" in content
+    for role in ("health", "upload", "generate", "quizEditor"):
+        assert f'"{role}"' in content or f"'{role}'" in content or role in content
+    assert "timeoutMs" in content
+    assert "this._timeouts" in content
+
+
 def test_frontend_config_exposes_backend_base_url() -> None:
     content = CONFIG_JS.read_text(encoding="utf-8")
 
     assert "backendBaseUrl" in content
     assert "window.QuizCraftConfig" in content
+
+
+def test_frontend_config_exposes_role_based_timeouts() -> None:
+    content = CONFIG_JS.read_text(encoding="utf-8")
+
+    assert "timeouts" in content
+    assert "health" in content
+    assert "upload" in content
+    assert "generate" in content
+    assert "quizEditor" in content
 
 
 def test_frontend_app_wires_generation_and_edit_save_states() -> None:
