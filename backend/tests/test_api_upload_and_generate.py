@@ -38,10 +38,11 @@ class StubProvider:
         raise AssertionError("embed should not be called in upload or generate API tests")
 
 
-def build_config() -> AppConfig:
+def build_config(max_document_chars: int = 50_000) -> AppConfig:
     return AppConfig(
         lm_studio_base_url="http://localhost:1234/v1",
         lm_studio_model="local-model",
+        max_document_chars=max_document_chars,
         log_format="%(levelname)s:%(message)s",
     )
 
@@ -219,6 +220,21 @@ def test_direct_generation_endpoint_rejects_unknown_language(tmp_path) -> None:
     body = response.json()
     assert body["error"]["code"] == "validation_error"
     assert "language" in body["error"]["message"]
+
+
+def test_direct_generation_endpoint_maps_oversized_document_to_413(tmp_path) -> None:
+    provider = StubProvider()
+    app = create_app(config=build_config(max_document_chars=10), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_russian_document(client)
+
+    response = client.post(f"/documents/{document_id}/generate", json=build_generation_payload())
+
+    assert response.status_code == 413
+    body = response.json()
+    assert body["error"]["code"] == "document_too_large_for_generation"
+    assert document_id in body["error"]["message"]
+    assert provider.requests == []
 
 
 def test_direct_generation_endpoint_maps_provider_timeout_to_gateway_timeout(tmp_path) -> None:
