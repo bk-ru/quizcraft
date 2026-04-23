@@ -28,7 +28,11 @@ class _StrictModel(BaseModel):
 class GenerationRequestBody(_StrictModel):
     """Request body for direct quiz generation."""
 
-    question_count: int = Field(gt=0, description="Number of quiz questions to generate")
+    question_count: int = Field(
+        strict=True,
+        gt=0,
+        description="Number of quiz questions to generate",
+    )
     language: Language
     difficulty: Difficulty
     quiz_type: QuizType
@@ -71,7 +75,7 @@ class QuestionPayload(_StrictModel):
     question_id: str = Field(min_length=1)
     prompt: str = Field(min_length=1)
     options: list[OptionPayload] = Field(min_length=2)
-    correct_option_index: int = Field(ge=0)
+    correct_option_index: int = Field(strict=True, ge=0)
     explanation: ExplanationPayload | None = None
 
     def to_domain(self) -> Question:
@@ -90,7 +94,7 @@ class QuizPayload(_StrictModel):
     quiz_id: str = Field(min_length=1)
     document_id: str = Field(min_length=1)
     title: str = Field(min_length=1)
-    version: int = Field(ge=0)
+    version: int = Field(strict=True, ge=0)
     last_edited_at: str = ""
     questions: list[QuestionPayload] = Field(min_length=1)
 
