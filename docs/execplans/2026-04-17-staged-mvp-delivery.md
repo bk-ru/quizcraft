@@ -38,6 +38,8 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-23) Implemented, reviewed, and integrated Batch 2 of Stage 9 on `main` via merge commit `bc93358` (PR #2), covering `UI-005` with the frontend JSON export action; the same merge also bundled a broader 2026 UI redesign (stepper, dark mode, visual refresh) and two follow-up fixes (`bbe3fd8`, `9c66adb`).
 - [x] (2026-04-23) Completed and integrated all of Stage 9 on `main`, closing the early MVP per the Validation and Acceptance section: a user can upload a document, generate a quiz through LM Studio, review, edit, and export the final quiz as JSON.
 - [x] (2026-04-23) Fixed the MVP-blocking frontend generation timeout on `main` via merge commit `d964ad1` (PR #3, feature commit `2f24024`), replacing the single 8 s `requestTimeoutMs` with role-based timeouts (`health` 5 s, `upload` 30 s, `generate` 120 s, `quizEditor` 15 s), also guarding the JSON export `fetch` with `AbortController`, returning a Russian-language timeout error, and adding smoke coverage for the new configuration shape.
+- [x] (2026-04-23) Integrated post-MVP frontend UX polish Batch 1 on `main` via commit `eb1f79b`, three coherent user-facing improvements: (1) auto-load the freshly generated quiz into the editor so no manual `quiz_id` paste is required, (2) collapse `Document ID`, `Quiz ID`, `Request ID`, `Модель`, and `Prompt version` into `<details class="inline-details">` blocks with Russian summaries, (3) escalate LM Studio `unavailable` from `warn` to `bad` with a Russian topbar marker plus a toast/log instruction pointing to `http://127.0.0.1:1234`.
+- [x] (2026-04-23) Integrated post-MVP frontend UX polish Batch 2 on `main` via commit `99529e2`, two operation-feedback improvements that partially cover Stage 10 task `UI-007` without requiring `GN-006`: (1) `describeValidationError` translates backend 422 responses into Russian field labels and messages through a `VALIDATION_FIELD_EXACT_LABELS` registry plus nested `quiz.questions.N.*` and `options.M.*` regex handlers and a `VALIDATION_MESSAGE_RULES` dictionary, wired into both `submitQuizEdits` and `submitGeneration`; (2) a pseudo-step generation progress panel (`#generation-progress`) with four Russian labels `Загружаем документ → Парсим → Генерируем → Валидируем` and a per-state styling (pending/active/done/failed), driven by `startGenerationProgress` / `advanceGenerationProgress` / `completeGenerationProgress` / `failGenerationProgress`.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -436,6 +438,8 @@ Rationale for grouping: Once the MVP works, the next useful improvement is visib
 
 Dependencies: Stages 4 through 9.
 
+Current status on `main`: partially covered. Commit `99529e2` already landed a client-side pseudo-step progress panel (`UI-007`) driven by the frontend itself (four Russian pseudo-steps `Загружаем документ → Парсим → Генерируем → Валидируем` advanced around the upload and generate API calls) without requiring any backend status stream. The backend-side slice (`GN-006` pipeline step status model, `LG-005` pipeline step logging) is still pending; once landed, the frontend pseudo-steps can be replaced by actual backend-emitted status events.
+
 Definition of done: The generation pipeline emits step-level logs, the backend can report status transitions such as `queued`, `running`, `done`, and `failed`, and the UI reflects those states without appearing frozen.
 
 Required tests/checks: Run `python -m pytest backend/tests/test_generation_status.py backend/tests/test_logging_pipeline_steps.py -q` and expect all tests to pass. Manually verify that the UI shows meaningful status transitions during generation and when an induced failure occurs.
@@ -599,6 +603,8 @@ Current integrated state:
     11bf5eb merge(api): integrate api quality branch
     bc93358 Merge pull request #2 from bk-ru/devin/1776933488-ui-redesign-2026
     d964ad1 Merge pull request #3 from bk-ru/devin/1776937949-frontend-timeouts
+    eb1f79b feat(frontend): declutter happy path and escalate lm studio unavailable state
+    99529e2 feat(frontend): surface operation feedback with 422 mapper and progress indicator
 
 Current backlog completion status:
 
@@ -626,6 +632,8 @@ Current backlog completion status:
     Early MVP: complete on main (Stages 1–9 integrated; Validation and Acceptance criteria satisfied)
     API quality hardening (unplanned post-Stage 9 Batch 1 audit): integrated on main
     Frontend role-based timeouts (PR #3): integrated on main
+    Post-MVP UX polish Batch 1 (editor autoload, collapsed technical fields, critical LM Studio tone): integrated on main
+    Post-MVP UX polish Batch 2 (Russian 422 mapper, `UI-007` pseudo-step progress panel): integrated on main
 
 Next recommended stage:
 
