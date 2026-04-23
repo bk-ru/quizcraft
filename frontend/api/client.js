@@ -8,11 +8,15 @@ export class QuizCraftApiError extends Error {
 }
 
 export class QuizCraftApiClient {
-  constructor({ baseUrl, fetchImpl = globalThis.fetch, requestTimeoutMs = 8000 }) {
-    if (typeof fetchImpl !== "function") {
+  constructor({ baseUrl, fetchImpl, requestTimeoutMs = 8000 }) {
+    const nativeFetch = typeof globalThis.fetch === "function"
+      ? globalThis.fetch.bind(globalThis)
+      : null;
+    const resolvedFetch = typeof fetchImpl === "function" ? fetchImpl : nativeFetch;
+    if (typeof resolvedFetch !== "function") {
       throw new Error("fetch implementation is required");
     }
-    this._fetch = fetchImpl;
+    this._fetch = resolvedFetch;
     this._baseUrl = baseUrl.replace(/\/+$/, "");
     this._requestTimeoutMs = requestTimeoutMs;
   }
