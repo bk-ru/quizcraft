@@ -33,6 +33,11 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-22) Implemented, reviewed, and integrated Batch 1 of Stage 8 on `main` via merge commit `16fc33b`, covering the quiz edit read-shell with persisted quiz loading into editable Russian/Cyrillic fields and frontend smoke coverage.
 - [x] (2026-04-22) Implemented, reviewed, and integrated Batch 2 of Stage 8 on `main` via merge commit `7082baf`, covering the quiz save flow, validation-state handling, save-and-reload persistence behavior, and Russian/Cyrillic smoke coverage.
 - [x] (2026-04-22) Completed and integrated all of Stage 8 on `main`, covering the full quiz edit flow from load through validated save and reload.
+- [x] (2026-04-23) Implemented, reviewed, and integrated Batch 1 of Stage 9 on `main` via merge commit `9c4330a`, covering `EX-001`, `BE-010`, and the export slice of `TS-007` with the canonical JSON exporter, the `GET /quizzes/{quiz_id}/export/json` download endpoint, and exporter/API pytest coverage.
+- [x] (2026-04-23) Integrated an unplanned API quality hardening batch on `main` via merge commit `11bf5eb`, covering Pydantic-based request bodies, enum whitelists for `difficulty`, `quiz_type`, and `language`, strict numeric coercion rejection, a controlled `413` response for oversized documents, and the initial `pyproject.toml`, Ruff, and GitHub Actions CI tooling.
+- [x] (2026-04-23) Implemented, reviewed, and integrated Batch 2 of Stage 9 on `main` via merge commit `bc93358` (PR #2), covering `UI-005` with the frontend JSON export action; the same merge also bundled a broader 2026 UI redesign (stepper, dark mode, visual refresh) and two follow-up fixes (`bbe3fd8`, `9c66adb`).
+- [x] (2026-04-23) Completed and integrated all of Stage 9 on `main`, closing the early MVP per the Validation and Acceptance section: a user can upload a document, generate a quiz through LM Studio, review, edit, and export the final quiz as JSON.
+- [x] (2026-04-23) Fixed the MVP-blocking frontend generation timeout on `main` via merge commit `d964ad1` (PR #3, feature commit `2f24024`), replacing the single 8 s `requestTimeoutMs` with role-based timeouts (`health` 5 s, `upload` 30 s, `generate` 120 s, `quizEditor` 15 s), also guarding the JSON export `fetch` with `AbortController`, returning a Russian-language timeout error, and adding smoke coverage for the new configuration shape.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -51,6 +56,18 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 - Observation: Stage 1 did not need any new production dependencies.
   Evidence: Backend bootstrap, config loading, domain modeling, validation, generation mode registration, and filesystem repositories were all implemented with the Python standard library, while pytest remained sufficient for test coverage.
+
+- Observation: Stage 9 Batch 2 was integrated as part of a broader 2026 UI redesign PR rather than a narrowly scoped `UI-005`-only integration commit.
+  Evidence: `git show bc93358` bundles the JSON export action with an unrelated visual refresh (`2ae37f9 feat(frontend): redesign UI with 2026 trends, stepper, dark mode, JSON export`) and two follow-up fixes (`bbe3fd8`, `9c66adb`). This diverges from the "keep integration separate from implementation" batch policy, but the result is already on `main` and the working tree is clean.
+
+- Observation: Between Stage 9 Batch 1 and Stage 9 Batch 2 an unplanned API quality hardening batch was integrated on `main`.
+  Evidence: `git log` shows `11bf5eb merge(api): integrate api quality branch` landing after `9c4330a` and before `bc93358`, bundling `b64956a` (enum whitelists), `63b5486` (Pydantic migration for generate/quiz-update bodies), `33d96aa` (enforced max document size with controlled `413`), `c43322c` (`pyproject.toml`, Ruff, GitHub Actions CI), and `d7a4ecb` (rejection of coerced numeric request fields). The plan did not anticipate this batch, but it hardens the API surface the remaining stages will rely on.
+
+- Observation: The frontend generation call was capped at the generic `requestTimeoutMs` of 8000 ms, which is well below realistic LM Studio latency and would abort successful generations while the backend kept running.
+  Evidence: `frontend/config.js` used a single timeout value and `QuizCraftApiClient._request` applied it uniformly; a 30–120 s generation would be aborted by `AbortController` long before LM Studio responded. Fixed on `main` via PR #3 (merge `d964ad1`, feature commit `2f24024`) with role-based timeouts (`health` 5 s, `upload` 30 s, `generate` 120 s, `quizEditor` 15 s), export-`fetch` `AbortController` coverage, and a Russian-language timeout error string.
+
+- Observation: Codex began an independent fix for the same generation-timeout defect while PR #3 was open on the remote; the two branches implemented equivalent-in-intent but different-in-shape solutions.
+  Evidence: Codex committed `4bd32d8 fix(frontend): allow per-endpoint timeouts and lift generation timeout to 180s` and `087984e docs(execplan): sync stage 9 integration, artifacts, and next stage pointer` locally. A `git push` was rejected because `origin/main` had already advanced through PR #3. Codex reset local `main` to `origin/main` to drop both commits because the Devin-authored role-based timeout fix is strictly broader (covers all four endpoint roles plus the JSON export `fetch`, returns a Russian error message). Only the docs sync was redone and committed on top of `origin/main`.
 
 ## Decision Log
 
@@ -100,9 +117,9 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 ## Outcomes & Retrospective
 
-At this stopping point, the repository no longer contains only planning artifacts. `main` now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, the complete Stage 3 LM Studio provider integration scope, the full Stage 4 direct generation pipeline, the full Stage 5 HTTP bootstrap/upload/generate API surface, the full Stage 6 quiz read/update API surface, the accepted Cyrillic compatibility fixes, and the full Stage 7 frontend upload-to-result flow. The remaining work is still intentionally staged, but the plan must now reflect partially implemented delivery rather than a planning-only repository.
+At this stopping point, the repository no longer contains only planning artifacts, and the early MVP is complete on `main`. The integrated surface now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, the complete Stage 3 LM Studio provider integration scope, the full Stage 4 direct generation pipeline, the full Stage 5 HTTP bootstrap/upload/generate API surface, the full Stage 6 quiz read/update API surface, the accepted Cyrillic compatibility fixes, the full Stage 7 frontend upload-to-result flow, the full Stage 8 quiz editing flow, the full Stage 9 JSON export scope (canonical exporter, download endpoint, and frontend action), an unplanned API quality hardening batch (Pydantic bodies, enum whitelists, `413` enforcement, and the initial `pyproject.toml`/Ruff/GitHub Actions tooling), and a role-based frontend timeout fix that makes LM Studio generation viable under real latency (PR #3, merge `d964ad1`).
 
-The key outcome is that the remaining work is grouped into narrow, verifiable increments with explicit dependencies and commit guidance, and the completed increments are already integrated on `main`. The next contributor should continue from Stage 8 rather than revisiting already integrated backend foundations, API slices, or the completed upload-to-result frontend flow.
+The key outcome is that the Validation and Acceptance criteria for the early MVP now hold end-to-end: a user can upload a document, choose generation parameters, trigger quiz generation through LM Studio, review the generated quiz, edit it, and export the final quiz as a JSON file. The next contributor should start the second-wave backlog from Stage 10 (generation status and user-facing operation states) rather than revisiting any Stage 1–9 surface or the timeout fix.
 
 ## Context and Orientation
 
@@ -377,18 +394,39 @@ Rationale for grouping: JSON export is the clean closeout for the early MVP. The
 
 Dependencies: Stages 6 through 8.
 
+Current status on `main`: fully implemented and integrated. Batch 1 landed via merge commit `9c4330a` with feature commits `db8d303` (canonical JSON exporter), `3af8aa4` (download endpoint), and `50a9f60` (exporter and API test coverage). Batch 2 landed via merge commit `bc93358` (PR #2), which also bundled a broader 2026 UI redesign alongside `UI-005`. A follow-up role-based frontend timeout fix landed via merge commit `d964ad1` (PR #3, feature commit `2f24024`) so LM Studio generation is no longer aborted by the old 8 s request timeout.
+
 Planned batch breakdown:
 1. Batch 1: canonical JSON exporter and download endpoint
 2. Batch 2: frontend JSON export action
 
-Definition of done: The backend can export a quiz from the canonical domain model into a deterministic JSON file, the API exposes a download endpoint, and the UI offers an export button that downloads the JSON after generation or editing.
+### Batch 1: Canonical JSON exporter and download endpoint
 
-Required tests/checks: Run `python -m pytest backend/tests/test_json_exporter.py backend/tests/test_api_export_json.py -q` and expect all tests to pass. Manually verify in the browser that the exported file downloads with the expected name and content after editing a quiz.
+Task IDs: `EX-001`, `BE-010`, `TS-007` export slice.
+
+Definition of done: The backend can export a quiz from the canonical domain model into a deterministic JSON file, the API exposes `GET /quizzes/{quiz_id}/export/json` with a `content-disposition` download header, and pytest coverage exercises both the exporter and the download endpoint.
+
+Required tests/checks: Run `python -m pytest backend/tests/test_json_exporter.py backend/tests/test_api_export_json.py -q` and expect all tests to pass. Keep `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, and `python -c "from backend.app.main import create_app"` green.
 
 Recommended commit breakdown:
-1. `feat(export): add canonical json exporter and download endpoint`
-2. `feat(ui): add json export action to the frontend`
-3. `test(export): cover exporter and api download behavior`
+1. `feat(export): add canonical json exporter`
+2. `feat(api): add json export download endpoint`
+3. `test(export): cover exporter and json download behavior`
+
+Current status on `main`: implemented and integrated via merge commit `9c4330a`.
+
+### Batch 2: Frontend JSON export action
+
+Task IDs: `UI-005`.
+
+Definition of done: The UI offers an export action that downloads the canonical JSON for the currently loaded quiz after generation or editing, using the backend `GET /quizzes/{quiz_id}/export/json` endpoint.
+
+Required tests/checks: Keep backend API tests green. Manually verify in the browser that the exported file downloads with the expected name and content after generating or editing a quiz.
+
+Recommended commit breakdown:
+1. `feat(ui): add json export action to the frontend`
+
+Current status on `main`: implemented and integrated via merge commit `bc93358` (PR #2). The same merge also bundled an unplanned UI redesign (stepper, dark mode, visual refresh) and two follow-up fixes (`bbe3fd8`, `9c66adb`); see the Surprises & Discoveries note about this bundling. A subsequent PR #3 (merge `d964ad1`) further hardened the frontend timeout behavior for all endpoints, including the export `fetch`.
 
 ## Stage 10: Generation Status and User-Facing Operation States
 
@@ -556,6 +594,11 @@ Current integrated state:
     5762736 test(frontend): cover upload and parameter flow smoke paths
     a7f3cd3 merge(frontend): integrate stage 7 batch 3 result view
     16fc33b merge(frontend): integrate stage 8 batch 1 edit shell
+    7082baf merge(frontend): integrate stage 8 batch 2 save flow
+    9c4330a merge(export): integrate stage 9 batch 1 json export
+    11bf5eb merge(api): integrate api quality branch
+    bc93358 Merge pull request #2 from bk-ru/devin/1776933488-ui-redesign-2026
+    d964ad1 Merge pull request #3 from bk-ru/devin/1776937949-frontend-timeouts
 
 Current backlog completion status:
 
@@ -577,14 +620,20 @@ Current backlog completion status:
     Stage 8 Batch 1 (`UI-004` read/edit shell slice): integrated on main
     Stage 8 Batch 2 (`UI-004` save slice): integrated on main
     Stage 8: fully integrated on main
+    Stage 9 Batch 1 (`EX-001`, `BE-010`, `TS-007` export slice): integrated on main
+    Stage 9 Batch 2 (`UI-005`): integrated on main (bundled with the 2026 UI redesign in PR #2)
+    Stage 9: fully integrated on main
+    Early MVP: complete on main (Stages 1–9 integrated; Validation and Acceptance criteria satisfied)
+    API quality hardening (unplanned post-Stage 9 Batch 1 audit): integrated on main
+    Frontend role-based timeouts (PR #3): integrated on main
 
 Next recommended stage:
 
-    Stage 9: JSON Export and MVP Closeout
+    Stage 10: Generation Status and User-Facing Operation States
 
 Next recommended batch:
 
-    Stage 9 Batch 1: canonical JSON exporter and download endpoint
+    Stage 10 has no predefined batch breakdown yet; plan batches before implementation per the Batch execution policy.
 
 ## Interfaces and Dependencies
 
