@@ -150,6 +150,82 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "Исправьте ошибки и повторите сохранение." in content
 
 
+def test_frontend_app_autoloads_generated_quiz_into_editor() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    submit_match = re.search(
+        r"async function submitGeneration[\s\S]+?^}\n",
+        content,
+        re.MULTILINE,
+    )
+    assert submit_match is not None, "submitGeneration function must exist"
+    submit_body = submit_match.group(0)
+
+    assert "renderQuizResult(generationPayload)" in submit_body
+    assert "renderQuizEditor(generatedQuiz)" in submit_body, (
+        "submitGeneration must auto-render the freshly generated quiz into the editor"
+    )
+    assert "setQuizEditorSummary(generatedQuiz)" in submit_body, (
+        "submitGeneration must refresh the editor summary with the generated quiz"
+    )
+    assert "Новый квиз загружен в редактор" in submit_body, (
+        "editor status after auto-load must be in Russian and confirm the load"
+    )
+
+
+def test_frontend_marks_lm_studio_unavailable_as_critical() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert re.search(r"unavailable\s*:\s*\"bad\"", app_content), (
+        "statusMap must map LM Studio unavailable to the critical bad tone"
+    )
+    assert "LM_STUDIO_UNAVAILABLE_INSTRUCTION" in app_content
+    assert "LM Studio недоступен" in app_content, (
+        "Russian instruction for LM Studio unavailable state must be present"
+    )
+    assert "http://127.0.0.1:1234" in app_content, (
+        "LM Studio instruction must point the user to the default provider URL"
+    )
+    assert 'setStatus("provider", "Недоступен · запустите LM Studio", "bad")' in app_content, (
+        "provider topbar must surface the critical Russian marker on unavailable status"
+    )
+
+
+def test_frontend_collapses_technical_identifiers_into_details() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'class="inline-details"' in content, (
+        "technical fields must be wrapped into collapsible inline-details blocks"
+    )
+    assert "<summary>Технические идентификаторы</summary>" in content, (
+        "operation summary must expose a Russian-language collapse affordance"
+    )
+    assert "<summary>Технические детали квиза</summary>" in content, (
+        "result overview must expose a Russian-language collapse affordance for model/prompt details"
+    )
+
+    document_id_match = re.search(
+        r"<details class=\"inline-details\">[\s\S]+?Document ID[\s\S]+?</details>",
+        content,
+    )
+    assert document_id_match is not None, (
+        "Document ID must live inside a collapsed inline-details block"
+    )
+    assert 'id="last-filename"' in content.split('<details class="inline-details">', 1)[0], (
+        "filename must stay visible outside the collapsed technical identifiers block"
+    )
+
+
+def test_frontend_styles_define_inline_details_affordance() -> None:
+    content = STYLES_CSS.read_text(encoding="utf-8")
+
+    assert ".inline-details" in content, (
+        "styles must theme the inline-details blocks so they match the panel aesthetic"
+    )
+    assert ".inline-details > summary" in content
+    assert ".inline-details[open]" in content
+
+
 def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     with serve_frontend() as base_url:
         html = urlopen(f"{base_url}/").read().decode("utf-8")

@@ -177,19 +177,24 @@
             <dt>Имя файла</dt>
             <dd id="last-filename">Ещё не загружен</dd>
           </div>
-          <div>
-            <dt>Document ID</dt>
-            <dd id="last-document-id">Ещё нет</dd>
-          </div>
-          <div>
-            <dt>Quiz ID</dt>
-            <dd id="last-quiz-id">Ещё нет</dd>
-          </div>
-          <div>
-            <dt>Request ID</dt>
-            <dd id="last-request-id">Ещё нет</dd>
-          </div>
         </dl>
+        <details class="inline-details">
+          <summary>Технические идентификаторы</summary>
+          <dl class="summary-grid">
+            <div>
+              <dt>Document ID</dt>
+              <dd id="last-document-id">Ещё нет</dd>
+            </div>
+            <div>
+              <dt>Quiz ID</dt>
+              <dd id="last-quiz-id">Ещё нет</dd>
+            </div>
+            <div>
+              <dt>Request ID</dt>
+              <dd id="last-request-id">Ещё нет</dd>
+            </div>
+          </dl>
+        </details>
       </section>
 
       <section id="generation-result" class="panel panel-result" aria-labelledby="result-title" data-result-tone="idle">
@@ -210,15 +215,20 @@
             <dt>Количество вопросов</dt>
             <dd id="quiz-question-count">0</dd>
           </div>
-          <div>
-            <dt>Модель</dt>
-            <dd id="quiz-model-name">Ещё нет результата</dd>
-          </div>
-          <div>
-            <dt>Prompt version</dt>
-            <dd id="quiz-prompt-version">Ещё нет результата</dd>
-          </div>
         </dl>
+        <details class="inline-details">
+          <summary>Технические детали квиза</summary>
+          <dl class="result-overview">
+            <div>
+              <dt>Модель</dt>
+              <dd id="quiz-model-name">Ещё нет результата</dd>
+            </div>
+            <div>
+              <dt>Prompt version</dt>
+              <dd id="quiz-prompt-version">Ещё нет результата</dd>
+            </div>
+          </dl>
+        </details>
         <div class="result-actions">
           <button id="export-json-button" class="secondary-action" type="button" disabled>
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
