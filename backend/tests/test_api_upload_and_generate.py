@@ -222,6 +222,29 @@ def test_direct_generation_endpoint_rejects_unknown_language(tmp_path) -> None:
     assert "language" in body["error"]["message"]
 
 
+def test_direct_generation_endpoint_rejects_coerced_question_count_types(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_document(client)
+    payload = build_generation_payload()
+    payload["question_count"] = True
+
+    response = client.post(f"/documents/{document_id}/generate", json=payload)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "validation_error"
+    assert "question_count" in body["error"]["message"]
+
+    payload["question_count"] = "2"
+    response = client.post(f"/documents/{document_id}/generate", json=payload)
+
+    assert response.status_code == 422
+    body = response.json()
+    assert body["error"]["code"] == "validation_error"
+    assert "question_count" in body["error"]["message"]
+
+
 def test_direct_generation_endpoint_maps_oversized_document_to_413(tmp_path) -> None:
     provider = StubProvider()
     app = create_app(config=build_config(max_document_chars=10), provider=provider, storage_root=tmp_path)

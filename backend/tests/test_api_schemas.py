@@ -37,6 +37,30 @@ def test_generation_request_body_rejects_non_positive_question_count() -> None:
         )
 
 
+def test_generation_request_body_rejects_coerced_question_count_types() -> None:
+    with pytest.raises(ValidationError):
+        GenerationRequestBody.model_validate(
+            {
+                "question_count": True,
+                "language": "ru",
+                "difficulty": "medium",
+                "quiz_type": "single_choice",
+                "generation_mode": "direct",
+            }
+        )
+
+    with pytest.raises(ValidationError):
+        GenerationRequestBody.model_validate(
+            {
+                "question_count": "5",
+                "language": "ru",
+                "difficulty": "medium",
+                "quiz_type": "single_choice",
+                "generation_mode": "direct",
+            }
+        )
+
+
 def test_generation_request_body_rejects_extra_fields() -> None:
     with pytest.raises(ValidationError):
         GenerationRequestBody.model_validate(
@@ -95,6 +119,58 @@ def test_quiz_update_body_rejects_empty_questions() -> None:
                     "version": 1,
                     "last_edited_at": "2026-04-18T00:00:00Z",
                     "questions": [],
+                }
+            }
+        )
+
+
+def test_quiz_update_body_rejects_coerced_integer_fields() -> None:
+    with pytest.raises(ValidationError):
+        QuizUpdateBody.model_validate(
+            {
+                "quiz": {
+                    "quiz_id": "quiz-1",
+                    "document_id": "doc-1",
+                    "title": "Р СѓСЃСЃРєРёР№ РєРІРёР·",
+                    "version": True,
+                    "last_edited_at": "2026-04-18T00:00:00Z",
+                    "questions": [
+                        {
+                            "question_id": "q-1",
+                            "prompt": "РљР°РєРѕР№ РіРѕСЂРѕРґ вЂ” СЃС‚РѕР»РёС†Р° Р РѕСЃСЃРёРё?",
+                            "options": [
+                                {"option_id": "opt-1", "text": "РњРѕСЃРєРІР°"},
+                                {"option_id": "opt-2", "text": "РЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРі"},
+                            ],
+                            "correct_option_index": 0,
+                            "explanation": {"text": "РњРѕСЃРєРІР° вЂ” СЃС‚РѕР»РёС†Р° Р РѕСЃСЃРёРё."},
+                        }
+                    ],
+                }
+            }
+        )
+
+    with pytest.raises(ValidationError):
+        QuizUpdateBody.model_validate(
+            {
+                "quiz": {
+                    "quiz_id": "quiz-1",
+                    "document_id": "doc-1",
+                    "title": "Р СѓСЃСЃРєРёР№ РєРІРёР·",
+                    "version": 1,
+                    "last_edited_at": "2026-04-18T00:00:00Z",
+                    "questions": [
+                        {
+                            "question_id": "q-1",
+                            "prompt": "РљР°РєРѕР№ РіРѕСЂРѕРґ вЂ” СЃС‚РѕР»РёС†Р° Р РѕСЃСЃРёРё?",
+                            "options": [
+                                {"option_id": "opt-1", "text": "РњРѕСЃРєРІР°"},
+                                {"option_id": "opt-2", "text": "РЎР°РЅРєС‚-РџРµС‚РµСЂР±СѓСЂРі"},
+                            ],
+                            "correct_option_index": "0",
+                            "explanation": {"text": "РњРѕСЃРєРІР° вЂ” СЃС‚РѕР»РёС†Р° Р РѕСЃСЃРёРё."},
+                        }
+                    ],
                 }
             }
         )
