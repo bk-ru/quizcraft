@@ -3,6 +3,7 @@ from __future__ import annotations
 import pytest
 
 from backend.app.core.modes import GenerationMode
+from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import GenerationQualityError
 from backend.app.domain.errors import RepositoryNotFoundError
 from backend.app.domain.models import DocumentRecord
@@ -97,7 +98,12 @@ def build_response(
     )
 
 
-def build_orchestrator(tmp_path, provider: StubProvider) -> tuple[
+def build_orchestrator(
+    tmp_path,
+    provider: StubProvider,
+    *,
+    max_document_chars: int | None = None,
+) -> tuple[
     DirectGenerationOrchestrator,
     FileSystemDocumentRepository,
     FileSystemGenerationResultRepository,
@@ -112,6 +118,7 @@ def build_orchestrator(tmp_path, provider: StubProvider) -> tuple[
         request_builder=DirectGenerationRequestBuilder(prompt_registry=PromptRegistry),
         provider=provider,
         quality_checker=GenerationQualityChecker(),
+        max_document_chars=max_document_chars,
     )
     return orchestrator, document_repository, result_repository
 
@@ -226,3 +233,45 @@ def test_direct_generation_orchestrator_preserves_russian_quiz_fields(tmp_path) 
     assert result.quiz.questions[0].explanation is not None
     assert result.quiz.questions[0].explanation.text == "Первый факт указан в документе."
     assert persisted == result
+
+
+def test_direct_generation_orchestrator_rejects_documents_exceeding_max_chars(tmp_path) -> None:
+    provider = StubProvider([])
+    orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path, provider, max_document_chars=20
+    )
+    document_repository.save(
+        DocumentRecord(
+            document_id="doc-big",
+            filename="lecture.txt",
+            media_type="text/plain",
+            file_size_bytes=128,
+            normalized_text="Очень длинный русский документ для проверки лимита.",
+            metadata={"text_length": 50},
+        )
+    )
+
+    with pytest.raises(DocumentTooLargeForGenerationError) as error_info:
+        orchestrator.generate("doc-big", build_generation_request())
+
+    assert error_info.value.code == "document_too_large_for_generation"
+    assert "doc-big" in error_info.value.message
+    assert provider.requests == []
+
+
+def test_direct_generation_orchestrator_accepts_document_within_limit(tmp_path) -> None:
+    provider = StubProvider([build_response(build_payload())])
+    orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path, provider, max_document_chars=10_000
+    )
+    document_repository.save(build_document())
+
+    result = orchestrator.generate("doc-1", build_generation_request())
+
+    assert result.quiz.quiz_id == "quiz-generated"
+    assert len(provider.requests) == 1
+
+
+def test_direct_generation_orchestrator_rejects_non_positive_document_limit(tmp_path) -> None:
+    with pytest.raises(ValueError, match="max_document_chars"):
+        build_orchestrator(tmp_path, StubProvider([]), max_document_chars=0)

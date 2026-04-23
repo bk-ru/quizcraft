@@ -8,6 +8,7 @@ from dataclasses import replace
 from typing import Any
 from typing import Callable
 
+from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import GenerationRequest
@@ -42,7 +43,10 @@ class DirectGenerationOrchestrator:
         normalizer: Callable[[dict[str, Any]], Quiz] = normalize_quiz_output,
         prompt_registry: type[PromptRegistry] = PromptRegistry,
         max_repair_attempts: int = 1,
+        max_document_chars: int | None = None,
     ) -> None:
+        if max_document_chars is not None and max_document_chars <= 0:
+            raise ValueError("max_document_chars must be positive when provided")
         self._document_repository = document_repository
         self._quiz_repository = quiz_repository
         self._generation_result_repository = generation_result_repository
@@ -52,11 +56,13 @@ class DirectGenerationOrchestrator:
         self._normalizer = normalizer
         self._prompt_registry = prompt_registry
         self._max_repair_attempts = max_repair_attempts
+        self._max_document_chars = max_document_chars
 
     def generate(self, document_id: str, generation_request: GenerationRequest) -> GenerationResult:
         """Generate, repair if needed, persist, and return a quiz result."""
 
         document = self._document_repository.get(document_id)
+        self._guard_document_length(document)
         logger.info(
             "Starting direct generation document=%s request=%s",
             summarize_document_payload(document),
@@ -86,6 +92,18 @@ class DirectGenerationOrchestrator:
         self._generation_result_repository.save(result)
         logger.info("Persisted generation result summary=%s", summarize_generation_result(result))
         return result
+
+    def _guard_document_length(self, document: DocumentRecord) -> None:
+        """Reject documents whose normalized text exceeds the configured limit."""
+
+        if self._max_document_chars is None:
+            return
+        document_length = len(document.normalized_text)
+        if document_length > self._max_document_chars:
+            raise DocumentTooLargeForGenerationError(
+                f"document '{document.document_id}' is too large for generation: "
+                f"{document_length} characters exceeds limit of {self._max_document_chars}"
+            )
 
     def _finalize_generation(
         self,

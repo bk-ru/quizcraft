@@ -57,6 +57,7 @@ def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
             request_builder=DirectGenerationRequestBuilder(prompt_registry=PromptRegistry),
             provider=app.state.provider,
             quality_checker=GenerationQualityChecker(),
+            max_document_chars=app.state.config.max_document_chars,
         )
         app.state.generation_orchestrator = orchestrator
     return orchestrator

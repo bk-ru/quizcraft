@@ -12,6 +12,7 @@ from backend.app.api.correlation import get_correlation_id
 from backend.app.api.schemas import build_validation_error_message
 from backend.app.domain.errors import BackendError
 from backend.app.domain.errors import ConfigurationError
+from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import FileValidationError
 from backend.app.domain.errors import LLMConnectionError
@@ -35,6 +36,8 @@ def map_backend_error_to_status_code(error: BackendError) -> int:
         return 404
     if isinstance(error, (FileValidationError, TextExtractionError, UnsupportedGenerationModeError)):
         return 400
+    if isinstance(error, DocumentTooLargeForGenerationError):
+        return 413
     if isinstance(error, DomainValidationError):
         return 422
     if isinstance(error, LLMTimeoutError):
