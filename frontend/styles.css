@@ -963,6 +963,64 @@ button {
   gap: 12px;
 }
 
+.inline-details {
+  margin-top: 4px;
+}
+
+.inline-details > summary {
+  cursor: pointer;
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 2px;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  user-select: none;
+  transition: color var(--duration-fast) var(--easing);
+}
+
+.inline-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.inline-details > summary::before {
+  content: "+";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  background: var(--surface-sunken);
+  color: var(--muted);
+  font-size: 0.95rem;
+  line-height: 1;
+  transition: transform var(--duration-fast) var(--easing), background var(--duration-fast) var(--easing);
+}
+
+.inline-details[open] > summary::before {
+  content: "−";
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+
+.inline-details > summary:hover,
+.inline-details[open] > summary {
+  color: var(--ink);
+}
+
+.inline-details > summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
+}
+
+.inline-details[open] > :not(summary) {
+  margin-top: 10px;
+}
+
 .details-panel {
   border-radius: var(--radius-lg);
   border: 1px solid var(--line);
