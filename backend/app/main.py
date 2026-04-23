@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from fastapi import FastAPI
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 
 from backend.app.api.correlation import REQUEST_ID_HEADER
 from backend.app.api.correlation import bind_correlation_id
@@ -15,6 +16,7 @@ from backend.app.api.correlation import install_correlation_log_record_factory
 from backend.app.api.correlation import reset_correlation_id
 from backend.app.api.documents import register_document_routes
 from backend.app.api.errors import handle_backend_error
+from backend.app.api.errors import handle_request_validation_error
 from backend.app.api.generation import register_generation_routes
 from backend.app.api.health import register_health_routes
 from backend.app.api.quizzes import register_quiz_routes
@@ -49,6 +51,7 @@ def create_app(
         timeout_seconds=resolved_config.request_timeout,
     )
     app.add_exception_handler(BackendError, handle_backend_error)
+    app.add_exception_handler(RequestValidationError, handle_request_validation_error)
     register_health_routes(app, resolved_config)
     register_document_routes(app)
     register_generation_routes(app)
