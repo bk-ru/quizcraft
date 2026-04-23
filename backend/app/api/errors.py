@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 
 from fastapi import Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from backend.app.api.correlation import get_correlation_id
+from backend.app.api.schemas import build_validation_error_message
 from backend.app.domain.errors import BackendError
 from backend.app.domain.errors import ConfigurationError
 from backend.app.domain.errors import DomainValidationError
@@ -59,6 +61,27 @@ async def handle_backend_error(request: Request, error: BackendError) -> JSONRes
             "error": {
                 "code": error.code,
                 "message": error.message,
+            },
+            "request_id": request_id,
+        },
+    )
+
+
+async def handle_request_validation_error(
+    request: Request,
+    error: RequestValidationError,
+) -> JSONResponse:
+    """Render FastAPI request-validation errors using the backend error envelope."""
+
+    request_id = getattr(request.state, "correlation_id", get_correlation_id())
+    message = build_validation_error_message(list(error.errors()))
+    logger.warning("HTTP request validation error message=%s", message)
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": {
+                "code": "validation_error",
+                "message": message,
             },
             "request_id": request_id,
         },
