@@ -4,11 +4,11 @@ const config = window.QuizCraftConfig ?? {};
 const backendBaseUrl = typeof config.backendBaseUrl === "string" && config.backendBaseUrl.trim()
   ? config.backendBaseUrl.trim()
   : "http://127.0.0.1:8000";
-const requestTimeoutMs = Number.isFinite(config.requestTimeoutMs) ? config.requestTimeoutMs : 8000;
+const timeouts = config.timeouts ?? {};
 
 const client = new QuizCraftApiClient({
   baseUrl: backendBaseUrl,
-  requestTimeoutMs,
+  timeouts,
 });
 
 const form = document.getElementById("generation-form");
@@ -576,7 +576,10 @@ async function submitQuizEdits() {
 
 async function bootstrapShell() {
   setTextContent("backend-base-url", backendBaseUrl);
-  setTextContent("request-timeout", `${requestTimeoutMs} мс`);
+  const t = client.timeouts;
+  setTextContent("request-timeout",
+    `health ${t.health / 1000} с · upload ${t.upload / 1000} с · generate ${t.generate / 1000} с · editor ${t.quizEditor / 1000} с`,
+  );
   updateSelectedFileSummary();
   clearQuizResult();
   clearQuizEditor();
@@ -834,10 +837,20 @@ async function exportQuizAsJson() {
     return;
   }
   try {
-    const response = await fetch(
-      `${backendBaseUrl}/quizzes/${encodeURIComponent(editorState.lastGeneratedQuizId)}/export/json`,
-      { headers: { Accept: "application/json" } },
+    const exportController = new AbortController();
+    const exportTimeoutId = window.setTimeout(
+      () => exportController.abort(),
+      client.timeouts.quizEditor,
     );
+    let response;
+    try {
+      response = await fetch(
+        `${backendBaseUrl}/quizzes/${encodeURIComponent(editorState.lastGeneratedQuizId)}/export/json`,
+        { headers: { Accept: "application/json" }, signal: exportController.signal },
+      );
+    } finally {
+      window.clearTimeout(exportTimeoutId);
+    }
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
     }
