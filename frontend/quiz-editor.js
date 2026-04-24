@@ -7,6 +7,16 @@ export function cloneQuizPayload(quiz) {
   return JSON.parse(JSON.stringify(quiz));
 }
 
+const REGENERATE_CONFIRM_PROMPT =
+  "Перегенерировать этот вопрос? Текущий текст вопроса, ответы и пояснение будут заменены новой версией из backend. Несохранённые правки других вопросов останутся без изменений.";
+
+function defaultConfirmAction(message) {
+  if (typeof globalThis !== "undefined" && typeof globalThis.confirm === "function") {
+    return globalThis.confirm(message);
+  }
+  return true;
+}
+
 export function createQuizEditor({
   editorState,
   client,
@@ -20,10 +30,14 @@ export function createQuizEditor({
   setLogMessage,
   setExportAvailability,
   advanceStepper,
+  renderQuizResult,
   showToast,
   describeError,
   describeValidationError,
+  saveQuizToHistory,
+  confirmAction,
 }, documentRef = document) {
+  const askForConfirmation = typeof confirmAction === "function" ? confirmAction : defaultConfirmAction;
   function setEditorBusyState(isBusy) {
     if (!quizEditorLoader) {
       return;
@@ -42,8 +56,32 @@ export function createQuizEditor({
     if (!saveQuizButton) {
       return;
     }
-    saveQuizButton.disabled = Boolean(disabled);
+    const isDisabled = Boolean(disabled);
+    saveQuizButton.disabled = isDisabled;
     saveQuizButton.textContent = busy ? "Сохраняем…" : "Сохранить изменения";
+    if (isDisabled) {
+      saveQuizButton.setAttribute("aria-describedby", "save-quiz-hint");
+    } else {
+      saveQuizButton.removeAttribute("aria-describedby");
+    }
+  }
+
+  function setRegenerationActionState(card, { busy, text, tone } = {}) {
+    const button = card?.querySelector('[data-editor-action="regenerate-question"]');
+    const status = card?.querySelector('[data-regeneration-status="question"]');
+    if (button instanceof HTMLButtonElement) {
+      button.disabled = Boolean(busy);
+      button.textContent = busy ? "Перегенерируем вопрос…" : "Перегенерировать вопрос";
+    }
+    if (status instanceof HTMLElement) {
+      status.textContent = text ?? "";
+      status.hidden = !text;
+      if (tone) {
+        status.dataset.statusTone = tone;
+      } else {
+        delete status.dataset.statusTone;
+      }
+    }
   }
 
   function markEditorDirty() {
@@ -117,7 +155,21 @@ export function createQuizEditor({
     note.className = "panel-copy";
     note.textContent = "После редактирования это содержимое можно сохранить в backend.";
 
-    header.append(badge, note);
+    const regenerateButton = documentRef.createElement("button");
+    regenerateButton.className = "ghost-action question-regenerate-action";
+    regenerateButton.type = "button";
+    regenerateButton.textContent = "Перегенерировать вопрос";
+    regenerateButton.setAttribute("data-editor-action", "regenerate-question");
+    regenerateButton.dataset.questionId = article.dataset.questionId;
+    regenerateButton.setAttribute("aria-label", `Перегенерировать вопрос ${index + 1}`);
+
+    const regenerationStatus = documentRef.createElement("span");
+    regenerationStatus.className = "question-regenerate-status";
+    regenerationStatus.setAttribute("data-regeneration-status", "question");
+    regenerationStatus.setAttribute("aria-live", "polite");
+    regenerationStatus.hidden = true;
+
+    header.append(badge, note, regenerateButton, regenerationStatus);
     article.append(header);
 
     const promptField = createEditorField("Текст вопроса", createEditorTextarea(question.prompt ?? "", 3));
@@ -159,6 +211,24 @@ export function createQuizEditor({
     article.append(explanationField);
 
     return article;
+  }
+
+  function replaceRegeneratedQuestion(quiz, regeneratedQuestion) {
+    const updatedQuiz = cloneQuizPayload(quiz);
+    const questions = Array.isArray(updatedQuiz.questions) ? updatedQuiz.questions : [];
+    const hasTargetQuestion = questions.some((question) => (
+      question.question_id === regeneratedQuestion.question_id
+    ));
+    if (!hasTargetQuestion) {
+      throw new Error("Backend вернул вопрос, которого нет в текущем квизе.");
+    }
+    updatedQuiz.questions = questions.map((question) => {
+      if (question.question_id === regeneratedQuestion.question_id) {
+        return regeneratedQuestion;
+      }
+      return question;
+    });
+    return updatedQuiz;
   }
 
   function renderQuizEditor(quiz) {
@@ -245,6 +315,12 @@ export function createQuizEditor({
       setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
       setExportAvailability(payload.quiz_id ?? quiz.quiz_id ?? quizId);
       advanceStepper("edit");
+      if (typeof saveQuizToHistory === "function") {
+        saveQuizToHistory({
+          quiz_id: payload.quiz_id ?? quiz.quiz_id ?? quizId,
+          title: quiz.title,
+        });
+      }
       showToast("Квиз загружен в редактор.", "ok");
       setLogMessage(`Открыт квиз ${payload.quiz_id ?? quizId} для локального редактирования и последующего сохранения.`, "ok");
     } catch (error) {
@@ -252,6 +328,93 @@ export function createQuizEditor({
       setEditorSaveState({ disabled: true });
     } finally {
       setEditorBusyState(false);
+    }
+  }
+
+  async function regenerateQuizQuestion(event) {
+    const action = event.target instanceof Element
+      ? event.target.closest('[data-editor-action="regenerate-question"]')
+      : null;
+    if (!(action instanceof HTMLButtonElement)) {
+      return;
+    }
+
+    event.preventDefault();
+    const card = action.closest(".editor-card");
+    const quizId = editorState.loadedQuiz?.quiz_id;
+    const questionId = typeof action.dataset.questionId === "string" ? action.dataset.questionId.trim() : "";
+    if (!quizId || !questionId || !(card instanceof HTMLElement)) {
+      setEditorStatus("Сначала откройте сохранённый квиз и выберите вопрос для перегенерации.", "bad");
+      return;
+    }
+
+    if (!askForConfirmation(REGENERATE_CONFIRM_PROMPT)) {
+      setEditorStatus("Перегенерация отменена. Текущий вопрос остался без изменений.", "warn");
+      return;
+    }
+
+    try {
+      const hadUnsavedEdits = editorState.isDirty;
+      const displayedQuiz = buildQuizUpdatePayload();
+      setRegenerationActionState(card, {
+        busy: true,
+        text: "Перегенерируем вопрос через backend…",
+        tone: "warn",
+      });
+      setEditorStatus("Перегенерируем один вопрос. Остальные вопросы останутся без изменений.", "warn");
+      const response = await client.regenerateQuestion(quizId, questionId, {
+        quiz_id: quizId,
+        question_id: questionId,
+        language: "ru",
+      });
+      const regeneratedQuestion = response.regenerated_question;
+      if (!regeneratedQuestion?.question_id) {
+        throw new Error("Backend не вернул обновлённый вопрос.");
+      }
+      const persistedQuiz = response.quiz ?? editorState.loadedQuiz;
+      const updatedQuiz = replaceRegeneratedQuestion({
+        ...displayedQuiz,
+        quiz_id: persistedQuiz.quiz_id ?? displayedQuiz.quiz_id,
+        document_id: persistedQuiz.document_id ?? displayedQuiz.document_id,
+        version: persistedQuiz.version ?? displayedQuiz.version,
+        last_edited_at: persistedQuiz.last_edited_at ?? displayedQuiz.last_edited_at,
+      }, regeneratedQuestion);
+
+      renderQuizEditor(updatedQuiz);
+      setQuizEditorSummary(updatedQuiz);
+      setTextContent("last-quiz-id", response.quiz_id ?? updatedQuiz.quiz_id ?? quizId);
+      setTextContent("last-request-id", response.request_id ?? "Ещё нет");
+      setExportAvailability(response.quiz_id ?? updatedQuiz.quiz_id ?? quizId);
+      if (typeof renderQuizResult === "function") {
+        renderQuizResult({
+          ...response,
+          quiz_id: response.quiz_id ?? updatedQuiz.quiz_id ?? quizId,
+          quiz: updatedQuiz,
+        });
+      }
+      if (hadUnsavedEdits) {
+        editorState.isDirty = true;
+        setEditorSaveState({ disabled: false });
+        setEditorStatus(
+          "Вопрос перегенерирован. Несохранённые правки в остальных полях сохранены локально; сохраните квиз, чтобы отправить их в backend.",
+          "warn",
+        );
+      } else {
+        setEditorStatus("Вопрос перегенерирован. Остальные вопросы сохранены без изменений.", "ok");
+      }
+      showToast("Вопрос перегенерирован.", "ok");
+      setLogMessage(
+        `Вопрос ${questionId} перегенерирован через backend; остальные вопросы и кириллица сохранены без изменений.`,
+        "ok",
+      );
+    } catch (error) {
+      setRegenerationActionState(card, {
+        busy: false,
+        text: `Не удалось перегенерировать вопрос: ${describeError(error)}`,
+        tone: "bad",
+      });
+      setEditorStatus(`Не удалось перегенерировать вопрос: ${describeError(error)}`, "bad");
+      showToast("Не удалось перегенерировать вопрос.", "bad");
     }
   }
 
@@ -274,6 +437,12 @@ export function createQuizEditor({
       setTextContent("last-quiz-id", reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id ?? "Ещё нет");
       setTextContent("last-request-id", reloadResponse.request_id ?? saveResponse.request_id ?? "Ещё нет");
       setExportAvailability(reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id ?? null);
+      if (typeof saveQuizToHistory === "function") {
+        saveQuizToHistory({
+          quiz_id: reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id,
+          title: persistedQuiz.title,
+        });
+      }
       setEditorStatus("Изменения сохранены.", "ok");
       showToast("Изменения сохранены.", "ok");
       setLogMessage(
@@ -299,6 +468,7 @@ export function createQuizEditor({
     markEditorDirty,
     buildQuizUpdatePayload,
     loadQuizForEditing,
+    regenerateQuizQuestion,
     submitQuizEdits,
   };
 }

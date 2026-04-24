@@ -113,15 +113,29 @@
   height: 16px;
 }
 
+.theme-toggle .theme-toggle-icon {
+  display: none;
+}
+
+:root[data-theme="auto"] .theme-toggle .theme-toggle-icon[data-theme-icon="auto"],
+:root[data-theme="light"] .theme-toggle .theme-toggle-icon[data-theme-icon="light"],
+:root[data-theme="dark"] .theme-toggle .theme-toggle-icon[data-theme-icon="dark"] {
+  display: inline-block;
+}
+
+:root:not([data-theme]) .theme-toggle .theme-toggle-icon[data-theme-icon="auto"] {
+  display: inline-block;
+}
+
 .hero {
   display: grid;
-  gap: 28px;
-  padding: 64px 0 36px;
+  gap: 20px;
+  padding: 28px 0 20px;
 }
 
 .hero-heading {
   display: grid;
-  gap: 18px;
+  gap: 10px;
   max-width: 46rem;
 }
 
@@ -145,8 +159,13 @@
   height: 7px;
   border-radius: 50%;
   background: var(--brand);
-  box-shadow: 0 0 0 0 var(--brand);
-  animation: pulse 1.8s infinite;
+  box-shadow: 0 0 0 0 rgba(98, 69, 255, 0.45);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .eyebrow .pulse {
+    animation: pulse 1.8s ease-out 2;
+  }
 }
 
 @keyframes pulse {
@@ -158,9 +177,9 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 800;
-  font-size: clamp(2.4rem, 5.2vw, 3.9rem);
-  line-height: 1.05;
-  letter-spacing: -0.035em;
+  font-size: clamp(1.8rem, 3.2vw, 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.025em;
   color: var(--ink);
 }
 
@@ -180,7 +199,7 @@
 
 .stepper {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
   padding: 10px;
   border: 1px solid var(--line);
@@ -253,6 +272,31 @@
 }
 
 .step[data-state="done"] .step-index-number {
+  display: none;
+}
+
+.step[data-state="failed"] {
+  background: var(--bad-soft, rgba(220, 38, 38, 0.12));
+  color: var(--bad, #b91c1c);
+}
+
+.step[data-state="failed"] .step-label {
+  color: var(--bad, #b91c1c);
+}
+
+.step[data-state="failed"] .step-index {
+  background: var(--bad, #b91c1c);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.18);
+}
+
+.step[data-state="failed"] .step-index::before {
+  content: "!";
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.step[data-state="failed"] .step-index-number {
   display: none;
 }
 

@@ -53,7 +53,19 @@ export class QuizCraftApiClient {
     return this._request("/health/lm-studio", { timeoutMs: this._timeouts.health });
   }
 
-  uploadDocument({ filename, mediaType, content }) {
+  getGenerationSettings() {
+    return this._request("/generation/settings", { timeoutMs: this._timeouts.health });
+  }
+
+  putGenerationSettings(payload) {
+    return this._request("/generation/settings", {
+      method: "PUT",
+      json: payload,
+      timeoutMs: this._timeouts.quizEditor,
+    });
+  }
+
+  uploadDocument({ filename, mediaType, content, signal } = {}) {
     if (typeof filename !== "string" || !filename.trim()) {
       throw new Error("filename is required");
     }
@@ -70,14 +82,16 @@ export class QuizCraftApiClient {
       },
       body: content,
       timeoutMs: this._timeouts.upload,
+      signal,
     });
   }
 
-  generateQuiz(documentId, payload) {
+  generateQuiz(documentId, payload, { signal } = {}) {
     return this._request(`/documents/${encodeURIComponent(documentId)}/generate`, {
       method: "POST",
       json: payload,
       timeoutMs: this._timeouts.generate,
+      signal,
     });
   }
 
@@ -95,12 +109,41 @@ export class QuizCraftApiClient {
     });
   }
 
-  async _request(path, { method = "GET", headers = {}, body, json, timeoutMs } = {}) {
+  regenerateQuestion(quizId, questionId, payload = {}) {
+    const resolvedQuizId = typeof quizId === "string" ? quizId.trim() : "";
+    const resolvedQuestionId = typeof questionId === "string" ? questionId.trim() : "";
+    if (!resolvedQuizId) {
+      throw new Error("quizId is required");
+    }
+    if (!resolvedQuestionId) {
+      throw new Error("questionId is required");
+    }
+
+    return this._request(
+      `/quizzes/${encodeURIComponent(resolvedQuizId)}/questions/${encodeURIComponent(resolvedQuestionId)}/regenerate`,
+      {
+        method: "POST",
+        json: payload ?? {},
+        timeoutMs: this._timeouts.generate,
+      },
+    );
+  }
+
+  async _request(path, { method = "GET", headers = {}, body, json, timeoutMs, signal } = {}) {
     const controller = new AbortController();
     const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
       ? timeoutMs
       : this._timeouts.quizEditor;
     const timeoutId = window.setTimeout(() => controller.abort(), effectiveTimeout);
+
+    const externalAbortHandler = () => controller.abort();
+    if (signal) {
+      if (signal.aborted) {
+        controller.abort();
+      } else if (typeof signal.addEventListener === "function") {
+        signal.addEventListener("abort", externalAbortHandler, { once: true });
+      }
+    }
 
     try {
       const response = await this._fetch(`${this._baseUrl}${path}`, {
@@ -123,6 +166,9 @@ export class QuizCraftApiClient {
       return payload;
     } catch (error) {
       if (error?.name === "AbortError") {
+        if (signal?.aborted) {
+          throw new QuizCraftApiError("Запрос отменён пользователем.", { status: 0 });
+        }
         throw new QuizCraftApiError(
           `Превышено время ожидания ответа backend (${effectiveTimeout} мс).`,
           { status: 408 },
@@ -134,6 +180,9 @@ export class QuizCraftApiClient {
       throw new QuizCraftApiError(error instanceof Error ? error.message : "Network request failed");
     } finally {
       window.clearTimeout(timeoutId);
+      if (signal && typeof signal.removeEventListener === "function") {
+        signal.removeEventListener("abort", externalAbortHandler);
+      }
     }
   }
 

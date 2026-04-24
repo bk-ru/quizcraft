@@ -17,7 +17,11 @@ API_CLIENT_JS = FRONTEND_DIR / "api" / "client.js"
 VALIDATION_ERRORS_JS = FRONTEND_DIR / "validation-errors.js"
 QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
 QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
+QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 GENERATION_FLOW_JS = FRONTEND_DIR / "generation-flow.js"
+GENERATION_SETTINGS_JS = FRONTEND_DIR / "generation-settings.js"
+KEYBOARD_JS = FRONTEND_DIR / "keyboard.js"
+COPY_JS = FRONTEND_DIR / "copy.js"
 PROGRESS_JS = FRONTEND_DIR / "progress.js"
 THEME_JS = FRONTEND_DIR / "theme.js"
 TOAST_JS = FRONTEND_DIR / "toast.js"
@@ -27,7 +31,11 @@ FRONTEND_JS_MODULES = (
     VALIDATION_ERRORS_JS,
     QUIZ_RENDERER_JS,
     QUIZ_EDITOR_JS,
+    QUIZ_HISTORY_JS,
     GENERATION_FLOW_JS,
+    GENERATION_SETTINGS_JS,
+    KEYBOARD_JS,
+    COPY_JS,
     PROGRESS_JS,
     THEME_JS,
     TOAST_JS,
@@ -137,7 +145,11 @@ def test_frontend_app_imports_focused_modules() -> None:
         "validation-errors.js",
         "quiz-renderer.js",
         "quiz-editor.js",
+        "quiz-history.js",
         "generation-flow.js",
+        "generation-settings.js",
+        "keyboard.js",
+        "copy.js",
         "progress.js",
         "theme.js",
         "toast.js",
@@ -147,6 +159,10 @@ def test_frontend_app_imports_focused_modules() -> None:
     assert "createGenerationFlow" in content
     assert "createQuizEditor" in content
     assert "createQuizRenderer" in content
+    assert "createQuizHistory" in content
+    assert "createGenerationSettingsController" in content
+    assert "createKeyboardShortcuts" in content
+    assert "createCopyButtonController" in content
 
 
 def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
@@ -159,10 +175,13 @@ def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
     assert "generateQuiz" in content
     assert "getQuiz" in content
     assert "updateQuiz" in content
+    assert "regenerateQuestion" in content
     assert "/health" in content
     assert "/health/lm-studio" in content
     assert "/documents" in content
     assert "/quizzes/" in content
+    assert "/questions/" in content
+    assert "/regenerate" in content
 
 
 def test_api_client_uses_role_based_timeouts() -> None:
@@ -207,6 +226,8 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "loadQuizForEditing" in content
     assert "buildQuizUpdatePayload" in content
     assert "submitQuizEdits" in content
+    assert "regenerateQuizQuestion" in content
+    assert "replaceRegeneratedQuestion" in content
     assert "Загрузите документ" in content
     assert "Квиз создан" in content
     assert "Результат готов" in content
@@ -214,6 +235,49 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "Изменения пока не сохранены." in content
     assert "Изменения сохранены." in content
     assert "Исправьте ошибки и повторите сохранение." in content
+
+
+def test_frontend_editor_wires_single_question_regeneration_action() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    client_content = API_CLIENT_JS.read_text(encoding="utf-8")
+
+    assert "regenerateQuestion(quizId, questionId" in client_content
+    assert 'method: "POST"' in client_content
+    assert "/questions/" in client_content
+    assert "/regenerate" in client_content
+    assert "timeoutMs: this._timeouts.generate" in client_content
+    assert "regenerateQuizQuestion" in editor_content
+    assert "client.regenerateQuestion" in editor_content
+    assert 'data-editor-action", "regenerate-question"' in editor_content
+    assert "Перегенерировать вопрос" in editor_content
+    assert "Перегенерируем вопрос" in editor_content
+    assert "Не удалось перегенерировать вопрос" in editor_content
+    assert "quizEditorFields?.addEventListener(\"click\", quizEditor.regenerateQuizQuestion)" in app_content
+
+
+def test_frontend_editor_replaces_only_target_question_after_regeneration() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert "function replaceRegeneratedQuestion" in editor_content
+    assert "regeneratedQuestion.question_id" in editor_content
+    assert "question.question_id === regeneratedQuestion.question_id" in editor_content
+    assert "return regeneratedQuestion" in editor_content
+    assert "renderQuizEditor(updatedQuiz)" in editor_content
+    assert "renderQuizResult" in editor_content
+    assert "regenerated_question" in editor_content
+    assert "Остальные вопросы сохранены без изменений" in editor_content
+
+
+def test_frontend_editor_preserves_displayed_state_outside_regenerated_question() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert "const hadUnsavedEdits = editorState.isDirty" in editor_content
+    assert "const displayedQuiz = buildQuizUpdatePayload()" in editor_content
+    assert "...displayedQuiz" in editor_content
+    assert "if (hadUnsavedEdits)" in editor_content
+    assert "setEditorSaveState({ disabled: false })" in editor_content
+    assert "сохранены локально" in editor_content
 
 
 def test_frontend_app_autoloads_generated_quiz_into_editor() -> None:
@@ -479,6 +543,605 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "renderQuizResult" in renderer_js
     assert "renderQuizEditor" in editor_js
     assert "submitQuizEdits" in editor_js
+    assert "regenerateQuizQuestion" in editor_js
+    assert "Перегенерировать вопрос" in editor_js
     assert "submitGeneration" in generation_js
     assert "generateQuiz" in client_js
+    assert "regenerateQuestion" in client_js
     assert ".generation-progress" in css
+
+
+def test_edit_shortcut_autoloads_last_generated_quiz_without_extra_click() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    assert "function openEditorForCurrentQuiz" in content
+    assert "editorState.lastGeneratedQuizId" in content
+    assert "quizEditor.loadQuizForEditing" in content, (
+        "edit shortcut must invoke the editor loader, not only scroll/focus"
+    )
+    assert (
+        "editShortcutButton?.addEventListener(\"click\", openEditorForCurrentQuiz)"
+        in content
+    )
+
+
+def test_frontend_index_hides_legacy_developer_only_sections() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "endpoint-list" not in content, (
+        "endpoint reference list is a developer concern and must not be surfaced in the default UI"
+    )
+    assert 'id="endpoint-title"' not in content
+    assert 'id="shell-runtime-badge"' not in content
+    assert "Используемые endpoint" not in content
+    assert 'id="technical-details"' not in content, (
+        "the global diagnostics panel must be removed; technical IDs live in per-section inline-details"
+    )
+    assert 'id="shell-log-message"' not in content, (
+        "the shell log pane duplicated toasts and must be dropped"
+    )
+    assert 'id="backend-base-url"' not in content
+    assert 'id="request-timeout"' not in content
+
+
+def test_frontend_quiz_history_module_and_wiring() -> None:
+    history_content = QUIZ_HISTORY_JS.read_text(encoding="utf-8")
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "export function createQuizHistory" in history_content
+    assert "localStorage" in history_content or "storage.getItem" in history_content
+    assert "quizcraft:recent-quizzes" in history_content, (
+        "history module must persist under a namespaced localStorage key"
+    )
+    assert "saveQuizToHistory" in history_content
+    assert "removeQuizFromHistory" in history_content
+    assert "renderHistoryDatalist" in history_content
+
+    assert 'id="quiz-history-options"' in index_content, (
+        "index must expose the datalist used for quiz id autocompletion"
+    )
+    assert 'list="quiz-history-options"' in index_content, (
+        "quiz id input must reference the datalist to surface local history"
+    )
+
+    assert "createQuizHistory" in app_content
+    assert "quizHistory.renderHistoryDatalist" in app_content
+    assert "saveQuizToHistory: quizHistory.saveQuizToHistory" in app_content
+
+    assert "saveQuizToHistory" in editor_content, (
+        "successful quiz load must record the entry in local history"
+    )
+    assert "saveQuizToHistory" in generation_content, (
+        "successful generation must record the fresh quiz in local history"
+    )
+
+
+def test_frontend_quiz_history_module_persists_russian_titles() -> None:
+    content = QUIZ_HISTORY_JS.read_text(encoding="utf-8")
+
+    assert "JSON.stringify" in content
+    assert "JSON.parse" in content
+    assert "quiz_id" in content
+    assert "title" in content
+    assert "MAX_ENTRIES" in content
+    assert "timestamp" in content
+
+
+def test_frontend_generation_progress_has_cancel_button_and_timer() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    css_content = (FRONTEND_DIR / "feedback.css").read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="cancel-generation-button"' in index_content, (
+        "generation progress must expose a cancel affordance"
+    )
+    assert "Отменить генерацию" in index_content
+    assert 'id="generation-timer"' in index_content, (
+        "generation progress must expose an elapsed-time readout"
+    )
+    assert ".generation-timer" in css_content
+    assert ".generation-cancel" in css_content
+    assert 'cancel-generation-button' in app_content
+    assert "generation-timer" in app_content
+
+
+def test_frontend_generation_flow_threads_abort_signal_and_cancel() -> None:
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    client_content = API_CLIENT_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "new AbortController()" in generation_content
+    assert "function cancelGeneration" in generation_content
+    assert "cancelGeneration" in app_content, (
+        "the cancel button click must be bound to the generation flow cancel helper"
+    )
+    assert (
+        'cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration)'
+        in app_content
+    )
+
+    assert "abortController.signal" in generation_content
+    assert "signal:" in client_content, (
+        "API client helpers must thread the external signal through fetch"
+    )
+    assert "removeEventListener" in client_content
+    assert "Запрос отменён пользователем" in client_content, (
+        "user-cancel must map to a dedicated Russian message, not the timeout one"
+    )
+    assert "Генерация отменена" in generation_content or "отмен" in generation_content
+
+
+def test_frontend_generation_timer_formats_and_warns_on_slow_generation() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "function formatElapsed" in content, (
+        "generation flow must format the elapsed time locally"
+    )
+    assert 'padStart(2, "0")' in content
+    assert "SLOW_GENERATION_WARNING_MS" in content
+    assert "setInterval" in content
+    assert "clearInterval" in content
+
+
+def test_frontend_main_stepper_holds_four_product_phases() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    progress_content = PROGRESS_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    stepper_block = re.search(
+        r'<ol class="stepper"[^>]*id="stepper"[\s\S]+?</ol>',
+        index_content,
+    )
+    assert stepper_block is not None, "main stepper must exist in the index"
+    stepper_html = stepper_block.group(0)
+    stepper_steps = re.findall(r'data-step="([^"]+)"', stepper_html)
+    assert stepper_steps == ["upload", "params", "review", "edit"], (
+        "main stepper must expose exactly the four product phases"
+    )
+    assert 'data-step="generate"' not in stepper_html, (
+        "the technical generate stage must not duplicate the product stepper"
+    )
+    assert "Результат" in stepper_html, (
+        "the third stepper phase must be labelled Результат, not Просмотр"
+    )
+
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in layout_css
+    assert 'STEPPER_ORDER = ["upload", "params", "review", "edit"]' in progress_content
+    assert 'advanceStepper("generate")' not in generation_content, (
+        "generation flow must drive the product stepper, not the technical generate slot"
+    )
+    assert 'advanceStepper("review")' in generation_content
+
+
+def test_frontend_stepper_is_the_single_source_of_truth_for_phases() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "Шаг 5" not in content, (
+        "the stepper only has four phases, so Шаг 5 must not leak into the UI"
+    )
+    for step_label in ("Шаг 1", "Шаг 2", "Шаг 3", "Шаг 4"):
+        assert step_label not in content, (
+            f"panels must not duplicate the stepper with a '{step_label}' badge"
+        )
+    assert 'id="stepper"' in content, (
+        "the main stepper remains the single source of truth for the phase"
+    )
+
+
+def test_frontend_dropzone_surface_exposes_filled_preview_affordance() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    forms_css = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'data-state="empty"' in index_content
+    assert 'class="dropzone-empty"' in index_content
+    assert 'class="dropzone-filled"' in index_content
+    assert 'id="dropzone-file-name"' in index_content
+    assert 'id="dropzone-file-meta"' in index_content
+    assert 'id="dropzone-remove"' in index_content, (
+        "dropzone preview must expose a remove-file affordance"
+    )
+    assert "Убрать" in index_content
+
+    assert '.dropzone[data-state="filled"]' in forms_css
+    assert ".dropzone-remove" in forms_css
+    assert ".dropzone-file-name" in forms_css
+
+    assert "function formatFileSize" in generation_content
+    assert "function applyDropzoneFilled" in generation_content
+    assert "function removeSelectedFile" in generation_content
+    assert 'dropzone.dataset.state = "filled"' in generation_content
+    assert 'dropzone.dataset.state = "empty"' in generation_content
+    assert "removeSelectedFile" in app_content
+    assert "dropzoneRemoveButton?.addEventListener" in app_content
+
+
+def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert 'unit: "Б"' in content
+    assert 'unit: "КБ"' in content
+    assert 'unit: "МБ"' in content
+    assert "replace(\".\", \",\")" in content, (
+        "file size formatter must emit locale-friendly decimal commas"
+    )
+
+
+def test_frontend_a11y_disabled_buttons_have_screen_reader_hints() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    base_css = (FRONTEND_DIR / "base.css").read_text(encoding="utf-8")
+
+    assert ".visually-hidden" in base_css, (
+        "a visually-hidden utility class must exist for screen-reader-only text"
+    )
+    assert "clip: rect(0, 0, 0, 0);" in base_css
+
+    for button_id, hint_id in (
+        ("export-json-button", "export-json-hint"),
+        ("edit-quiz-shortcut", "edit-shortcut-hint"),
+        ("save-quiz-button", "save-quiz-hint"),
+    ):
+        assert f'id="{button_id}"' in index_content
+        assert f'aria-describedby="{hint_id}"' in index_content, (
+            f"{button_id} must be described by {hint_id} while disabled"
+        )
+        assert f'id="{hint_id}" class="visually-hidden"' in index_content, (
+            f"{hint_id} must be a visually-hidden Russian hint"
+        )
+
+    assert "Доступно после успешной генерации квиза" in index_content, (
+        "result-action hints must explain the unavailable state in Russian"
+    )
+    assert "Доступно после загрузки квиза" in index_content, (
+        "save hint must explain the unavailable state in Russian"
+    )
+
+    assert "toggleUnavailableHint" in app_content, (
+        "app must expose a helper that flips aria-describedby alongside disabled"
+    )
+    assert "removeAttribute(\"aria-describedby\")" in app_content
+
+    assert 'setAttribute("aria-describedby", "save-quiz-hint")' in editor_content, (
+        "editor must restore the save hint when the button re-disables"
+    )
+    assert 'removeAttribute("aria-describedby")' in editor_content
+
+
+def test_frontend_a11y_toast_uses_alert_role_for_bad_tone() -> None:
+    toast_content = TOAST_JS.read_text(encoding="utf-8")
+
+    assert 'tone === "bad" ? "alert" : "status"' in toast_content, (
+        "toast must use role=alert for errors and role=status otherwise"
+    )
+    assert 'setAttribute("aria-atomic", "true")' in toast_content, (
+        "toast must be announced atomically so the full message is re-read"
+    )
+
+
+def test_frontend_theme_toggle_swaps_icon_per_active_theme() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    for theme_icon in ("auto", "light", "dark"):
+        assert f'data-theme-icon="{theme_icon}"' in index_content, (
+            f"theme toggle must carry an icon for the {theme_icon} theme"
+        )
+
+    assert ".theme-toggle .theme-toggle-icon" in layout_css, (
+        "icons must be hidden by default so only the active one renders"
+    )
+    for theme_name in ("auto", "light", "dark"):
+        assert f':root[data-theme="{theme_name}"] .theme-toggle .theme-toggle-icon[data-theme-icon="{theme_name}"]' in layout_css, (
+            f"stylesheet must reveal the {theme_name} icon when that theme is active"
+        )
+
+    assert ':root:not([data-theme]) .theme-toggle .theme-toggle-icon[data-theme-icon="auto"]' in layout_css, (
+        "when no theme is applied yet, the auto icon must still be visible"
+    )
+
+
+def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert 'class="hero-copy"' not in index_content, (
+        "the hero must not duplicate the upload-panel copy"
+    )
+    assert 'id="generation-mode"' not in index_content, (
+        "the hidden generation_mode input must be replaced by a module constant"
+    )
+    assert 'name="generation_mode"' not in index_content
+
+    assert "padding: 28px 0 20px;" in layout_css, (
+        "hero vertical footprint must be compact"
+    )
+    assert "font-size: clamp(1.8rem, 3.2vw, 2.6rem);" in layout_css, (
+        "hero heading must use the smaller clamp range"
+    )
+    assert "animation: pulse 1.8s infinite" not in layout_css, (
+        "pulse animation must not loop forever"
+    )
+    assert "prefers-reduced-motion: no-preference" in layout_css, (
+        "pulse animation must be guarded by a reduced-motion media query"
+    )
+
+    assert "DEFAULT_GENERATION_MODE" in generation_content, (
+        "generation_mode must live as a module constant"
+    )
+    assert 'formData.get("generation_mode")' not in generation_content, (
+        "generation flow must stop reading generation_mode from FormData"
+    )
+
+
+def test_frontend_copy_buttons_module_and_wiring() -> None:
+    copy_content = COPY_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    forms_css = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+
+    assert "export function createCopyButtonController" in copy_content
+    assert "clipboard.writeText" in copy_content, (
+        "copy controller must use navigator.clipboard.writeText"
+    )
+    assert "data-copy-for" in copy_content, (
+        "copy buttons must be discovered by the data-copy-for attribute"
+    )
+    assert "EMPTY_VALUE_MARKERS" in copy_content, (
+        "copy controller must refuse to copy placeholder values"
+    )
+    assert "Ещё нет" in copy_content and "Ещё не загружен" in copy_content, (
+        "placeholder markers must cover the Russian copy"
+    )
+    assert "Скопировано" in copy_content, (
+        "success toast must confirm the copy in Russian"
+    )
+
+    assert "createCopyButtonController({" in app_content
+    assert "copyButtons.register()" in app_content
+
+    for source_id in (
+        "last-document-id",
+        "last-quiz-id",
+        "last-request-id",
+        "editor-quiz-id",
+        "editor-document-id",
+    ):
+        assert f'data-copy-for="{source_id}"' in index_content, (
+            f"{source_id} must have an associated copy button"
+        )
+        assert f'id="{source_id}"' in index_content
+
+    assert 'aria-label="Скопировать Quiz ID"' in index_content, (
+        "copy buttons must expose an accessible Russian label"
+    )
+
+    assert ".copy-button" in forms_css and ".copyable-field" in forms_css, (
+        "copy buttons must be styled"
+    )
+
+
+def test_frontend_keyboard_shortcuts_module_and_wiring() -> None:
+    keyboard_content = KEYBOARD_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    toast_content = TOAST_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    base_css = (FRONTEND_DIR / "base.css").read_text(encoding="utf-8")
+
+    assert "export function createKeyboardShortcuts" in keyboard_content
+    assert "isPrimaryModifier" in keyboard_content, (
+        "shortcut handler must detect Ctrl or Cmd as the primary modifier"
+    )
+    assert "metaKey" in keyboard_content and "ctrlKey" in keyboard_content
+    assert 'key === "escape"' in keyboard_content, (
+        "Escape must be handled"
+    )
+    assert 'key === "s"' in keyboard_content and 'key === "enter"' in keyboard_content, (
+        "Ctrl/Cmd+S and Ctrl/Cmd+Enter must be handled"
+    )
+    assert "isEditableTarget" in keyboard_content, (
+        "shortcut handler must know when the user is typing in an input"
+    )
+    assert "cancelGeneration" in keyboard_content
+    assert "dismissAllToasts" in keyboard_content
+    assert "submitQuizEdits" in keyboard_content
+    assert "requestSubmit" in keyboard_content
+
+    assert "createKeyboardShortcuts({" in app_content, (
+        "app must construct the keyboard shortcuts controller"
+    )
+    assert "keyboardShortcuts.register()" in app_content, (
+        "app must register the keydown handler at bootstrap"
+    )
+
+    assert "dismissAllToasts" in toast_content, (
+        "toast controller must expose a bulk-dismiss helper for Escape"
+    )
+    assert "return true" in generation_content and "return false" in generation_content, (
+        "cancelGeneration must report whether it actually cancelled a run"
+    )
+
+    assert "<kbd>Ctrl/⌘</kbd>" in index_content and "<kbd>Enter</kbd>" in index_content, (
+        "submit hint must advertise the Ctrl/Cmd+Enter shortcut"
+    )
+    assert "<kbd>S</kbd>" in index_content, (
+        "save hint must advertise the Ctrl/Cmd+S shortcut"
+    )
+    assert "kbd {" in base_css, (
+        "kbd elements must be styled as keyboard key pills"
+    )
+
+
+def test_frontend_explains_auto_persisted_generation_defaults() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    forms_css = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+
+    assert 'data-hint="defaults"' in index_content, (
+        "form must carry an inline hint explaining that parameters are remembered automatically"
+    )
+    assert "После успешной генерации выбранные параметры запоминаются" in index_content, (
+        "hint copy must explain the behavior in Russian"
+    )
+    assert "id=\"remember-generation-settings\"" not in index_content, (
+        "the misleading remember checkbox must not ship"
+    )
+    assert ".form-hint" in forms_css
+
+    assert "refreshAfterGeneration" in settings_content, (
+        "controller must expose a refresh helper so selectors reflect the freshly saved defaults"
+    )
+    assert "rememberCheckbox" not in settings_content, (
+        "controller must not depend on a remember checkbox"
+    )
+
+    assert "refreshGenerationDefaults: generationSettings.refreshAfterGeneration" in app_content, (
+        "app bootstrap must wire the refresh helper into the generation flow"
+    )
+    assert "refreshGenerationDefaults()" in generation_content, (
+        "generation flow must refresh the defaults after a successful run"
+    )
+
+
+def test_frontend_result_panel_has_idle_empty_state_illustration() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+
+    assert "result-empty-state" in index_content, (
+        "result panel must render a dedicated empty state block"
+    )
+    assert "Здесь появится ваш квиз" in index_content, (
+        "empty state must show a clear Russian title"
+    )
+    assert "Загрузите документ слева" in index_content, (
+        "empty state must hint the user at the next action in Russian"
+    )
+    assert 'role="img"' in index_content and "Иллюстрация пустого квиза" in index_content, (
+        "empty state illustration must have an accessible role and label"
+    )
+
+    assert ".result-empty-state" in quiz_css
+    assert "panel-result[data-result-tone=\"idle\"] .result-empty-state" in quiz_css, (
+        "empty state must be wired to the idle tone"
+    )
+    assert "panel-result[data-result-tone=\"idle\"] .result-overview" in quiz_css and "display: none" in quiz_css, (
+        "legacy placeholders must be hidden while the empty state is active"
+    )
+
+
+def test_frontend_stepper_exposes_failed_state_on_generation_error() -> None:
+    progress_content = PROGRESS_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert "markStepperFailed" in progress_content, (
+        "progress controller must expose a helper to mark a stepper phase as failed"
+    )
+    assert "options.state === \"failed\"" in progress_content, (
+        "advanceStepper must accept an explicit failed state option"
+    )
+
+    assert "markStepperFailed: progressController.markStepperFailed" in app_content, (
+        "the failed-step helper must be wired into the generation flow"
+    )
+    assert "markStepperFailed(\"review\")" in generation_content, (
+        "generation flow must mark the review phase as failed on real errors"
+    )
+    assert "advanceStepper(\"params\")" in generation_content, (
+        "user-cancelled generation must roll the stepper back to params, not failed"
+    )
+
+    assert ".step[data-state=\"failed\"]" in layout_content, (
+        "stylesheet must provide a visual for the failed step state"
+    )
+
+
+def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
+    client_content = API_CLIENT_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="generation-model"' in index_content, (
+        "upload form must expose a model selector"
+    )
+    assert 'id="generation-profile"' in index_content, (
+        "upload form must expose a generation profile selector"
+    )
+    assert 'name="model_name"' in index_content
+    assert 'name="profile_name"' in index_content
+    assert "Модель" in index_content
+    assert "Профиль генерации" in index_content
+    assert ">Авто<" in index_content, (
+        "selectors must default to Russian auto-mode when no override is picked"
+    )
+
+    assert "export function createGenerationSettingsController" in settings_content
+    assert "loadSettings" in settings_content
+    assert "populateModelSelect" in settings_content
+    assert "populateProfileSelect" in settings_content
+    assert "available_models" in settings_content
+    assert "available_profiles" in settings_content
+    assert "default_model" in settings_content
+    assert "default_profile" in settings_content
+    assert "humanizeProfile" in settings_content
+    assert "Быстрый" in settings_content and "Сбалансированный" in settings_content and "Строгий" in settings_content
+
+    assert "getGenerationSettings" in client_content, (
+        "API client must expose getGenerationSettings"
+    )
+    assert '"/generation/settings"' in client_content
+
+    assert 'formData.get("model_name")' in generation_content, (
+        "generation payload must pick up the model_name override from the form"
+    )
+    assert 'formData.get("profile_name")' in generation_content, (
+        "generation payload must pick up the profile_name override from the form"
+    )
+    assert "payload.model_name = modelName" in generation_content
+    assert "payload.profile_name = profileName" in generation_content
+
+    assert "generationSettings.loadSettings()" in app_content, (
+        "app bootstrap must request available models/profiles from backend"
+    )
+
+
+def test_frontend_editor_confirms_destructive_regenerate_action() -> None:
+    content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert "REGENERATE_CONFIRM_PROMPT" in content, (
+        "the confirmation copy must be extracted into a single Russian constant"
+    )
+    assert "Перегенерировать этот вопрос" in content, (
+        "confirmation prompt must ask the user in Russian"
+    )
+    assert "Несохранённые правки других вопросов останутся" in content, (
+        "confirmation prompt must reassure the user about unsaved edits"
+    )
+    assert "askForConfirmation" in content
+    assert "defaultConfirmAction" in content
+    assert "globalThis.confirm" in content, (
+        "default confirmation must delegate to the native window.confirm"
+    )
+    assert "Перегенерация отменена" in content, (
+        "cancel path must show a Russian status about leaving the question untouched"
+    )
+    confirm_guard_index = content.find("if (!askForConfirmation(REGENERATE_CONFIRM_PROMPT))")
+    client_call_index = content.find("client.regenerateQuestion(quizId")
+    assert confirm_guard_index != -1, "regenerate must be guarded by askForConfirmation"
+    assert client_call_index != -1
+    assert confirm_guard_index < client_call_index, (
+        "confirmation must run before invoking the backend regenerate endpoint"
+    )

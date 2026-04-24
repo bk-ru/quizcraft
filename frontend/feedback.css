@@ -4,10 +4,67 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface-sunken);
+  display: grid;
+  gap: 10px;
 }
 
 .generation-progress[hidden] {
   display: none;
+}
+
+.generation-progress-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.generation-progress-head:empty,
+.generation-progress-head:has(#generation-timer[hidden]):has(#cancel-generation-button[hidden]) {
+  display: none;
+}
+
+.generation-timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elev);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  border: 1px solid var(--line);
+}
+
+.generation-timer::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand);
+  animation: progress-pulse 1.4s ease-in-out infinite;
+}
+
+.generation-timer[data-tone="warn"] {
+  color: var(--warn);
+  border-color: color-mix(in oklab, var(--warn) 40%, var(--line));
+}
+
+.generation-timer[data-tone="warn"]::before {
+  background: var(--warn);
+}
+
+.generation-cancel {
+  color: var(--bad);
+}
+
+.generation-cancel:hover:not(:disabled) {
+  background: var(--bad-soft);
+  color: var(--bad);
 }
 
 .progress-steps {

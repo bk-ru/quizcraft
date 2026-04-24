@@ -13,12 +13,153 @@
   transition: border-color var(--duration-base) var(--easing), background var(--duration-base) var(--easing), transform var(--duration-base) var(--easing);
 }
 
+.form-hint {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-sunken);
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.form-hint[data-hint="defaults"] {
+  border-left: 3px solid var(--brand);
+}
+
+.copyable-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+}
+
+.copyable-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--duration-base) var(--easing),
+              background var(--duration-base) var(--easing),
+              border-color var(--duration-base) var(--easing);
+}
+
+.copy-button:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: var(--line);
+}
+
+.copy-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .dropzone[data-drag-active="true"] {
   border-color: var(--brand);
   background:
     radial-gradient(circle at 50% 40%, var(--brand-soft), transparent 70%),
     var(--accent-soft);
   transform: scale(1.01);
+}
+
+.dropzone .dropzone-filled {
+  display: none;
+  width: 100%;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 6px;
+  text-align: left;
+}
+
+.dropzone[data-state="filled"] {
+  border-style: solid;
+  border-color: color-mix(in oklab, var(--ok) 35%, var(--line-strong));
+  background:
+    radial-gradient(circle at 50% 0%, var(--ok-soft), transparent 70%),
+    var(--surface-sunken);
+  padding: 18px 20px;
+}
+
+.dropzone[data-state="filled"] .dropzone-empty {
+  display: none;
+}
+
+.dropzone[data-state="filled"] .dropzone-filled {
+  display: grid;
+}
+
+.dropzone-file-icon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--accent) 100%);
+  color: var(--brand-ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.dropzone-file-info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dropzone-file-name {
+  font-weight: 700;
+  color: var(--ink);
+  word-break: break-word;
+}
+
+.dropzone-file-meta {
+  font-size: 0.84rem;
+  color: var(--muted);
+}
+
+.dropzone-remove {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-strong);
+  color: var(--bad);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--easing), border-color var(--duration-fast) var(--easing);
+}
+
+.dropzone-remove:hover {
+  background: var(--bad-soft);
+  border-color: color-mix(in oklab, var(--bad) 40%, var(--line-strong));
+}
+
+.dropzone-remove:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .dropzone .dropzone-icon {

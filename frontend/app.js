@@ -1,8 +1,12 @@
 import { QuizCraftApiClient } from "./api/client.js";
 import { createJsonExporter } from "./download.js";
+import { createCopyButtonController } from "./copy.js";
 import { createGenerationFlow } from "./generation-flow.js";
+import { createGenerationSettingsController } from "./generation-settings.js";
+import { createKeyboardShortcuts } from "./keyboard.js";
 import { createProgressController } from "./progress.js";
 import { createQuizEditor } from "./quiz-editor.js";
+import { createQuizHistory } from "./quiz-history.js";
 import { createQuizRenderer } from "./quiz-renderer.js";
 import { createThemeController } from "./theme.js";
 import { createToastController } from "./toast.js";
@@ -38,6 +42,13 @@ const dropzone = document.getElementById("dropzone");
 const toastRegion = document.getElementById("toast-region");
 const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
+const cancelGenerationButton = document.getElementById("cancel-generation-button");
+const generationTimerElement = document.getElementById("generation-timer");
+const dropzoneFileName = document.getElementById("dropzone-file-name");
+const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
+const dropzoneRemoveButton = document.getElementById("dropzone-remove");
+const modelSelect = document.getElementById("generation-model");
+const profileSelect = document.getElementById("generation-profile");
 
 const editorState = {
   loadedQuiz: null,
@@ -100,20 +111,41 @@ function setEditorStatus(text, tone) {
   setToneMessage(document.getElementById("quiz-editor-status"), text, tone);
 }
 
+function toggleUnavailableHint(buttonElement, hintId, isDisabled) {
+  if (!buttonElement) {
+    return;
+  }
+  buttonElement.disabled = Boolean(isDisabled);
+  if (!hintId) {
+    return;
+  }
+  if (isDisabled) {
+    buttonElement.setAttribute("aria-describedby", hintId);
+  } else {
+    buttonElement.removeAttribute("aria-describedby");
+  }
+}
+
 function setExportAvailability(quizId) {
   editorState.lastGeneratedQuizId = typeof quizId === "string" && quizId.trim() ? quizId.trim() : null;
   const available = Boolean(editorState.lastGeneratedQuizId);
-  if (exportJsonButton) {
-    exportJsonButton.disabled = !available;
-  }
-  if (editShortcutButton) {
-    editShortcutButton.disabled = !available;
-  }
+  toggleUnavailableHint(exportJsonButton, "export-json-hint", !available);
+  toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !available);
 }
 
 const toastController = createToastController(toastRegion);
 const progressController = createProgressController({ stepper, generationProgressPanel });
 const themeController = createThemeController({ themeToggleLabel });
+const quizHistory = createQuizHistory({
+  datalistElement: document.getElementById("quiz-history-options"),
+});
+quizHistory.renderHistoryDatalist();
+const generationSettings = createGenerationSettingsController({
+  client,
+  modelSelect,
+  profileSelect,
+  setLogMessage,
+});
 
 const quizRenderer = createQuizRenderer({
   resultPanel,
@@ -137,9 +169,11 @@ const quizEditor = createQuizEditor({
   setLogMessage,
   setExportAvailability,
   advanceStepper: progressController.advanceStepper,
+  renderQuizResult: quizRenderer.renderQuizResult,
   showToast: toastController.showToast,
   describeError,
   describeValidationError,
+  saveQuizToHistory: quizHistory.saveQuizToHistory,
 });
 
 const generationFlow = createGenerationFlow({
@@ -149,6 +183,11 @@ const generationFlow = createGenerationFlow({
   submitButton,
   dropzone,
   quizIdInput,
+  cancelButton: cancelGenerationButton,
+  timerElement: generationTimerElement,
+  dropzoneFileName,
+  dropzoneFileMeta,
+  dropzoneRemoveButton,
   setTextContent,
   setSubmissionStatus,
   setResultState: quizRenderer.setResultState,
@@ -160,6 +199,7 @@ const generationFlow = createGenerationFlow({
   renderQuizEditor: quizEditor.renderQuizEditor,
   setQuizEditorSummary: quizEditor.setQuizEditorSummary,
   advanceStepper: progressController.advanceStepper,
+  markStepperFailed: progressController.markStepperFailed,
   waitForProgressVisibility: progressController.waitForProgressVisibility,
   startGenerationProgress: progressController.startGenerationProgress,
   advanceGenerationProgress: progressController.advanceGenerationProgress,
@@ -167,6 +207,8 @@ const generationFlow = createGenerationFlow({
   completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence,
   failGenerationProgress: progressController.failGenerationProgress,
   showToast: toastController.showToast,
+  saveQuizToHistory: quizHistory.saveQuizToHistory,
+  refreshGenerationDefaults: generationSettings.refreshAfterGeneration,
 });
 
 const jsonExporter = createJsonExporter({
@@ -176,17 +218,27 @@ const jsonExporter = createJsonExporter({
   showToast: toastController.showToast,
 });
 
+const keyboardShortcuts = createKeyboardShortcuts({
+  generationForm: form,
+  generationFlow,
+  quizEditor,
+  editorState,
+  toastController,
+});
+keyboardShortcuts.register();
+
+const copyButtons = createCopyButtonController({
+  showToast: toastController.showToast,
+});
+copyButtons.register();
+
 async function bootstrapShell() {
-  setTextContent("backend-base-url", backendBaseUrl);
-  const t = client.timeouts;
-  setTextContent("request-timeout",
-    `health ${t.health / 1000} с · upload ${t.upload / 1000} с · generate ${t.generate / 1000} с · editor ${t.quizEditor / 1000} с`,
-  );
   generationFlow.updateSelectedFileSummary();
   quizRenderer.clearQuizResult();
   quizEditor.clearQuizEditor();
   setEditorStatus("Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.", null);
   quizRenderer.setResultState("Квиз появится здесь после успешной генерации.", "idle", "Ожидание результата");
+  generationSettings.loadSettings();
 
   try {
     const [backendHealth, providerHealth] = await Promise.all([
@@ -228,7 +280,7 @@ function openEditorForCurrentQuiz() {
   if (editorPanel) {
     editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   }
-  loadQuizButton?.focus();
+  quizEditor.loadQuizForEditing({ preventDefault: () => {} });
 }
 
 themeController.applyTheme(themeController.resolveStoredTheme());
@@ -236,6 +288,12 @@ themeToggleButton?.addEventListener("click", themeController.cycleTheme);
 generationFlow.attachDropzone();
 exportJsonButton?.addEventListener("click", jsonExporter.exportQuizAsJson);
 editShortcutButton?.addEventListener("click", openEditorForCurrentQuiz);
+cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration);
+dropzoneRemoveButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  generationFlow.removeSelectedFile();
+});
 
 fileInput?.addEventListener("change", () => {
   generationFlow.updateSelectedFileSummary();
@@ -247,6 +305,7 @@ form?.addEventListener("submit", generationFlow.submitGeneration);
 quizEditorLoader?.addEventListener("submit", quizEditor.loadQuizForEditing);
 quizEditorFields?.addEventListener("input", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("change", quizEditor.markEditorDirty);
+quizEditorFields?.addEventListener("click", quizEditor.regenerateQuizQuestion);
 saveQuizButton?.addEventListener("click", quizEditor.submitQuizEdits);
 
 bootstrapShell();
