@@ -171,6 +171,24 @@ class QuizUpdateBody(_StrictModel):
     quiz: QuizPayload
 
 
+class SingleQuestionRegenerationBody(_StrictModel):
+    """Request body for the single-question regeneration API contract."""
+
+    quiz_id: str | None = Field(default=None, strict=True, min_length=1)
+    question_id: str | None = Field(default=None, strict=True, min_length=1)
+    instructions: str | None = Field(default=None, strict=True, min_length=1, max_length=2000)
+
+    def to_contract_dict(self) -> dict[str, str]:
+        """Return explicitly provided contract fields for the response."""
+
+        values = {
+            "quiz_id": self.quiz_id,
+            "question_id": self.question_id,
+            "instructions": self.instructions,
+        }
+        return {key: value for key, value in values.items() if value is not None}
+
+
 def build_validation_error_message(errors: list[dict[str, Any]]) -> str:
     """Render Pydantic validation errors into a single human-readable message."""
 
