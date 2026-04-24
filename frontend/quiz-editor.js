@@ -56,8 +56,14 @@ export function createQuizEditor({
     if (!saveQuizButton) {
       return;
     }
-    saveQuizButton.disabled = Boolean(disabled);
+    const isDisabled = Boolean(disabled);
+    saveQuizButton.disabled = isDisabled;
     saveQuizButton.textContent = busy ? "Сохраняем…" : "Сохранить изменения";
+    if (isDisabled) {
+      saveQuizButton.setAttribute("aria-describedby", "save-quiz-hint");
+    } else {
+      saveQuizButton.removeAttribute("aria-describedby");
+    }
   }
 
   function setRegenerationActionState(card, { busy, text, tone } = {}) {

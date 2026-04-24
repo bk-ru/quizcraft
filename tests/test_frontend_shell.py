@@ -772,6 +772,59 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     )
 
 
+def test_frontend_a11y_disabled_buttons_have_screen_reader_hints() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    base_css = (FRONTEND_DIR / "base.css").read_text(encoding="utf-8")
+
+    assert ".visually-hidden" in base_css, (
+        "a visually-hidden utility class must exist for screen-reader-only text"
+    )
+    assert "clip: rect(0, 0, 0, 0);" in base_css
+
+    for button_id, hint_id in (
+        ("export-json-button", "export-json-hint"),
+        ("edit-quiz-shortcut", "edit-shortcut-hint"),
+        ("save-quiz-button", "save-quiz-hint"),
+    ):
+        assert f'id="{button_id}"' in index_content
+        assert f'aria-describedby="{hint_id}"' in index_content, (
+            f"{button_id} must be described by {hint_id} while disabled"
+        )
+        assert f'id="{hint_id}" class="visually-hidden"' in index_content, (
+            f"{hint_id} must be a visually-hidden Russian hint"
+        )
+
+    assert "Доступно после успешной генерации квиза" in index_content, (
+        "result-action hints must explain the unavailable state in Russian"
+    )
+    assert "Доступно после загрузки квиза" in index_content, (
+        "save hint must explain the unavailable state in Russian"
+    )
+
+    assert "toggleUnavailableHint" in app_content, (
+        "app must expose a helper that flips aria-describedby alongside disabled"
+    )
+    assert "removeAttribute(\"aria-describedby\")" in app_content
+
+    assert 'setAttribute("aria-describedby", "save-quiz-hint")' in editor_content, (
+        "editor must restore the save hint when the button re-disables"
+    )
+    assert 'removeAttribute("aria-describedby")' in editor_content
+
+
+def test_frontend_a11y_toast_uses_alert_role_for_bad_tone() -> None:
+    toast_content = TOAST_JS.read_text(encoding="utf-8")
+
+    assert 'tone === "bad" ? "alert" : "status"' in toast_content, (
+        "toast must use role=alert for errors and role=status otherwise"
+    )
+    assert 'setAttribute("aria-atomic", "true")' in toast_content, (
+        "toast must be announced atomically so the full message is re-read"
+    )
+
+
 def test_frontend_theme_toggle_swaps_icon_per_active_theme() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")

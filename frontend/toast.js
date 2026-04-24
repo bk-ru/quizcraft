@@ -5,7 +5,8 @@ export function createToastController(toastRegion, windowRef = window, documentR
     }
     const toast = documentRef.createElement("div");
     toast.className = "toast";
-    toast.setAttribute("role", "status");
+    toast.setAttribute("role", tone === "bad" ? "alert" : "status");
+    toast.setAttribute("aria-atomic", "true");
     if (tone) {
       toast.dataset.tone = tone;
     }

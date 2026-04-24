@@ -111,15 +111,26 @@ function setEditorStatus(text, tone) {
   setToneMessage(document.getElementById("quiz-editor-status"), text, tone);
 }
 
+function toggleUnavailableHint(buttonElement, hintId, isDisabled) {
+  if (!buttonElement) {
+    return;
+  }
+  buttonElement.disabled = Boolean(isDisabled);
+  if (!hintId) {
+    return;
+  }
+  if (isDisabled) {
+    buttonElement.setAttribute("aria-describedby", hintId);
+  } else {
+    buttonElement.removeAttribute("aria-describedby");
+  }
+}
+
 function setExportAvailability(quizId) {
   editorState.lastGeneratedQuizId = typeof quizId === "string" && quizId.trim() ? quizId.trim() : null;
   const available = Boolean(editorState.lastGeneratedQuizId);
-  if (exportJsonButton) {
-    exportJsonButton.disabled = !available;
-  }
-  if (editShortcutButton) {
-    editShortcutButton.disabled = !available;
-  }
+  toggleUnavailableHint(exportJsonButton, "export-json-hint", !available);
+  toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !available);
 }
 
 const toastController = createToastController(toastRegion);
