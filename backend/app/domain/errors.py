@@ -31,6 +31,18 @@ class GenerationQualityError(DomainValidationError):
     code = "generation_quality_error"
 
 
+class ModelSelectionError(DomainValidationError):
+    """Raised when a requested model is not allowed by configuration."""
+
+    code = "model_selection_error"
+
+
+class GenerationProfileError(DomainValidationError):
+    """Raised when a requested generation profile is unknown or invalid."""
+
+    code = "generation_profile_error"
+
+
 class DocumentTooLargeForGenerationError(DomainValidationError):
     """Raised when a stored document exceeds the allowed input size for generation."""
 
