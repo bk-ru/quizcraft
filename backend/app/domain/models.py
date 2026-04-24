@@ -8,6 +8,7 @@ from typing import Any
 
 from backend.app.core.modes import GenerationMode
 from backend.app.core.modes import GenerationModeRegistry
+from backend.app.domain.errors import GenerationSettingsError
 
 
 @dataclass(frozen=True, slots=True)
@@ -148,6 +149,102 @@ class GenerationRequest:
             model_name=payload.get("model_name"),
             profile_name=payload.get("profile_name"),
             inference_parameters=dict(payload.get("inference_parameters", {})),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class GenerationSettings:
+    """Persisted generation defaults for the single-user local backend."""
+
+    question_count: int
+    language: str
+    difficulty: str
+    quiz_type: str
+    generation_mode: GenerationMode
+    model_name: str | None = None
+    profile_name: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate persisted generation settings."""
+
+        if not isinstance(self.question_count, int) or isinstance(self.question_count, bool):
+            raise GenerationSettingsError("question_count must be a positive integer")
+        if self.question_count <= 0:
+            raise GenerationSettingsError("question_count must be a positive integer")
+        for field_name in ("language", "difficulty", "quiz_type"):
+            value = getattr(self, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise GenerationSettingsError(f"{field_name} must be a non-empty string")
+            object.__setattr__(self, field_name, value.strip())
+        generation_mode = GenerationModeRegistry.ensure_supported(self.generation_mode)
+        object.__setattr__(self, "generation_mode", generation_mode)
+        for field_name in ("model_name", "profile_name"):
+            value = getattr(self, field_name)
+            if value is not None:
+                if not isinstance(value, str) or not value.strip():
+                    raise GenerationSettingsError(f"{field_name} must be a non-empty string")
+                object.__setattr__(self, field_name, value.strip())
+
+    def to_dict(self) -> dict[str, Any]:
+        """Serialize generation settings into a JSON-compatible dictionary."""
+
+        payload: dict[str, Any] = {
+            "question_count": self.question_count,
+            "language": self.language,
+            "difficulty": self.difficulty,
+            "quiz_type": self.quiz_type,
+            "generation_mode": self.generation_mode.value,
+        }
+        if self.model_name is not None:
+            payload["model_name"] = self.model_name
+        if self.profile_name is not None:
+            payload["profile_name"] = self.profile_name
+        return payload
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "GenerationSettings":
+        """Deserialize generation settings from a JSON-compatible dictionary."""
+
+        try:
+            return cls(
+                question_count=payload["question_count"],
+                language=payload["language"],
+                difficulty=payload["difficulty"],
+                quiz_type=payload["quiz_type"],
+                generation_mode=GenerationModeRegistry.ensure_supported(payload["generation_mode"]),
+                model_name=payload.get("model_name"),
+                profile_name=payload.get("profile_name"),
+            )
+        except KeyError as error:
+            raise GenerationSettingsError(f"generation settings missing required field: {error.args[0]}") from error
+
+    def merge(self, overrides: dict[str, Any]) -> "GenerationSettings":
+        """Return settings with explicit request values applied."""
+
+        payload = self.to_dict()
+        for key, value in overrides.items():
+            if value is not None:
+                payload[key] = value.value if isinstance(value, GenerationMode) else value
+        return GenerationSettings.from_dict(payload)
+
+    def to_generation_request(
+        self,
+        *,
+        model_name: str | None,
+        profile_name: str | None,
+        inference_parameters: dict[str, Any],
+    ) -> GenerationRequest:
+        """Convert persisted settings into a resolved generation request."""
+
+        return GenerationRequest(
+            question_count=self.question_count,
+            language=self.language,
+            difficulty=self.difficulty,
+            quiz_type=self.quiz_type,
+            generation_mode=self.generation_mode,
+            model_name=model_name,
+            profile_name=profile_name,
+            inference_parameters=dict(inference_parameters),
         )
 
 
