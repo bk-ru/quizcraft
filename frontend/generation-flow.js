@@ -54,8 +54,7 @@ export function createGenerationFlow({
   setExportAvailability,
   clearQuizResult,
   renderQuizResult,
-  renderQuizEditor,
-  setQuizEditorSummary,
+  focusResultView = null,
   advanceStepper,
   markStepperFailed,
   waitForProgressVisibility,
@@ -262,7 +261,7 @@ export function createGenerationFlow({
     const file = fileInput?.files?.[0] ?? null;
     if (!(file instanceof File)) {
       setSubmissionStatus("Загрузите документ перед запуском генерации.", "bad");
-      setLogMessage("Submit flow остановлен: документ не выбран.", "bad");
+      setLogMessage("Выберите документ перед запуском генерации.", "bad");
       setResultState("Результат не может быть построен без документа.", "bad", "Нет документа");
       return;
     }
@@ -275,7 +274,7 @@ export function createGenerationFlow({
     } catch (error) {
       setSubmissionStatus(`Операция не завершена: ${describeError(error)}`, "bad");
       setResultState(`Результат не получен: ${describeError(error)}`, "bad", "Ошибка");
-      setLogMessage(`Submit flow остановлен: ${describeError(error)}`, "bad");
+      setLogMessage(`Проверьте параметры генерации: ${describeError(error)}`, "bad");
       showToast(describeError(error), "bad");
       return;
     }
@@ -292,7 +291,7 @@ export function createGenerationFlow({
       startTimer();
       setCancelButtonVisible(true);
       setSubmissionStatus("Загружаем документ…", "warn");
-      setResultState("Генерируем квиз. Результат появится после ответа backend.", "warn", "Генерация…");
+      setResultState("Генерируем квиз. Результат появится после завершения генерации.", "warn", "Генерация…");
       setLogMessage(`Начата загрузка файла ${file.name}.`, "warn");
 
       uploadPayload = await client.uploadDocument({
@@ -309,7 +308,7 @@ export function createGenerationFlow({
       setTextContent("last-filename", uploadPayload.filename ?? file.name);
       setTextContent("last-document-id", uploadPayload.document_id ?? "Ещё нет");
       setSubmissionStatus("Документ загружен. Запускаем генерацию…", "warn");
-      setLogMessage(`Документ ${uploadPayload.document_id} загружен, запускаем генерацию.`, "warn");
+      setLogMessage("Документ загружен, запускаем генерацию.", "warn");
 
       generationPayload = await client.generateQuiz(
         uploadPayload.document_id,
@@ -326,19 +325,17 @@ export function createGenerationFlow({
       }
       renderQuizResult(generationPayload);
       const generatedQuiz = generationPayload.quiz ?? {};
-      renderQuizEditor(generatedQuiz);
-      setQuizEditorSummary(generatedQuiz);
       if (typeof saveQuizToHistory === "function") {
         saveQuizToHistory({
           quiz_id: generationPayload.quiz_id ?? generatedQuiz.quiz_id,
           title: generatedQuiz.title,
         });
       }
-      setEditorStatus("Новый квиз загружен в редактор. Внесите правки и нажмите «Сохранить изменения».", "ok");
+      setEditorStatus("Квиз готов. Нажмите «Редактировать квиз», чтобы открыть редактор.", "ok");
       setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");
       showToast("Квиз создан и готов к просмотру.", "ok");
       setLogMessage(
-        `Квиз создан: ${generationPayload.quiz_id}. Result view отрисовал содержимое без потери кириллицы.`,
+        "Квиз создан. Кириллица отображается без искажений.",
         "ok",
       );
       if (typeof completeGenerationProgressWithBackendEvidence === "function") {
@@ -348,6 +345,9 @@ export function createGenerationFlow({
       }
       if (typeof refreshGenerationDefaults === "function") {
         refreshGenerationDefaults();
+      }
+      if (typeof focusResultView === "function") {
+        focusResultView();
       }
     } catch (error) {
       clearQuizResult();
@@ -360,7 +360,7 @@ export function createGenerationFlow({
       if (wasCancelled) {
         setSubmissionStatus("Генерация отменена пользователем.", "warn");
         setResultState("Генерация отменена. Запустите повторно, когда будете готовы.", "warn", "Отменено");
-        setLogMessage("Генерация отменена пользователем до завершения ответа backend.", "warn");
+        setLogMessage("Генерация отменена пользователем.", "warn");
         showToast("Генерация отменена.", "warn");
         advanceStepper("params");
       } else {
@@ -368,7 +368,7 @@ export function createGenerationFlow({
         const message = isValidationError ? describeValidationError(error) : describeError(error);
         setSubmissionStatus(`Операция не завершена: ${message}`, "bad");
         setResultState(`Результат не получен: ${message}`, "bad", "Ошибка");
-        setLogMessage(`Submit flow завершился ошибкой: ${message}`, "bad");
+        setLogMessage(`Генерация завершилась ошибкой: ${message}`, "bad");
         showToast(message, "bad");
         if (typeof markStepperFailed === "function") {
           markStepperFailed("review");

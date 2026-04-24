@@ -179,6 +179,69 @@
   align-items: end;
 }
 
+.editor-disclosure {
+  gap: 0;
+}
+
+.editor-disclosure[open] {
+  gap: 18px;
+}
+
+.editor-disclosure > summary {
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  user-select: none;
+}
+
+.editor-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.editor-disclosure > summary::after {
+  content: "+";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+  color: var(--brand);
+  font-size: 1.2rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.editor-disclosure h3 {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.3rem;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+
+.editor-disclosure[open] > summary::after {
+  content: "-";
+}
+
+.editor-disclosure > summary:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--radius-xs);
+}
+
+.editor-disclosure-body {
+  display: grid;
+  gap: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
 .editor-summary {
   margin: 0;
 }
