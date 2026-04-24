@@ -3,6 +3,7 @@ import { createJsonExporter } from "./download.js";
 import { createGenerationFlow } from "./generation-flow.js";
 import { createProgressController } from "./progress.js";
 import { createQuizEditor } from "./quiz-editor.js";
+import { createQuizHistory } from "./quiz-history.js";
 import { createQuizRenderer } from "./quiz-renderer.js";
 import { createThemeController } from "./theme.js";
 import { createToastController } from "./toast.js";
@@ -38,6 +39,8 @@ const dropzone = document.getElementById("dropzone");
 const toastRegion = document.getElementById("toast-region");
 const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
+const cancelGenerationButton = document.getElementById("cancel-generation-button");
+const generationTimerElement = document.getElementById("generation-timer");
 
 const editorState = {
   loadedQuiz: null,
@@ -114,6 +117,10 @@ function setExportAvailability(quizId) {
 const toastController = createToastController(toastRegion);
 const progressController = createProgressController({ stepper, generationProgressPanel });
 const themeController = createThemeController({ themeToggleLabel });
+const quizHistory = createQuizHistory({
+  datalistElement: document.getElementById("quiz-history-options"),
+});
+quizHistory.renderHistoryDatalist();
 
 const quizRenderer = createQuizRenderer({
   resultPanel,
@@ -141,6 +148,7 @@ const quizEditor = createQuizEditor({
   showToast: toastController.showToast,
   describeError,
   describeValidationError,
+  saveQuizToHistory: quizHistory.saveQuizToHistory,
 });
 
 const generationFlow = createGenerationFlow({
@@ -150,6 +158,8 @@ const generationFlow = createGenerationFlow({
   submitButton,
   dropzone,
   quizIdInput,
+  cancelButton: cancelGenerationButton,
+  timerElement: generationTimerElement,
   setTextContent,
   setSubmissionStatus,
   setResultState: quizRenderer.setResultState,
@@ -168,6 +178,7 @@ const generationFlow = createGenerationFlow({
   completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence,
   failGenerationProgress: progressController.failGenerationProgress,
   showToast: toastController.showToast,
+  saveQuizToHistory: quizHistory.saveQuizToHistory,
 });
 
 const jsonExporter = createJsonExporter({
@@ -229,7 +240,7 @@ function openEditorForCurrentQuiz() {
   if (editorPanel) {
     editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   }
-  loadQuizButton?.focus();
+  quizEditor.loadQuizForEditing({ preventDefault: () => {} });
 }
 
 themeController.applyTheme(themeController.resolveStoredTheme());
@@ -237,6 +248,7 @@ themeToggleButton?.addEventListener("click", themeController.cycleTheme);
 generationFlow.attachDropzone();
 exportJsonButton?.addEventListener("click", jsonExporter.exportQuizAsJson);
 editShortcutButton?.addEventListener("click", openEditorForCurrentQuiz);
+cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration);
 
 fileInput?.addEventListener("change", () => {
   generationFlow.updateSelectedFileSummary();

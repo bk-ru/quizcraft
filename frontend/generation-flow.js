@@ -7,6 +7,15 @@ const mediaTypeByExtension = {
   pdf: "application/pdf",
 };
 
+const SLOW_GENERATION_WARNING_MS = 60000;
+
+function formatElapsed(totalMs) {
+  const totalSeconds = Math.max(0, Math.floor(totalMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export function createGenerationFlow({
   client,
   form,
@@ -14,6 +23,8 @@ export function createGenerationFlow({
   submitButton,
   dropzone,
   quizIdInput,
+  cancelButton,
+  timerElement,
   setTextContent,
   setSubmissionStatus,
   setResultState,
@@ -32,7 +43,12 @@ export function createGenerationFlow({
   completeGenerationProgressWithBackendEvidence,
   failGenerationProgress,
   showToast,
-}) {
+  saveQuizToHistory,
+}, windowRef = (typeof window !== "undefined" ? window : null)) {
+  let currentAbortController = null;
+  let timerIntervalId = null;
+  let timerStartedAt = 0;
+
   function setBusyState(isBusy) {
     if (!form) {
       return;
@@ -45,6 +61,64 @@ export function createGenerationFlow({
     if (submitButton) {
       submitButton.textContent = isBusy ? "Генерация…" : "Сгенерировать квиз";
     }
+  }
+
+  function setCancelButtonVisible(visible) {
+    if (!cancelButton) {
+      return;
+    }
+    cancelButton.hidden = !visible;
+    cancelButton.disabled = !visible;
+  }
+
+  function updateTimerLabel() {
+    if (!timerElement) {
+      return;
+    }
+    const elapsed = Date.now() - timerStartedAt;
+    timerElement.textContent = formatElapsed(elapsed);
+    if (elapsed >= SLOW_GENERATION_WARNING_MS) {
+      timerElement.dataset.tone = "warn";
+    } else {
+      delete timerElement.dataset.tone;
+    }
+  }
+
+  function startTimer() {
+    if (!timerElement || !windowRef) {
+      return;
+    }
+    timerStartedAt = Date.now();
+    timerElement.hidden = false;
+    timerElement.textContent = "00:00";
+    delete timerElement.dataset.tone;
+    if (timerIntervalId) {
+      windowRef.clearInterval(timerIntervalId);
+    }
+    timerIntervalId = windowRef.setInterval(updateTimerLabel, 1000);
+  }
+
+  function stopTimer() {
+    if (!windowRef || timerIntervalId === null) {
+      if (timerElement) {
+        timerElement.hidden = true;
+      }
+      return;
+    }
+    windowRef.clearInterval(timerIntervalId);
+    timerIntervalId = null;
+    if (timerElement) {
+      timerElement.hidden = true;
+      delete timerElement.dataset.tone;
+    }
+  }
+
+  function cancelGeneration() {
+    if (!currentAbortController || currentAbortController.signal.aborted) {
+      return;
+    }
+    currentAbortController.abort();
+    setCancelButtonVisible(false);
   }
 
   function resolveMediaType(file) {
@@ -128,12 +202,17 @@ export function createGenerationFlow({
       return;
     }
 
+    const abortController = new AbortController();
+    currentAbortController = abortController;
+
     try {
       clearQuizResult();
       setBusyState(true);
       setExportAvailability(null);
       advanceStepper("generate");
       startGenerationProgress();
+      startTimer();
+      setCancelButtonVisible(true);
       setSubmissionStatus("Загружаем документ…", "warn");
       setResultState("Генерируем квиз. Результат появится после ответа backend.", "warn", "Генерация…");
       setLogMessage(`Начата загрузка файла ${file.name}.`, "warn");
@@ -142,6 +221,7 @@ export function createGenerationFlow({
         filename: file.name,
         mediaType: resolveMediaType(file),
         content: await file.arrayBuffer(),
+        signal: abortController.signal,
       });
 
       advanceGenerationProgress("upload", "parse");
@@ -156,6 +236,7 @@ export function createGenerationFlow({
       generationPayload = await client.generateQuiz(
         uploadPayload.document_id,
         generationBody,
+        { signal: abortController.signal },
       );
 
       advanceGenerationProgress("generate", "validate");
@@ -169,6 +250,12 @@ export function createGenerationFlow({
       const generatedQuiz = generationPayload.quiz ?? {};
       renderQuizEditor(generatedQuiz);
       setQuizEditorSummary(generatedQuiz);
+      if (typeof saveQuizToHistory === "function") {
+        saveQuizToHistory({
+          quiz_id: generationPayload.quiz_id ?? generatedQuiz.quiz_id,
+          title: generatedQuiz.title,
+        });
+      }
       setEditorStatus("Новый квиз загружен в редактор. Внесите правки и нажмите «Сохранить изменения».", "ok");
       setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");
       showToast("Квиз создан и готов к просмотру.", "ok");
@@ -186,14 +273,29 @@ export function createGenerationFlow({
       setExportAvailability(null);
       const failedStep = !uploadPayload ? "upload" : (!generationPayload ? "generate" : "validate");
       failGenerationProgress(failedStep);
-      const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
-      const message = isValidationError ? describeValidationError(error) : describeError(error);
-      setSubmissionStatus(`Операция не завершена: ${message}`, "bad");
-      setResultState(`Результат не получен: ${message}`, "bad", "Ошибка");
-      setLogMessage(`Submit flow завершился ошибкой: ${message}`, "bad");
-      showToast(message, "bad");
+      const wasCancelled = abortController.signal.aborted
+        && error instanceof QuizCraftApiError
+        && error.status === 0;
+      if (wasCancelled) {
+        setSubmissionStatus("Генерация отменена пользователем.", "warn");
+        setResultState("Генерация отменена. Запустите повторно, когда будете готовы.", "warn", "Отменено");
+        setLogMessage("Генерация отменена пользователем до завершения ответа backend.", "warn");
+        showToast("Генерация отменена.", "warn");
+      } else {
+        const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
+        const message = isValidationError ? describeValidationError(error) : describeError(error);
+        setSubmissionStatus(`Операция не завершена: ${message}`, "bad");
+        setResultState(`Результат не получен: ${message}`, "bad", "Ошибка");
+        setLogMessage(`Submit flow завершился ошибкой: ${message}`, "bad");
+        showToast(message, "bad");
+      }
     } finally {
       setBusyState(false);
+      stopTimer();
+      setCancelButtonVisible(false);
+      if (currentAbortController === abortController) {
+        currentAbortController = null;
+      }
     }
   }
 
@@ -243,5 +345,6 @@ export function createGenerationFlow({
     updateOperationSummary,
     submitGeneration,
     attachDropzone,
+    cancelGeneration,
   };
 }
