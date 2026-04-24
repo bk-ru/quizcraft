@@ -760,6 +760,32 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     )
 
 
+def test_frontend_result_panel_has_idle_empty_state_illustration() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+
+    assert "result-empty-state" in index_content, (
+        "result panel must render a dedicated empty state block"
+    )
+    assert "Здесь появится ваш квиз" in index_content, (
+        "empty state must show a clear Russian title"
+    )
+    assert "Загрузите документ слева" in index_content, (
+        "empty state must hint the user at the next action in Russian"
+    )
+    assert 'role="img"' in index_content and "Иллюстрация пустого квиза" in index_content, (
+        "empty state illustration must have an accessible role and label"
+    )
+
+    assert ".result-empty-state" in quiz_css
+    assert "panel-result[data-result-tone=\"idle\"] .result-empty-state" in quiz_css, (
+        "empty state must be wired to the idle tone"
+    )
+    assert "panel-result[data-result-tone=\"idle\"] .result-overview" in quiz_css and "display: none" in quiz_css, (
+        "legacy placeholders must be hidden while the empty state is active"
+    )
+
+
 def test_frontend_stepper_exposes_failed_state_on_generation_error() -> None:
     progress_content = PROGRESS_JS.read_text(encoding="utf-8")
     generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
