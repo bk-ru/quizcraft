@@ -46,6 +46,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-24) Implemented, reviewed, and integrated Stage 11 Batch 1 on `main` via merge commit `e212758`, covering `LM-006` and the `CF-003` model/profile slice with model whitelist configuration, request-time model validation, named generation profile resolution, default profile behavior, and backward-compatible generation requests.
 - [x] (2026-04-24) Implemented, reviewed, and integrated Stage 11 Batch 2 on `main` via merge commit `10c00e0`, covering `ST-003` and the remaining settings portion of `CF-003` with local generation settings persistence, minimal settings API support, saved-settings reuse as generation defaults, model/profile compatibility, and backward-compatible generation requests.
 - [x] (2026-04-24) Completed and integrated all of Stage 11 on `main`, covering model selection, generation profiles, and settings persistence/reuse.
+- [x] (2026-04-24) Implemented, reviewed, and integrated Stage 12 Batch 1 on `main` via merge commit `651daed`, covering the `BE-013` API/request-contract slice with the single-question regeneration endpoint, strict request validation, quiz lookup, target question lookup, controlled not-found and validation errors, and explicit no-provider/no-mutation contract evidence.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -488,8 +489,10 @@ Dependencies: Stages 4 through 8 and Stage 11 if profiles should influence regen
 
 Recommended batch breakdown:
 1. Batch 1: backend single-question regeneration endpoint and request model.
-2. Batch 2: prompt template and generation-mode support for targeted regeneration.
+2. Batch 2: prompt template and generation-mode support for targeted regeneration, including the provider request builder/orchestration path and compatibility with profiles/settings.
 3. Batch 3: tests and UI wiring for isolated question replacement.
+
+Current status on `main`: Batch 1 is implemented and integrated via merge commit `651daed`, covering the API/request contract only. Batch 2 remains planned and should be limited to the targeted-regeneration prompt template, `single_question_regen` generation-mode support, provider request builder/orchestration path, and compatibility with profiles/settings.
 
 Definition of done: The backend exposes an endpoint that can regenerate one question inside an existing quiz without replacing the rest of the quiz, using a dedicated prompt template and a new `single_question_regen` generation mode. The operation is verifiable through API tests even if a dedicated UI story is added later rather than now.
 
@@ -657,6 +660,7 @@ Current backlog completion status:
     Stage 11 Batch 1 (`LM-006`, `CF-003` model/profile slice): integrated on main
     Stage 11 Batch 2 (`ST-003`, remaining settings portion of `CF-003`): integrated on main
     Stage 11: fully integrated on main
+    Stage 12 Batch 1 (`BE-013` API/request-contract slice): integrated on main
 
 Next recommended stage:
 
@@ -664,7 +668,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 12 Batch 1: backend single-question regeneration endpoint and request model
+    Stage 12 Batch 2: prompt template, `single_question_regen` mode support, provider request builder/orchestration path, and profiles/settings compatibility
 
 ## Interfaces and Dependencies
 
