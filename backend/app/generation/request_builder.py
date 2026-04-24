@@ -39,6 +39,10 @@ class DirectGenerationRequestBuilder:
         """Build the provider-facing structured generation request."""
 
         prompt = self._prompt_registry.resolve(self.resolve_prompt_key(generation_request))
+        inference_parameters = {
+            **prompt.inference_parameters,
+            **generation_request.inference_parameters,
+        }
         return StructuredGenerationRequest(
             system_prompt=prompt.system_template,
             user_prompt=prompt.user_template.format(
@@ -51,5 +55,6 @@ class DirectGenerationRequestBuilder:
             ),
             schema_name=prompt.schema_name,
             schema=prompt.schema,
-            inference_parameters=prompt.inference_parameters,
+            inference_parameters=inference_parameters,
+            model_name=generation_request.model_name,
         )
