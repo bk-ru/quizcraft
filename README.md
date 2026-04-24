@@ -29,13 +29,31 @@ The pytest suite covers the backend and static frontend shell. Ruff currently ch
 
 ## Running Locally
 
-Start the backend from the repository root:
+Configure the environment once by copying the template and editing values:
 
 ```powershell
-python -m uvicorn backend.app.main:create_app --factory --reload
+Copy-Item .env.example .env
 ```
 
-Then serve or open the static files in `frontend/`. The frontend expects the backend at `http://127.0.0.1:8000` by default and LM Studio at `http://127.0.0.1:1234`.
+Then start both services (each in its own PowerShell window):
+
+```powershell
+.\run-backend.ps1
+.\run-frontend.ps1
+```
+
+Open the frontend at http://127.0.0.1:5500. It talks to the backend at http://127.0.0.1:8000 and expects LM Studio to be running on http://127.0.0.1:1234 with the model named in `LM_STUDIO_MODEL` loaded.
+
+### Manual start
+
+If you prefer running the services directly:
+
+```powershell
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m http.server 5500 --directory frontend
+```
+
+Environment variables from `.env` are loaded automatically by `AppConfig.from_env`. Real shell variables always take precedence. Point `QUIZCRAFT_ENV_FILE` at an alternative path to override the default discovery.
 
 ## Russian/Cyrillic Support
 
