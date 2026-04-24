@@ -43,6 +43,12 @@ class GenerationProfileError(DomainValidationError):
     code = "generation_profile_error"
 
 
+class GenerationSettingsError(DomainValidationError):
+    """Raised when saved or request-time generation settings are invalid."""
+
+    code = "generation_settings_error"
+
+
 class DocumentTooLargeForGenerationError(DomainValidationError):
     """Raised when a stored document exceeds the allowed input size for generation."""
 
