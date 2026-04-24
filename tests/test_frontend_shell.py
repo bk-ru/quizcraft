@@ -772,6 +772,40 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     )
 
 
+def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert 'class="hero-copy"' not in index_content, (
+        "the hero must not duplicate the upload-panel copy"
+    )
+    assert 'id="generation-mode"' not in index_content, (
+        "the hidden generation_mode input must be replaced by a module constant"
+    )
+    assert 'name="generation_mode"' not in index_content
+
+    assert "padding: 28px 0 20px;" in layout_css, (
+        "hero vertical footprint must be compact"
+    )
+    assert "font-size: clamp(1.8rem, 3.2vw, 2.6rem);" in layout_css, (
+        "hero heading must use the smaller clamp range"
+    )
+    assert "animation: pulse 1.8s infinite" not in layout_css, (
+        "pulse animation must not loop forever"
+    )
+    assert "prefers-reduced-motion: no-preference" in layout_css, (
+        "pulse animation must be guarded by a reduced-motion media query"
+    )
+
+    assert "DEFAULT_GENERATION_MODE" in generation_content, (
+        "generation_mode must live as a module constant"
+    )
+    assert 'formData.get("generation_mode")' not in generation_content, (
+        "generation flow must stop reading generation_mode from FormData"
+    )
+
+
 def test_frontend_copy_buttons_module_and_wiring() -> None:
     copy_content = COPY_JS.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
