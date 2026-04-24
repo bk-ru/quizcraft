@@ -195,6 +195,7 @@ const generationFlow = createGenerationFlow({
   failGenerationProgress: progressController.failGenerationProgress,
   showToast: toastController.showToast,
   saveQuizToHistory: quizHistory.saveQuizToHistory,
+  refreshGenerationDefaults: generationSettings.refreshAfterGeneration,
 });
 
 const jsonExporter = createJsonExporter({

@@ -57,6 +57,14 @@ export class QuizCraftApiClient {
     return this._request("/generation/settings", { timeoutMs: this._timeouts.health });
   }
 
+  putGenerationSettings(payload) {
+    return this._request("/generation/settings", {
+      method: "PUT",
+      json: payload,
+      timeoutMs: this._timeouts.quizEditor,
+    });
+  }
+
   uploadDocument({ filename, mediaType, content, signal } = {}) {
     if (typeof filename !== "string" || !filename.trim()) {
       throw new Error("filename is required");

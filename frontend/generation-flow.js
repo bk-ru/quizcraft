@@ -65,6 +65,7 @@ export function createGenerationFlow({
   failGenerationProgress,
   showToast,
   saveQuizToHistory,
+  refreshGenerationDefaults = null,
 }, windowRef = (typeof window !== "undefined" ? window : null)) {
   let currentAbortController = null;
   let timerIntervalId = null;
@@ -342,6 +343,9 @@ export function createGenerationFlow({
         completeGenerationProgressWithBackendEvidence(generationPayload);
       } else {
         completeGenerationProgress();
+      }
+      if (typeof refreshGenerationDefaults === "function") {
+        refreshGenerationDefaults();
       }
     } catch (error) {
       clearQuizResult();
