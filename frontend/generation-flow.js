@@ -9,11 +9,28 @@ const mediaTypeByExtension = {
 
 const SLOW_GENERATION_WARNING_MS = 60000;
 
+const FILE_SIZE_UNITS = Object.freeze([
+  { limit: 1024, unit: "Б", divisor: 1 },
+  { limit: 1024 * 1024, unit: "КБ", divisor: 1024 },
+  { limit: 1024 * 1024 * 1024, unit: "МБ", divisor: 1024 * 1024 },
+]);
+
 function formatElapsed(totalMs) {
   const totalSeconds = Math.max(0, Math.floor(totalMs / 1000));
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = totalSeconds % 60;
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes < 0) {
+    return "";
+  }
+  const match = FILE_SIZE_UNITS.find((rule) => bytes < rule.limit) ?? FILE_SIZE_UNITS[FILE_SIZE_UNITS.length - 1];
+  const value = bytes / match.divisor;
+  const precision = match.unit === "Б" ? 0 : 1;
+  const formatted = value.toFixed(precision).replace(".", ",");
+  return `${formatted} ${match.unit}`;
 }
 
 export function createGenerationFlow({
@@ -25,6 +42,9 @@ export function createGenerationFlow({
   quizIdInput,
   cancelButton,
   timerElement,
+  dropzoneFileName,
+  dropzoneFileMeta,
+  dropzoneRemoveButton,
   setTextContent,
   setSubmissionStatus,
   setResultState,
@@ -138,10 +158,53 @@ export function createGenerationFlow({
     return `${file.name} · ${mediaType} · ${file.size} байт`;
   }
 
+  function applyDropzoneFilled(file) {
+    if (!dropzone) {
+      return;
+    }
+    if (file instanceof File) {
+      dropzone.dataset.state = "filled";
+      if (dropzoneFileName) {
+        dropzoneFileName.textContent = file.name;
+      }
+      if (dropzoneFileMeta) {
+        const sizeLabel = formatFileSize(file.size);
+        const mediaType = resolveMediaType(file);
+        dropzoneFileMeta.textContent = sizeLabel ? `${sizeLabel} · ${mediaType}` : mediaType;
+      }
+    } else {
+      dropzone.dataset.state = "empty";
+      if (dropzoneFileName) {
+        dropzoneFileName.textContent = "";
+      }
+      if (dropzoneFileMeta) {
+        dropzoneFileMeta.textContent = "";
+      }
+    }
+  }
+
   function updateSelectedFileSummary() {
     const file = fileInput?.files?.[0] ?? null;
     setTextContent("file-summary", formatFileSummary(file));
     setTextContent("last-filename", file ? file.name : "Ещё не загружен");
+    applyDropzoneFilled(file);
+  }
+
+  function removeSelectedFile() {
+    if (!fileInput) {
+      return;
+    }
+    try {
+      fileInput.value = "";
+      if (typeof DataTransfer === "function") {
+        fileInput.files = new DataTransfer().files;
+      }
+    } catch (_error) {
+      fileInput.value = "";
+    }
+    updateSelectedFileSummary();
+    advanceStepper("upload");
+    showToast("Файл удалён из формы.", "warn");
   }
 
   function buildGenerationPayload() {
@@ -340,7 +403,9 @@ export function createGenerationFlow({
     setBusyState,
     resolveMediaType,
     formatFileSummary,
+    formatFileSize,
     updateSelectedFileSummary,
+    removeSelectedFile,
     buildGenerationPayload,
     updateOperationSummary,
     submitGeneration,

@@ -710,3 +710,43 @@ def test_frontend_editor_panel_badge_matches_four_step_product_flow() -> None:
     assert "Шаг 4" in content
     assert "Шаг 1" in content
     assert "Шаг 2" in content
+
+
+def test_frontend_dropzone_surface_exposes_filled_preview_affordance() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    forms_css = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'data-state="empty"' in index_content
+    assert 'class="dropzone-empty"' in index_content
+    assert 'class="dropzone-filled"' in index_content
+    assert 'id="dropzone-file-name"' in index_content
+    assert 'id="dropzone-file-meta"' in index_content
+    assert 'id="dropzone-remove"' in index_content, (
+        "dropzone preview must expose a remove-file affordance"
+    )
+    assert "Убрать" in index_content
+
+    assert '.dropzone[data-state="filled"]' in forms_css
+    assert ".dropzone-remove" in forms_css
+    assert ".dropzone-file-name" in forms_css
+
+    assert "function formatFileSize" in generation_content
+    assert "function applyDropzoneFilled" in generation_content
+    assert "function removeSelectedFile" in generation_content
+    assert 'dropzone.dataset.state = "filled"' in generation_content
+    assert 'dropzone.dataset.state = "empty"' in generation_content
+    assert "removeSelectedFile" in app_content
+    assert "dropzoneRemoveButton?.addEventListener" in app_content
+
+
+def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert 'unit: "Б"' in content
+    assert 'unit: "КБ"' in content
+    assert 'unit: "МБ"' in content
+    assert "replace(\".\", \",\")" in content, (
+        "file size formatter must emit locale-friendly decimal commas"
+    )
