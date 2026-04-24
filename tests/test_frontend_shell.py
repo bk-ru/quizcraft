@@ -159,10 +159,13 @@ def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
     assert "generateQuiz" in content
     assert "getQuiz" in content
     assert "updateQuiz" in content
+    assert "regenerateQuestion" in content
     assert "/health" in content
     assert "/health/lm-studio" in content
     assert "/documents" in content
     assert "/quizzes/" in content
+    assert "/questions/" in content
+    assert "/regenerate" in content
 
 
 def test_api_client_uses_role_based_timeouts() -> None:
@@ -207,6 +210,8 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "loadQuizForEditing" in content
     assert "buildQuizUpdatePayload" in content
     assert "submitQuizEdits" in content
+    assert "regenerateQuizQuestion" in content
+    assert "replaceRegeneratedQuestion" in content
     assert "Загрузите документ" in content
     assert "Квиз создан" in content
     assert "Результат готов" in content
@@ -214,6 +219,49 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "Изменения пока не сохранены." in content
     assert "Изменения сохранены." in content
     assert "Исправьте ошибки и повторите сохранение." in content
+
+
+def test_frontend_editor_wires_single_question_regeneration_action() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    client_content = API_CLIENT_JS.read_text(encoding="utf-8")
+
+    assert "regenerateQuestion(quizId, questionId" in client_content
+    assert 'method: "POST"' in client_content
+    assert "/questions/" in client_content
+    assert "/regenerate" in client_content
+    assert "timeoutMs: this._timeouts.generate" in client_content
+    assert "regenerateQuizQuestion" in editor_content
+    assert "client.regenerateQuestion" in editor_content
+    assert 'data-editor-action", "regenerate-question"' in editor_content
+    assert "Перегенерировать вопрос" in editor_content
+    assert "Перегенерируем вопрос" in editor_content
+    assert "Не удалось перегенерировать вопрос" in editor_content
+    assert "quizEditorFields?.addEventListener(\"click\", quizEditor.regenerateQuizQuestion)" in app_content
+
+
+def test_frontend_editor_replaces_only_target_question_after_regeneration() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert "function replaceRegeneratedQuestion" in editor_content
+    assert "regeneratedQuestion.question_id" in editor_content
+    assert "question.question_id === regeneratedQuestion.question_id" in editor_content
+    assert "return regeneratedQuestion" in editor_content
+    assert "renderQuizEditor(updatedQuiz)" in editor_content
+    assert "renderQuizResult" in editor_content
+    assert "regenerated_question" in editor_content
+    assert "Остальные вопросы сохранены без изменений" in editor_content
+
+
+def test_frontend_editor_preserves_displayed_state_outside_regenerated_question() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert "const hadUnsavedEdits = editorState.isDirty" in editor_content
+    assert "const displayedQuiz = buildQuizUpdatePayload()" in editor_content
+    assert "...displayedQuiz" in editor_content
+    assert "if (hadUnsavedEdits)" in editor_content
+    assert "setEditorSaveState({ disabled: false })" in editor_content
+    assert "сохранены локально" in editor_content
 
 
 def test_frontend_app_autoloads_generated_quiz_into_editor() -> None:
@@ -479,6 +527,9 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "renderQuizResult" in renderer_js
     assert "renderQuizEditor" in editor_js
     assert "submitQuizEdits" in editor_js
+    assert "regenerateQuizQuestion" in editor_js
+    assert "Перегенерировать вопрос" in editor_js
     assert "submitGeneration" in generation_js
     assert "generateQuiz" in client_js
+    assert "regenerateQuestion" in client_js
     assert ".generation-progress" in css
