@@ -177,6 +177,11 @@ class SingleQuestionRegenerationBody(_StrictModel):
     quiz_id: str | None = Field(default=None, strict=True, min_length=1)
     question_id: str | None = Field(default=None, strict=True, min_length=1)
     instructions: str | None = Field(default=None, strict=True, min_length=1, max_length=2000)
+    language: Language | None = None
+    difficulty: Difficulty | None = None
+    quiz_type: QuizType | None = None
+    model_name: str | None = Field(default=None, strict=True, min_length=1)
+    profile_name: str | None = Field(default=None, strict=True, min_length=1)
 
     def to_contract_dict(self) -> dict[str, str]:
         """Return explicitly provided contract fields for the response."""
@@ -185,8 +190,39 @@ class SingleQuestionRegenerationBody(_StrictModel):
             "quiz_id": self.quiz_id,
             "question_id": self.question_id,
             "instructions": self.instructions,
+            "language": None if self.language is None else self.language.value,
+            "difficulty": None if self.difficulty is None else self.difficulty.value,
+            "quiz_type": None if self.quiz_type is None else self.quiz_type.value,
+            "model_name": self.model_name,
+            "profile_name": self.profile_name,
         }
         return {key: value for key, value in values.items() if value is not None}
+
+    def to_generation_settings(self, defaults: GenerationSettings | None = None) -> GenerationSettings:
+        """Resolve regeneration settings from request values and saved defaults."""
+
+        values = _default_single_question_generation_settings()
+        if defaults is not None:
+            values.update(defaults.to_dict())
+        values.update(self.to_contract_dict())
+        values["question_count"] = 1
+        values["generation_mode"] = GenerationMode.SINGLE_QUESTION_REGEN.value
+        values.pop("quiz_id", None)
+        values.pop("question_id", None)
+        values.pop("instructions", None)
+        return GenerationSettings.from_dict(values)
+
+
+def _default_single_question_generation_settings() -> dict[str, Any]:
+    """Return Russian-first defaults for standalone targeted regeneration."""
+
+    return {
+        "question_count": 1,
+        "language": Language.RU.value,
+        "difficulty": Difficulty.MEDIUM.value,
+        "quiz_type": QuizType.SINGLE_CHOICE.value,
+        "generation_mode": GenerationMode.SINGLE_QUESTION_REGEN.value,
+    }
 
 
 def build_validation_error_message(errors: list[dict[str, Any]]) -> str:

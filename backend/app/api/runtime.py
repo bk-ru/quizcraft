@@ -10,6 +10,8 @@ from backend.app.core.config import AppConfig
 from backend.app.generation import DirectGenerationOrchestrator
 from backend.app.generation import DirectGenerationRequestBuilder
 from backend.app.generation import GenerationQualityChecker
+from backend.app.generation import SingleQuestionRegenerationOrchestrator
+from backend.app.generation import SingleQuestionRegenerationRequestBuilder
 from backend.app.parsing.docx import DocxParser
 from backend.app.parsing.files import UploadedFileValidator
 from backend.app.parsing.ingestion import DocumentIngestionService
@@ -72,6 +74,21 @@ def get_generation_settings_repository(app: FastAPI) -> FileSystemGenerationSett
         repository = FileSystemGenerationSettingsRepository(app.state.storage_root)
         app.state.generation_settings_repository = repository
     return repository
+
+
+def get_single_question_regeneration_orchestrator(app: FastAPI) -> SingleQuestionRegenerationOrchestrator:
+    """Get or lazily build the targeted question regeneration orchestrator."""
+
+    orchestrator = getattr(app.state, "single_question_regeneration_orchestrator", None)
+    if orchestrator is None:
+        orchestrator = SingleQuestionRegenerationOrchestrator(
+            document_repository=_get_document_repository(app.state.storage_root),
+            quiz_repository=FileSystemQuizRepository(app.state.storage_root),
+            request_builder=SingleQuestionRegenerationRequestBuilder(prompt_registry=PromptRegistry),
+            provider=app.state.provider,
+        )
+        app.state.single_question_regeneration_orchestrator = orchestrator
+    return orchestrator
 
 
 def _build_document_ingestion_service(
