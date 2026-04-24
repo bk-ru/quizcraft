@@ -1,5 +1,6 @@
 import { QuizCraftApiClient } from "./api/client.js";
 import { createJsonExporter } from "./download.js";
+import { createCopyButtonController } from "./copy.js";
 import { createGenerationFlow } from "./generation-flow.js";
 import { createGenerationSettingsController } from "./generation-settings.js";
 import { createKeyboardShortcuts } from "./keyboard.js";
@@ -214,6 +215,11 @@ const keyboardShortcuts = createKeyboardShortcuts({
   toastController,
 });
 keyboardShortcuts.register();
+
+const copyButtons = createCopyButtonController({
+  showToast: toastController.showToast,
+});
+copyButtons.register();
 
 async function bootstrapShell() {
   generationFlow.updateSelectedFileSummary();

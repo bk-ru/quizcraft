@@ -27,6 +27,50 @@
   border-left: 3px solid var(--brand);
 }
 
+.copyable-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  min-width: 0;
+}
+
+.copyable-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+}
+
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color var(--duration-base) var(--easing),
+              background var(--duration-base) var(--easing),
+              border-color var(--duration-base) var(--easing);
+}
+
+.copy-button:hover {
+  color: var(--brand);
+  background: var(--brand-soft);
+  border-color: var(--line);
+}
+
+.copy-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .dropzone[data-drag-active="true"] {
   border-color: var(--brand);
   background:

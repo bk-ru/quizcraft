@@ -21,6 +21,7 @@ QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 GENERATION_FLOW_JS = FRONTEND_DIR / "generation-flow.js"
 GENERATION_SETTINGS_JS = FRONTEND_DIR / "generation-settings.js"
 KEYBOARD_JS = FRONTEND_DIR / "keyboard.js"
+COPY_JS = FRONTEND_DIR / "copy.js"
 PROGRESS_JS = FRONTEND_DIR / "progress.js"
 THEME_JS = FRONTEND_DIR / "theme.js"
 TOAST_JS = FRONTEND_DIR / "toast.js"
@@ -34,6 +35,7 @@ FRONTEND_JS_MODULES = (
     GENERATION_FLOW_JS,
     GENERATION_SETTINGS_JS,
     KEYBOARD_JS,
+    COPY_JS,
     PROGRESS_JS,
     THEME_JS,
     TOAST_JS,
@@ -147,6 +149,7 @@ def test_frontend_app_imports_focused_modules() -> None:
         "generation-flow.js",
         "generation-settings.js",
         "keyboard.js",
+        "copy.js",
         "progress.js",
         "theme.js",
         "toast.js",
@@ -159,6 +162,7 @@ def test_frontend_app_imports_focused_modules() -> None:
     assert "createQuizHistory" in content
     assert "createGenerationSettingsController" in content
     assert "createKeyboardShortcuts" in content
+    assert "createCopyButtonController" in content
 
 
 def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
@@ -761,6 +765,53 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     assert 'unit: "МБ"' in content
     assert "replace(\".\", \",\")" in content, (
         "file size formatter must emit locale-friendly decimal commas"
+    )
+
+
+def test_frontend_copy_buttons_module_and_wiring() -> None:
+    copy_content = COPY_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    forms_css = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+
+    assert "export function createCopyButtonController" in copy_content
+    assert "clipboard.writeText" in copy_content, (
+        "copy controller must use navigator.clipboard.writeText"
+    )
+    assert "data-copy-for" in copy_content, (
+        "copy buttons must be discovered by the data-copy-for attribute"
+    )
+    assert "EMPTY_VALUE_MARKERS" in copy_content, (
+        "copy controller must refuse to copy placeholder values"
+    )
+    assert "Ещё нет" in copy_content and "Ещё не загружен" in copy_content, (
+        "placeholder markers must cover the Russian copy"
+    )
+    assert "Скопировано" in copy_content, (
+        "success toast must confirm the copy in Russian"
+    )
+
+    assert "createCopyButtonController({" in app_content
+    assert "copyButtons.register()" in app_content
+
+    for source_id in (
+        "last-document-id",
+        "last-quiz-id",
+        "last-request-id",
+        "editor-quiz-id",
+        "editor-document-id",
+    ):
+        assert f'data-copy-for="{source_id}"' in index_content, (
+            f"{source_id} must have an associated copy button"
+        )
+        assert f'id="{source_id}"' in index_content
+
+    assert 'aria-label="Скопировать Quiz ID"' in index_content, (
+        "copy buttons must expose an accessible Russian label"
+    )
+
+    assert ".copy-button" in forms_css and ".copyable-field" in forms_css, (
+        "copy buttons must be styled"
     )
 
 
