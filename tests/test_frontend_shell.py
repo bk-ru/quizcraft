@@ -17,6 +17,7 @@ API_CLIENT_JS = FRONTEND_DIR / "api" / "client.js"
 VALIDATION_ERRORS_JS = FRONTEND_DIR / "validation-errors.js"
 QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
 QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
+QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 GENERATION_FLOW_JS = FRONTEND_DIR / "generation-flow.js"
 PROGRESS_JS = FRONTEND_DIR / "progress.js"
 THEME_JS = FRONTEND_DIR / "theme.js"
@@ -27,6 +28,7 @@ FRONTEND_JS_MODULES = (
     VALIDATION_ERRORS_JS,
     QUIZ_RENDERER_JS,
     QUIZ_EDITOR_JS,
+    QUIZ_HISTORY_JS,
     GENERATION_FLOW_JS,
     PROGRESS_JS,
     THEME_JS,
@@ -137,6 +139,7 @@ def test_frontend_app_imports_focused_modules() -> None:
         "validation-errors.js",
         "quiz-renderer.js",
         "quiz-editor.js",
+        "quiz-history.js",
         "generation-flow.js",
         "progress.js",
         "theme.js",
@@ -147,6 +150,7 @@ def test_frontend_app_imports_focused_modules() -> None:
     assert "createGenerationFlow" in content
     assert "createQuizEditor" in content
     assert "createQuizRenderer" in content
+    assert "createQuizHistory" in content
 
 
 def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
@@ -533,3 +537,134 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "generateQuiz" in client_js
     assert "regenerateQuestion" in client_js
     assert ".generation-progress" in css
+
+
+def test_edit_shortcut_autoloads_last_generated_quiz_without_extra_click() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    assert "function openEditorForCurrentQuiz" in content
+    assert "editorState.lastGeneratedQuizId" in content
+    assert "quizEditor.loadQuizForEditing" in content, (
+        "edit shortcut must invoke the editor loader, not only scroll/focus"
+    )
+    assert (
+        "editShortcutButton?.addEventListener(\"click\", openEditorForCurrentQuiz)"
+        in content
+    )
+
+
+def test_frontend_index_hides_legacy_developer_only_sections() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "endpoint-list" not in content, (
+        "endpoint reference list is a developer concern and must not be surfaced in the default UI"
+    )
+    assert 'id="endpoint-title"' not in content
+    assert 'id="shell-runtime-badge"' not in content
+    assert "Используемые endpoint" not in content
+    assert "technical-details" in content, (
+        "the collapsed diagnostics panel must still exist for advanced users"
+    )
+    assert "Технические детали" in content
+
+
+def test_frontend_quiz_history_module_and_wiring() -> None:
+    history_content = QUIZ_HISTORY_JS.read_text(encoding="utf-8")
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "export function createQuizHistory" in history_content
+    assert "localStorage" in history_content or "storage.getItem" in history_content
+    assert "quizcraft:recent-quizzes" in history_content, (
+        "history module must persist under a namespaced localStorage key"
+    )
+    assert "saveQuizToHistory" in history_content
+    assert "removeQuizFromHistory" in history_content
+    assert "renderHistoryDatalist" in history_content
+
+    assert 'id="quiz-history-options"' in index_content, (
+        "index must expose the datalist used for quiz id autocompletion"
+    )
+    assert 'list="quiz-history-options"' in index_content, (
+        "quiz id input must reference the datalist to surface local history"
+    )
+
+    assert "createQuizHistory" in app_content
+    assert "quizHistory.renderHistoryDatalist" in app_content
+    assert "saveQuizToHistory: quizHistory.saveQuizToHistory" in app_content
+
+    assert "saveQuizToHistory" in editor_content, (
+        "successful quiz load must record the entry in local history"
+    )
+    assert "saveQuizToHistory" in generation_content, (
+        "successful generation must record the fresh quiz in local history"
+    )
+
+
+def test_frontend_quiz_history_module_persists_russian_titles() -> None:
+    content = QUIZ_HISTORY_JS.read_text(encoding="utf-8")
+
+    assert "JSON.stringify" in content
+    assert "JSON.parse" in content
+    assert "quiz_id" in content
+    assert "title" in content
+    assert "MAX_ENTRIES" in content
+    assert "timestamp" in content
+
+
+def test_frontend_generation_progress_has_cancel_button_and_timer() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    css_content = (FRONTEND_DIR / "feedback.css").read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="cancel-generation-button"' in index_content, (
+        "generation progress must expose a cancel affordance"
+    )
+    assert "Отменить генерацию" in index_content
+    assert 'id="generation-timer"' in index_content, (
+        "generation progress must expose an elapsed-time readout"
+    )
+    assert ".generation-timer" in css_content
+    assert ".generation-cancel" in css_content
+    assert 'cancel-generation-button' in app_content
+    assert "generation-timer" in app_content
+
+
+def test_frontend_generation_flow_threads_abort_signal_and_cancel() -> None:
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    client_content = API_CLIENT_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "new AbortController()" in generation_content
+    assert "function cancelGeneration" in generation_content
+    assert "cancelGeneration" in app_content, (
+        "the cancel button click must be bound to the generation flow cancel helper"
+    )
+    assert (
+        'cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration)'
+        in app_content
+    )
+
+    assert "abortController.signal" in generation_content
+    assert "signal:" in client_content, (
+        "API client helpers must thread the external signal through fetch"
+    )
+    assert "removeEventListener" in client_content
+    assert "Запрос отменён пользователем" in client_content, (
+        "user-cancel must map to a dedicated Russian message, not the timeout one"
+    )
+    assert "Генерация отменена" in generation_content or "отмен" in generation_content
+
+
+def test_frontend_generation_timer_formats_and_warns_on_slow_generation() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "function formatElapsed" in content, (
+        "generation flow must format the elapsed time locally"
+    )
+    assert 'padStart(2, "0")' in content
+    assert "SLOW_GENERATION_WARNING_MS" in content
+    assert "setInterval" in content
+    assert "clearInterval" in content

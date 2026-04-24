@@ -24,6 +24,7 @@ export function createQuizEditor({
   showToast,
   describeError,
   describeValidationError,
+  saveQuizToHistory,
 }, documentRef = document) {
   function setEditorBusyState(isBusy) {
     if (!quizEditorLoader) {
@@ -296,6 +297,12 @@ export function createQuizEditor({
       setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
       setExportAvailability(payload.quiz_id ?? quiz.quiz_id ?? quizId);
       advanceStepper("edit");
+      if (typeof saveQuizToHistory === "function") {
+        saveQuizToHistory({
+          quiz_id: payload.quiz_id ?? quiz.quiz_id ?? quizId,
+          title: quiz.title,
+        });
+      }
       showToast("Квиз загружен в редактор.", "ok");
       setLogMessage(`Открыт квиз ${payload.quiz_id ?? quizId} для локального редактирования и последующего сохранения.`, "ok");
     } catch (error) {
@@ -407,6 +414,12 @@ export function createQuizEditor({
       setTextContent("last-quiz-id", reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id ?? "Ещё нет");
       setTextContent("last-request-id", reloadResponse.request_id ?? saveResponse.request_id ?? "Ещё нет");
       setExportAvailability(reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id ?? null);
+      if (typeof saveQuizToHistory === "function") {
+        saveQuizToHistory({
+          quiz_id: reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id,
+          title: persistedQuiz.title,
+        });
+      }
       setEditorStatus("Изменения сохранены.", "ok");
       showToast("Изменения сохранены.", "ok");
       setLogMessage(

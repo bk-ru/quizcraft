@@ -179,6 +179,15 @@
         </div>
         <p id="submission-status" class="submission-status">Форма готова. Выберите документ и запустите генерацию.</p>
         <div id="generation-progress" class="generation-progress" role="status" aria-live="polite" hidden>
+          <div class="generation-progress-head">
+            <span id="generation-timer" class="generation-timer" hidden aria-live="polite">00:00</span>
+            <button
+              id="cancel-generation-button"
+              class="ghost-action generation-cancel"
+              type="button"
+              hidden
+            >Отменить генерацию</button>
+          </div>
           <ol class="progress-steps">
             <li class="progress-step" data-step="upload" data-state="pending">
               <span class="progress-step-dot" aria-hidden="true"></span>
@@ -276,13 +285,21 @@
         <form id="quiz-editor-loader" class="editor-loader" novalidate>
           <label class="field" for="quiz-id-input">
             <span class="field-label">Идентификатор квиза</span>
-            <input id="quiz-id-input" name="quiz_id" type="text" placeholder="Например, quiz-123" autocomplete="off">
+            <input
+              id="quiz-id-input"
+              name="quiz_id"
+              type="text"
+              placeholder="Например, quiz-123"
+              autocomplete="off"
+              list="quiz-history-options"
+            >
+            <datalist id="quiz-history-options"></datalist>
           </label>
           <div class="form-actions">
             <button id="load-quiz-button" class="secondary-action" type="submit">Загрузить квиз</button>
           </div>
         </form>
-        <p class="action-hint">Открыть существующий квиз</p>
+        <p class="action-hint">Открыть существующий квиз (последние 10 доступны в подсказках поля)</p>
         <p id="quiz-editor-status" class="editor-status">Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.</p>
         <dl class="summary-grid editor-summary">
           <div>
@@ -314,46 +331,17 @@
       <details class="details-panel" id="technical-details">
         <summary>Технические детали</summary>
         <div class="details-body">
-          <section aria-labelledby="config-title">
-            <div class="panel-heading">
-              <h3 id="config-title">Текущая конфигурация</h3>
-              <span id="shell-runtime-badge" class="badge" data-tone="muted">Статическая сборка</span>
+          <p id="shell-log-message" class="log-message">Журнал последних действий shell-оболочки появится здесь.</p>
+          <dl class="config-grid">
+            <div>
+              <dt>Backend base URL</dt>
+              <dd id="backend-base-url">Загрузка…</dd>
             </div>
-            <dl class="config-grid">
-              <div>
-                <dt>Backend base URL</dt>
-                <dd id="backend-base-url">Загрузка…</dd>
-              </div>
-              <div>
-                <dt>Таймауты запросов</dt>
-                <dd id="request-timeout">Загрузка…</dd>
-              </div>
-            </dl>
-          </section>
-
-          <section aria-labelledby="endpoint-title">
-            <div class="panel-heading">
-              <div>
-                <h3 id="endpoint-title">Используемые endpoint-ы</h3>
-                <p class="panel-copy">Frontend вызывает только перечисленные маршруты backend.</p>
-              </div>
+            <div>
+              <dt>Таймауты запросов</dt>
+              <dd id="request-timeout">Загрузка…</dd>
             </div>
-            <ul class="endpoint-list">
-              <li><span class="http-method">POST</span><code>/documents</code><span>Загрузка документа и получение document_id</span></li>
-              <li><span class="http-method">POST</span><code>/documents/{document_id}/generate</code><span>Запуск генерации и получение quiz payload</span></li>
-              <li><span class="http-method">GET</span><code>/quizzes/{quiz_id}</code><span>Получить сохранённый квиз для редактирования</span></li>
-              <li><span class="http-method">PUT</span><code>/quizzes/{quiz_id}</code><span>Сохранить обновлённый квиз</span></li>
-              <li><span class="http-method">POST</span><code>/quizzes/{quiz_id}/questions/{question_id}/regenerate</code><span>Перегенерировать один вопрос без изменения остальных</span></li>
-              <li><span class="http-method">GET</span><code>/quizzes/{quiz_id}/export/json</code><span>Скачать квиз в формате JSON</span></li>
-            </ul>
-          </section>
-
-          <section class="panel-log" aria-labelledby="log-title">
-            <div class="panel-heading">
-              <h3 id="log-title">Последняя проверка</h3>
-            </div>
-            <p id="shell-log-message" class="log-message">Frontend-оболочка ещё не выполнила запросы загрузки, генерации и отрисовки результата.</p>
-          </section>
+          </dl>
         </div>
       </details>
     </div>
