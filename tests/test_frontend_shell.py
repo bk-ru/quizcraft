@@ -717,15 +717,19 @@ def test_frontend_main_stepper_holds_four_product_phases() -> None:
     assert 'advanceStepper("review")' in generation_content
 
 
-def test_frontend_editor_panel_badge_matches_four_step_product_flow() -> None:
+def test_frontend_stepper_is_the_single_source_of_truth_for_phases() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "Шаг 5" not in content, (
-        "editor badge must match the collapsed four-phase flow"
+        "the stepper only has four phases, so Шаг 5 must not leak into the UI"
     )
-    assert "Шаг 4" in content
-    assert "Шаг 1" in content
-    assert "Шаг 2" in content
+    for step_label in ("Шаг 1", "Шаг 2", "Шаг 3", "Шаг 4"):
+        assert step_label not in content, (
+            f"panels must not duplicate the stepper with a '{step_label}' badge"
+        )
+    assert 'id="stepper"' in content, (
+        "the main stepper remains the single source of truth for the phase"
+    )
 
 
 def test_frontend_dropzone_surface_exposes_filled_preview_affordance() -> None:
