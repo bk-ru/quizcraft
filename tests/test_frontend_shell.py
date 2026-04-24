@@ -20,6 +20,7 @@ QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
 QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 GENERATION_FLOW_JS = FRONTEND_DIR / "generation-flow.js"
 GENERATION_SETTINGS_JS = FRONTEND_DIR / "generation-settings.js"
+KEYBOARD_JS = FRONTEND_DIR / "keyboard.js"
 PROGRESS_JS = FRONTEND_DIR / "progress.js"
 THEME_JS = FRONTEND_DIR / "theme.js"
 TOAST_JS = FRONTEND_DIR / "toast.js"
@@ -32,6 +33,7 @@ FRONTEND_JS_MODULES = (
     QUIZ_HISTORY_JS,
     GENERATION_FLOW_JS,
     GENERATION_SETTINGS_JS,
+    KEYBOARD_JS,
     PROGRESS_JS,
     THEME_JS,
     TOAST_JS,
@@ -144,6 +146,7 @@ def test_frontend_app_imports_focused_modules() -> None:
         "quiz-history.js",
         "generation-flow.js",
         "generation-settings.js",
+        "keyboard.js",
         "progress.js",
         "theme.js",
         "toast.js",
@@ -155,6 +158,7 @@ def test_frontend_app_imports_focused_modules() -> None:
     assert "createQuizRenderer" in content
     assert "createQuizHistory" in content
     assert "createGenerationSettingsController" in content
+    assert "createKeyboardShortcuts" in content
 
 
 def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
@@ -757,6 +761,58 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     assert 'unit: "МБ"' in content
     assert "replace(\".\", \",\")" in content, (
         "file size formatter must emit locale-friendly decimal commas"
+    )
+
+
+def test_frontend_keyboard_shortcuts_module_and_wiring() -> None:
+    keyboard_content = KEYBOARD_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    toast_content = TOAST_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    base_css = (FRONTEND_DIR / "base.css").read_text(encoding="utf-8")
+
+    assert "export function createKeyboardShortcuts" in keyboard_content
+    assert "isPrimaryModifier" in keyboard_content, (
+        "shortcut handler must detect Ctrl or Cmd as the primary modifier"
+    )
+    assert "metaKey" in keyboard_content and "ctrlKey" in keyboard_content
+    assert 'key === "escape"' in keyboard_content, (
+        "Escape must be handled"
+    )
+    assert 'key === "s"' in keyboard_content and 'key === "enter"' in keyboard_content, (
+        "Ctrl/Cmd+S and Ctrl/Cmd+Enter must be handled"
+    )
+    assert "isEditableTarget" in keyboard_content, (
+        "shortcut handler must know when the user is typing in an input"
+    )
+    assert "cancelGeneration" in keyboard_content
+    assert "dismissAllToasts" in keyboard_content
+    assert "submitQuizEdits" in keyboard_content
+    assert "requestSubmit" in keyboard_content
+
+    assert "createKeyboardShortcuts({" in app_content, (
+        "app must construct the keyboard shortcuts controller"
+    )
+    assert "keyboardShortcuts.register()" in app_content, (
+        "app must register the keydown handler at bootstrap"
+    )
+
+    assert "dismissAllToasts" in toast_content, (
+        "toast controller must expose a bulk-dismiss helper for Escape"
+    )
+    assert "return true" in generation_content and "return false" in generation_content, (
+        "cancelGeneration must report whether it actually cancelled a run"
+    )
+
+    assert "<kbd>Ctrl/⌘</kbd>" in index_content and "<kbd>Enter</kbd>" in index_content, (
+        "submit hint must advertise the Ctrl/Cmd+Enter shortcut"
+    )
+    assert "<kbd>S</kbd>" in index_content, (
+        "save hint must advertise the Ctrl/Cmd+S shortcut"
+    )
+    assert "kbd {" in base_css, (
+        "kbd elements must be styled as keyboard key pills"
     )
 
 

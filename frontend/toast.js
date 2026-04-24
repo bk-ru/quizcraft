@@ -35,5 +35,16 @@ export function createToastController(toastRegion, windowRef = window, documentR
     }
   }
 
-  return { showToast };
+  function dismissAllToasts() {
+    if (!toastRegion) {
+      return 0;
+    }
+    const toasts = toastRegion.querySelectorAll(".toast");
+    for (const toast of toasts) {
+      toast.remove();
+    }
+    return toasts.length;
+  }
+
+  return { showToast, dismissAllToasts };
 }
