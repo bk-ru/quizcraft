@@ -321,11 +321,13 @@
           </dl>
         </details>
         <div class="result-actions">
-          <button id="export-json-button" class="secondary-action" type="button" disabled>
+          <button id="export-json-button" class="secondary-action" type="button" disabled aria-describedby="export-json-hint">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
             Скачать JSON
           </button>
-          <button id="edit-quiz-shortcut" class="ghost-action" type="button" disabled>Открыть в редакторе</button>
+          <span id="export-json-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
+          <button id="edit-quiz-shortcut" class="ghost-action" type="button" disabled aria-describedby="edit-shortcut-hint">Открыть в редакторе</button>
+          <span id="edit-shortcut-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
         </div>
         <ol id="quiz-question-list" class="question-list" aria-live="polite"></ol>
       </section>
@@ -385,7 +387,8 @@
           </div>
         </dl>
         <div id="quiz-editor-actions" class="form-actions">
-          <button id="save-quiz-button" class="primary-action" type="button" disabled>Сохранить изменения</button>
+          <button id="save-quiz-button" class="primary-action" type="button" disabled aria-describedby="save-quiz-hint">Сохранить изменения</button>
+          <span id="save-quiz-hint" class="visually-hidden">Доступно после загрузки квиза и изменения хотя бы одного поля.</span>
           <p class="action-hint">Изменения пока не сохранены. Горячая клавиша: <kbd>Ctrl/⌘</kbd> + <kbd>S</kbd>.</p>
         </div>
         <div id="quiz-editor-fields" class="editor-fields" aria-live="polite">
