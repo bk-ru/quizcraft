@@ -118,6 +118,20 @@ def test_generation_settings_api_saves_and_loads_settings(tmp_path) -> None:
     assert load_response.json()["settings"]["language"] == "ru"
 
 
+def test_generation_settings_api_exposes_allowed_models_and_profiles(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=RecordingProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+
+    response = client.get("/generation/settings")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["available_models"] == ["local-model", "strict-model"]
+    assert body["default_model"] == "local-model"
+    assert set(body["available_profiles"]) == {"balanced", "strict"}
+    assert body["default_profile"] == "balanced"
+
+
 def test_generation_settings_api_rejects_invalid_model_and_profile(tmp_path) -> None:
     app = create_app(config=build_config(), provider=RecordingProvider(), storage_root=tmp_path)
     client = TestClient(app)

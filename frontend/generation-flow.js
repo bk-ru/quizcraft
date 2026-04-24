@@ -225,13 +225,24 @@ export function createGenerationFlow({
       throw new Error("Заполните обязательные параметры генерации.");
     }
 
-    return {
+    const payload = {
       question_count: questionCount,
       language,
       difficulty,
       quiz_type: quizType,
       generation_mode: generationMode,
     };
+
+    const modelName = String(formData.get("model_name") ?? "").trim();
+    if (modelName) {
+      payload.model_name = modelName;
+    }
+    const profileName = String(formData.get("profile_name") ?? "").trim();
+    if (profileName) {
+      payload.profile_name = profileName;
+    }
+
+    return payload;
   }
 
   function updateOperationSummary(uploadPayload, generationPayload) {

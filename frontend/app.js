@@ -1,6 +1,7 @@
 import { QuizCraftApiClient } from "./api/client.js";
 import { createJsonExporter } from "./download.js";
 import { createGenerationFlow } from "./generation-flow.js";
+import { createGenerationSettingsController } from "./generation-settings.js";
 import { createProgressController } from "./progress.js";
 import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
@@ -44,6 +45,8 @@ const generationTimerElement = document.getElementById("generation-timer");
 const dropzoneFileName = document.getElementById("dropzone-file-name");
 const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
 const dropzoneRemoveButton = document.getElementById("dropzone-remove");
+const modelSelect = document.getElementById("generation-model");
+const profileSelect = document.getElementById("generation-profile");
 
 const editorState = {
   loadedQuiz: null,
@@ -124,6 +127,12 @@ const quizHistory = createQuizHistory({
   datalistElement: document.getElementById("quiz-history-options"),
 });
 quizHistory.renderHistoryDatalist();
+const generationSettings = createGenerationSettingsController({
+  client,
+  modelSelect,
+  profileSelect,
+  setLogMessage,
+});
 
 const quizRenderer = createQuizRenderer({
   resultPanel,
@@ -205,6 +214,7 @@ async function bootstrapShell() {
   quizEditor.clearQuizEditor();
   setEditorStatus("Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.", null);
   quizRenderer.setResultState("Квиз появится здесь после успешной генерации.", "idle", "Ожидание результата");
+  generationSettings.loadSettings();
 
   try {
     const [backendHealth, providerHealth] = await Promise.all([

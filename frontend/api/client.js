@@ -53,6 +53,10 @@ export class QuizCraftApiClient {
     return this._request("/health/lm-studio", { timeoutMs: this._timeouts.health });
   }
 
+  getGenerationSettings() {
+    return this._request("/generation/settings", { timeoutMs: this._timeouts.health });
+  }
+
   uploadDocument({ filename, mediaType, content, signal } = {}) {
     if (typeof filename !== "string" || !filename.trim()) {
       throw new Error("filename is required");

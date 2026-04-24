@@ -19,6 +19,7 @@ QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
 QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
 QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 GENERATION_FLOW_JS = FRONTEND_DIR / "generation-flow.js"
+GENERATION_SETTINGS_JS = FRONTEND_DIR / "generation-settings.js"
 PROGRESS_JS = FRONTEND_DIR / "progress.js"
 THEME_JS = FRONTEND_DIR / "theme.js"
 TOAST_JS = FRONTEND_DIR / "toast.js"
@@ -30,6 +31,7 @@ FRONTEND_JS_MODULES = (
     QUIZ_EDITOR_JS,
     QUIZ_HISTORY_JS,
     GENERATION_FLOW_JS,
+    GENERATION_SETTINGS_JS,
     PROGRESS_JS,
     THEME_JS,
     TOAST_JS,
@@ -141,6 +143,7 @@ def test_frontend_app_imports_focused_modules() -> None:
         "quiz-editor.js",
         "quiz-history.js",
         "generation-flow.js",
+        "generation-settings.js",
         "progress.js",
         "theme.js",
         "toast.js",
@@ -151,6 +154,7 @@ def test_frontend_app_imports_focused_modules() -> None:
     assert "createQuizEditor" in content
     assert "createQuizRenderer" in content
     assert "createQuizHistory" in content
+    assert "createGenerationSettingsController" in content
 
 
 def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
@@ -749,6 +753,57 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     assert 'unit: "МБ"' in content
     assert "replace(\".\", \",\")" in content, (
         "file size formatter must emit locale-friendly decimal commas"
+    )
+
+
+def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
+    client_content = API_CLIENT_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="generation-model"' in index_content, (
+        "upload form must expose a model selector"
+    )
+    assert 'id="generation-profile"' in index_content, (
+        "upload form must expose a generation profile selector"
+    )
+    assert 'name="model_name"' in index_content
+    assert 'name="profile_name"' in index_content
+    assert "Модель" in index_content
+    assert "Профиль генерации" in index_content
+    assert ">Авто<" in index_content, (
+        "selectors must default to Russian auto-mode when no override is picked"
+    )
+
+    assert "export function createGenerationSettingsController" in settings_content
+    assert "loadSettings" in settings_content
+    assert "populateModelSelect" in settings_content
+    assert "populateProfileSelect" in settings_content
+    assert "available_models" in settings_content
+    assert "available_profiles" in settings_content
+    assert "default_model" in settings_content
+    assert "default_profile" in settings_content
+    assert "humanizeProfile" in settings_content
+    assert "Быстрый" in settings_content and "Сбалансированный" in settings_content and "Строгий" in settings_content
+
+    assert "getGenerationSettings" in client_content, (
+        "API client must expose getGenerationSettings"
+    )
+    assert '"/generation/settings"' in client_content
+
+    assert 'formData.get("model_name")' in generation_content, (
+        "generation payload must pick up the model_name override from the form"
+    )
+    assert 'formData.get("profile_name")' in generation_content, (
+        "generation payload must pick up the profile_name override from the form"
+    )
+    assert "payload.model_name = modelName" in generation_content
+    assert "payload.profile_name = profileName" in generation_content
+
+    assert "generationSettings.loadSettings()" in app_content, (
+        "app bootstrap must request available models/profiles from backend"
     )
 
 
