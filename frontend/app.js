@@ -137,6 +137,7 @@ const quizEditor = createQuizEditor({
   setLogMessage,
   setExportAvailability,
   advanceStepper: progressController.advanceStepper,
+  renderQuizResult: quizRenderer.renderQuizResult,
   showToast: toastController.showToast,
   describeError,
   describeValidationError,
@@ -247,6 +248,7 @@ form?.addEventListener("submit", generationFlow.submitGeneration);
 quizEditorLoader?.addEventListener("submit", quizEditor.loadQuizForEditing);
 quizEditorFields?.addEventListener("input", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("change", quizEditor.markEditorDirty);
+quizEditorFields?.addEventListener("click", quizEditor.regenerateQuizQuestion);
 saveQuizButton?.addEventListener("click", quizEditor.submitQuizEdits);
 
 bootstrapShell();
