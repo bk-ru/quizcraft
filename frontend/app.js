@@ -164,6 +164,7 @@ const generationFlow = createGenerationFlow({
   startGenerationProgress: progressController.startGenerationProgress,
   advanceGenerationProgress: progressController.advanceGenerationProgress,
   completeGenerationProgress: progressController.completeGenerationProgress,
+  completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence,
   failGenerationProgress: progressController.failGenerationProgress,
   showToast: toastController.showToast,
 });

@@ -394,7 +394,7 @@ def test_frontend_app_drives_generation_progress_state() -> None:
     for helper in (
         "startGenerationProgress",
         "advanceGenerationProgress",
-        "completeGenerationProgress",
+        "completeGenerationProgressWithBackendEvidence",
         "failGenerationProgress",
         "waitForProgressVisibility",
     ):
@@ -406,8 +406,31 @@ def test_frontend_app_drives_generation_progress_state() -> None:
     assert 'advanceGenerationProgress("upload", "parse")' in generation_content
     assert 'advanceGenerationProgress("parse", "generate")' in generation_content
     assert 'advanceGenerationProgress("generate", "validate")' in generation_content
-    assert "completeGenerationProgress()" in generation_content
+    assert "completeGenerationProgressWithBackendEvidence(generationPayload)" in generation_content
     assert "failGenerationProgress(failedStep)" in generation_content
+
+
+def test_frontend_progress_aligns_with_backend_generation_status_evidence() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    progress_content = PROGRESS_JS.read_text(encoding="utf-8")
+
+    for backend_status in ("queued", "running", "done", "failed"):
+        assert backend_status in progress_content
+    for backend_step in ("parse", "generate", "repair", "persist"):
+        assert backend_step in progress_content
+
+    assert "BACKEND_STEP_TO_PROGRESS_STEP" in progress_content
+    assert 'repair: "generate"' in progress_content
+    assert 'persist: "validate"' in progress_content
+    assert "applyBackendGenerationStatusEvidence" in progress_content
+    assert "completeGenerationProgressWithBackendEvidence" in progress_content
+    assert "generation_status" in progress_content
+    assert "pipeline_status" in progress_content
+    assert "pipeline_events" in progress_content
+    assert "completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence" in app_content
+    assert "Генерируем" in index_content
+    assert "Валидируем" in index_content
 
 
 def test_frontend_styles_theme_generation_progress() -> None:
