@@ -11,7 +11,6 @@ from backend.app.domain.errors import RepositoryNotFoundError
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
-from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.domain.normalization import normalize_question_output
 from backend.app.domain.validation import validate_quiz
 from backend.app.generation.request_builder import SingleQuestionRegenerationRequestBuilder
