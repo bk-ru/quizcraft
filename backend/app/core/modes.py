@@ -11,6 +11,7 @@ class GenerationMode(str, Enum):
     """Supported generation modes for the backend."""
 
     DIRECT = "direct"
+    SINGLE_QUESTION_REGEN = "single_question_regen"
 
 
 class GenerationModeRegistry:
