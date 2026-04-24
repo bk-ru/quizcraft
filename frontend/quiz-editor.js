@@ -8,7 +8,7 @@ export function cloneQuizPayload(quiz) {
 }
 
 const REGENERATE_CONFIRM_PROMPT =
-  "Перегенерировать этот вопрос? Текущий текст вопроса, ответы и пояснение будут заменены новой версией из backend. Несохранённые правки других вопросов останутся без изменений.";
+  "Перегенерировать этот вопрос? Текущий текст вопроса, ответы и пояснение будут заменены новой версией. Несохранённые правки других вопросов останутся без изменений.";
 
 function defaultConfirmAction(message) {
   if (typeof globalThis !== "undefined" && typeof globalThis.confirm === "function") {
@@ -153,7 +153,7 @@ export function createQuizEditor({
 
     const note = documentRef.createElement("p");
     note.className = "panel-copy";
-    note.textContent = "После редактирования это содержимое можно сохранить в backend.";
+    note.textContent = "После редактирования это содержимое можно сохранить.";
 
     const regenerateButton = documentRef.createElement("button");
     regenerateButton.className = "ghost-action question-regenerate-action";
@@ -322,7 +322,7 @@ export function createQuizEditor({
         });
       }
       showToast("Квиз загружен в редактор.", "ok");
-      setLogMessage(`Открыт квиз ${payload.quiz_id ?? quizId} для локального редактирования и последующего сохранения.`, "ok");
+      setLogMessage("Квиз открыт в редакторе.", "ok");
     } catch (error) {
       setEditorStatus(`Не удалось открыть квиз: ${describeError(error)}`, "bad");
       setEditorSaveState({ disabled: true });
@@ -358,7 +358,7 @@ export function createQuizEditor({
       const displayedQuiz = buildQuizUpdatePayload();
       setRegenerationActionState(card, {
         busy: true,
-        text: "Перегенерируем вопрос через backend…",
+        text: "Перегенерируем вопрос…",
         tone: "warn",
       });
       setEditorStatus("Перегенерируем один вопрос. Остальные вопросы останутся без изменений.", "warn");
@@ -396,7 +396,7 @@ export function createQuizEditor({
         editorState.isDirty = true;
         setEditorSaveState({ disabled: false });
         setEditorStatus(
-          "Вопрос перегенерирован. Несохранённые правки в остальных полях сохранены локально; сохраните квиз, чтобы отправить их в backend.",
+          "Вопрос перегенерирован. Несохранённые правки в остальных полях сохранены локально; сохраните квиз, чтобы применить их.",
           "warn",
         );
       } else {
@@ -404,7 +404,7 @@ export function createQuizEditor({
       }
       showToast("Вопрос перегенерирован.", "ok");
       setLogMessage(
-        `Вопрос ${questionId} перегенерирован через backend; остальные вопросы и кириллица сохранены без изменений.`,
+        "Вопрос перегенерирован; остальные вопросы и кириллица сохранены без изменений.",
         "ok",
       );
     } catch (error) {
@@ -446,7 +446,7 @@ export function createQuizEditor({
       setEditorStatus("Изменения сохранены.", "ok");
       showToast("Изменения сохранены.", "ok");
       setLogMessage(
-        `Изменения квиза ${persistedQuiz.quiz_id} сохранены и перечитаны из backend без потери кириллицы.`,
+        "Изменения квиза сохранены и перечитаны без потери кириллицы.",
         "ok",
       );
     } catch (error) {
