@@ -25,6 +25,7 @@ export function createQuizRenderer({
     }
     if (resultStateBadge) {
       resultStateBadge.textContent = badgeText;
+      resultStateBadge.dataset.tone = tone || "muted";
     }
   }
 

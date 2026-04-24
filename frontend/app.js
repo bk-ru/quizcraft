@@ -92,6 +92,7 @@ function setToneMessage(element, text, tone) {
     return;
   }
   element.textContent = text;
+  element.hidden = !text;
   if (tone) {
     element.dataset.statusTone = tone;
   } else {
@@ -156,6 +157,14 @@ const quizRenderer = createQuizRenderer({
   advanceStepper: progressController.advanceStepper,
 });
 
+function focusResultView() {
+  if (!resultPanel) {
+    return;
+  }
+  resultPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+  resultPanel.focus({ preventScroll: true });
+}
+
 const quizEditor = createQuizEditor({
   editorState,
   client,
@@ -196,8 +205,7 @@ const generationFlow = createGenerationFlow({
   setExportAvailability,
   clearQuizResult: quizRenderer.clearQuizResult,
   renderQuizResult: quizRenderer.renderQuizResult,
-  renderQuizEditor: quizEditor.renderQuizEditor,
-  setQuizEditorSummary: quizEditor.setQuizEditorSummary,
+  focusResultView,
   advanceStepper: progressController.advanceStepper,
   markStepperFailed: progressController.markStepperFailed,
   waitForProgressVisibility: progressController.waitForProgressVisibility,
@@ -261,12 +269,12 @@ async function bootstrapShell() {
         `${providerHealth.status} · ${providerHealth.message}`,
         statusMap[providerHealth.status] ?? "warn",
       );
-      setLogMessage("Shell успешно связался с backend health endpoint-ами.", "ok");
+      setLogMessage("Подключение к сервисам генерации проверено.", "ok");
     }
   } catch (error) {
     setStatus("backend", "Проверка не удалась", "bad");
     setStatus("provider", "Проверка не удалась", "bad");
-    setLogMessage(`Shell не смог получить health-статус: ${describeError(error)}`, "bad");
+    setLogMessage(`Не удалось проверить подключение: ${describeError(error)}`, "bad");
   }
 }
 
@@ -278,6 +286,9 @@ function openEditorForCurrentQuiz() {
   quizIdInput.value = quizId;
   const editorPanel = document.getElementById("quiz-editor");
   if (editorPanel) {
+    if (editorPanel instanceof HTMLDetailsElement) {
+      editorPanel.open = true;
+    }
     editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
   }
   quizEditor.loadQuizForEditing({ preventDefault: () => {} });
