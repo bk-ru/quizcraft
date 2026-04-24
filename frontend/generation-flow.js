@@ -29,6 +29,7 @@ export function createGenerationFlow({
   startGenerationProgress,
   advanceGenerationProgress,
   completeGenerationProgress,
+  completeGenerationProgressWithBackendEvidence,
   failGenerationProgress,
   showToast,
 }) {
@@ -175,7 +176,11 @@ export function createGenerationFlow({
         `Квиз создан: ${generationPayload.quiz_id}. Result view отрисовал содержимое без потери кириллицы.`,
         "ok",
       );
-      completeGenerationProgress();
+      if (typeof completeGenerationProgressWithBackendEvidence === "function") {
+        completeGenerationProgressWithBackendEvidence(generationPayload);
+      } else {
+        completeGenerationProgress();
+      }
     } catch (error) {
       clearQuizResult();
       setExportAvailability(null);
