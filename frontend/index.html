@@ -263,6 +263,24 @@
           <span id="result-state-badge" class="badge" data-tone="muted">Ожидание результата</span>
         </div>
         <p id="result-status" class="result-status">Квиз появится здесь после успешной генерации.</p>
+        <div class="result-empty-state" data-testid="result-empty-state" aria-hidden="true">
+          <svg viewBox="0 0 120 120" width="96" height="96" role="img" aria-label="Иллюстрация пустого квиза">
+            <defs>
+              <linearGradient id="empty-state-gradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="currentColor" stop-opacity="0.16"></stop>
+                <stop offset="100%" stop-color="currentColor" stop-opacity="0.04"></stop>
+              </linearGradient>
+            </defs>
+            <rect x="18" y="22" width="84" height="74" rx="10" fill="url(#empty-state-gradient)" stroke="currentColor" stroke-width="1.6" stroke-opacity="0.4"></rect>
+            <line x1="30" y1="42" x2="84" y2="42" stroke="currentColor" stroke-opacity="0.45" stroke-width="2.2" stroke-linecap="round"></line>
+            <line x1="30" y1="58" x2="76" y2="58" stroke="currentColor" stroke-opacity="0.3" stroke-width="2.2" stroke-linecap="round"></line>
+            <line x1="30" y1="74" x2="68" y2="74" stroke="currentColor" stroke-opacity="0.3" stroke-width="2.2" stroke-linecap="round"></line>
+            <circle cx="92" cy="30" r="10" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6"></circle>
+            <path d="M89 30l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+          </svg>
+          <p class="result-empty-state-title">Здесь появится ваш квиз</p>
+          <p class="result-empty-state-hint">Загрузите документ слева, выберите параметры и нажмите «Сгенерировать квиз».</p>
+        </div>
         <dl class="result-overview">
           <div>
             <dt>Заголовок</dt>
