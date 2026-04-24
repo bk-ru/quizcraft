@@ -18,6 +18,7 @@ from backend.app.parsing.txt import TxtParser
 from backend.app.prompts.registry import PromptRegistry
 from backend.app.storage.documents import FileSystemDocumentRepository
 from backend.app.storage.generation_results import FileSystemGenerationResultRepository
+from backend.app.storage.generation_settings import FileSystemGenerationSettingsRepository
 from backend.app.storage.quizzes import FileSystemQuizRepository
 
 DEFAULT_STORAGE_DIRECTORY_NAME = ".quizcraft"
@@ -61,6 +62,16 @@ def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
         )
         app.state.generation_orchestrator = orchestrator
     return orchestrator
+
+
+def get_generation_settings_repository(app: FastAPI) -> FileSystemGenerationSettingsRepository:
+    """Get or lazily build the generation settings repository for the FastAPI app."""
+
+    repository = getattr(app.state, "generation_settings_repository", None)
+    if repository is None:
+        repository = FileSystemGenerationSettingsRepository(app.state.storage_root)
+        app.state.generation_settings_repository = repository
+    return repository
 
 
 def _build_document_ingestion_service(
