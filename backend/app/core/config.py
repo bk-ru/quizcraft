@@ -3,16 +3,55 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 from dataclasses import dataclass
 from dataclasses import field
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any
 from typing import Mapping
 
 from backend.app.domain.errors import ConfigurationError
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_GENERATION_PROFILE_NAME = "balanced"
+
+
+def load_env_file(path: str | os.PathLike[str], override: bool = False) -> dict[str, str]:
+    """Load KEY=VALUE pairs from a dotenv-style file into the process environment.
+
+    Lines beginning with ``#`` and blank lines are ignored. Values may be optionally
+    wrapped in single or double quotes. Existing environment variables are preserved
+    by default so that real shell values override the file.
+    """
+
+    env_path = Path(path)
+    if not env_path.is_file():
+        return {}
+
+    loaded: dict[str, str] = {}
+    for line_number, raw_line in enumerate(env_path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+        if line.startswith("export "):
+            line = line[len("export ") :].lstrip()
+        if "=" not in line:
+            logger.warning("Ignoring malformed line %s in %s", line_number, env_path)
+            continue
+        key, _, value = line.partition("=")
+        key = key.strip()
+        if not key:
+            continue
+        value = value.strip()
+        if len(value) >= 2 and value[0] == value[-1] and value[0] in {'"', "'"}:
+            value = value[1:-1]
+        if override or key not in os.environ:
+            os.environ[key] = value
+        loaded[key] = value
+    return loaded
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,7 +212,16 @@ class AppConfig:
 
     @classmethod
     def from_env(cls) -> "AppConfig":
-        """Build configuration from process environment variables."""
+        """Build configuration from process environment variables.
+
+        When ``QUIZCRAFT_ENV_FILE`` points at a readable file its contents are
+        loaded into the process environment before variables are read. Otherwise
+        a ``.env`` file in the current working directory is used when present.
+        Real shell variables always win over file-provided values.
+        """
+
+        env_file_path = os.getenv("QUIZCRAFT_ENV_FILE") or ".env"
+        load_env_file(env_file_path)
 
         lm_studio_base_url = os.getenv("LM_STUDIO_BASE_URL")
         if not lm_studio_base_url:

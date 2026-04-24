@@ -9,6 +9,7 @@ from uuid import uuid4
 from fastapi import FastAPI
 from fastapi import Request
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.correlation import REQUEST_ID_HEADER
 from backend.app.api.correlation import bind_correlation_id
@@ -44,6 +45,16 @@ def create_app(
         force=True,
     )
     app = FastAPI(title="QuizCraft Backend")
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=[
+            "http://127.0.0.1:5500",
+            "http://localhost:5500",
+        ],
+        allow_methods=["*"],
+        allow_headers=["*"],
+        expose_headers=["X-Request-ID"],
+    )
     app.state.config = resolved_config
     app.state.storage_root = Path(storage_root) if storage_root is not None else resolve_default_storage_root()
     app.state.provider = provider or LMStudioClient(
@@ -79,3 +90,16 @@ def create_app(
             reset_correlation_id(token)
 
     return app
+
+
+def __getattr__(name: str) -> FastAPI:
+    """Provide ``app`` lazily so importing this module without env config stays cheap.
+
+    Uvicorn imports ``backend.app.main:app`` at startup, which triggers ``create_app``
+    only at that point. Tests that import the module for ``create_app`` still run
+    without requiring a populated environment.
+    """
+
+    if name == "app":
+        return create_app()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

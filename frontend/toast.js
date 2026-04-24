@@ -5,7 +5,8 @@ export function createToastController(toastRegion, windowRef = window, documentR
     }
     const toast = documentRef.createElement("div");
     toast.className = "toast";
-    toast.setAttribute("role", "status");
+    toast.setAttribute("role", tone === "bad" ? "alert" : "status");
+    toast.setAttribute("aria-atomic", "true");
     if (tone) {
       toast.dataset.tone = tone;
     }
@@ -35,5 +36,16 @@ export function createToastController(toastRegion, windowRef = window, documentR
     }
   }
 
-  return { showToast };
+  function dismissAllToasts() {
+    if (!toastRegion) {
+      return 0;
+    }
+    const toasts = toastRegion.querySelectorAll(".toast");
+    for (const toast of toasts) {
+      toast.remove();
+    }
+    return toasts.length;
+  }
+
+  return { showToast, dismissAllToasts };
 }

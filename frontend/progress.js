@@ -1,4 +1,4 @@
-const STEPPER_ORDER = ["upload", "params", "generate", "review", "edit"];
+const STEPPER_ORDER = ["upload", "params", "review", "edit"];
 const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "validate"];
 const BACKEND_STEP_TO_PROGRESS_STEP = Object.freeze({
   parse: "parse",
@@ -41,20 +41,25 @@ export function createProgressController({ stepper, generationProgressPanel }, w
     }
   }
 
-  function advanceStepper(stageName) {
+  function advanceStepper(stageName, options = {}) {
     const activeIndex = STEPPER_ORDER.indexOf(stageName);
     if (activeIndex < 0 || !stepper) {
       return;
     }
+    const activeState = options && options.state === "failed" ? "failed" : "active";
     for (const [index, step] of STEPPER_ORDER.entries()) {
       if (index < activeIndex) {
         setStepState(step, "done");
       } else if (index === activeIndex) {
-        setStepState(step, "active");
+        setStepState(step, activeState);
       } else {
         setStepState(step, null);
       }
     }
+  }
+
+  function markStepperFailed(stageName) {
+    advanceStepper(stageName, { state: "failed" });
   }
 
   function waitForProgressVisibility(ms = PROGRESS_STEP_VISIBILITY_MS) {
@@ -231,6 +236,7 @@ export function createProgressController({ stepper, generationProgressPanel }, w
 
   return {
     advanceStepper,
+    markStepperFailed,
     waitForProgressVisibility,
     startGenerationProgress,
     advanceGenerationProgress,
