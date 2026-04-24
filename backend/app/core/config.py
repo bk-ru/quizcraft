@@ -90,7 +90,7 @@ class AppConfig:
 
     lm_studio_base_url: str
     lm_studio_model: str
-    request_timeout: int = 30
+    request_timeout: int = 300
     max_file_size_mb: int = 10
     max_document_chars: int = 50_000
     log_level: str = "INFO"
@@ -231,7 +231,7 @@ class AppConfig:
         if not lm_studio_model:
             raise ConfigurationError("LM_STUDIO_MODEL is required")
 
-        request_timeout = cls._load_int("REQUEST_TIMEOUT", "30")
+        request_timeout = cls._load_int("REQUEST_TIMEOUT", "300")
         max_file_size_mb = cls._load_int("MAX_FILE_SIZE_MB", "10")
         max_document_chars = cls._load_int("MAX_DOCUMENT_CHARS", "50000")
         log_level = os.getenv("LOG_LEVEL", "INFO").upper()
