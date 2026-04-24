@@ -41,6 +41,9 @@ const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
 const cancelGenerationButton = document.getElementById("cancel-generation-button");
 const generationTimerElement = document.getElementById("generation-timer");
+const dropzoneFileName = document.getElementById("dropzone-file-name");
+const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
+const dropzoneRemoveButton = document.getElementById("dropzone-remove");
 
 const editorState = {
   loadedQuiz: null,
@@ -160,6 +163,9 @@ const generationFlow = createGenerationFlow({
   quizIdInput,
   cancelButton: cancelGenerationButton,
   timerElement: generationTimerElement,
+  dropzoneFileName,
+  dropzoneFileMeta,
+  dropzoneRemoveButton,
   setTextContent,
   setSubmissionStatus,
   setResultState: quizRenderer.setResultState,
@@ -249,6 +255,11 @@ generationFlow.attachDropzone();
 exportJsonButton?.addEventListener("click", jsonExporter.exportQuizAsJson);
 editShortcutButton?.addEventListener("click", openEditorForCurrentQuiz);
 cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration);
+dropzoneRemoveButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  generationFlow.removeSelectedFile();
+});
 
 fileInput?.addEventListener("change", () => {
   generationFlow.updateSelectedFileSummary();
