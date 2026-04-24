@@ -48,6 +48,11 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-24) Completed and integrated all of Stage 11 on `main`, covering model selection, generation profiles, and settings persistence/reuse.
 - [x] (2026-04-24) Implemented, reviewed, and integrated Stage 12 Batch 1 on `main` via merge commit `651daed`, covering the `BE-013` API/request-contract slice with the single-question regeneration endpoint, strict request validation, quiz lookup, target question lookup, controlled not-found and validation errors, and explicit no-provider/no-mutation contract evidence.
 - [x] (2026-04-24) Implemented, reviewed, and integrated Stage 12 Batch 2 on `main` via merge commit `98c5b48`, covering `PM-005` and the `CF-002` single-question regeneration mode slice with the targeted prompt template, `single_question_regen` mode support, provider request builder/orchestration path, profile/settings compatibility, isolated target-question replacement, and persisted quiz updates through the existing quiz repository.
+- [x] (2026-04-24) Implemented, reviewed, and integrated Stage 12 Batch 3 on `main` via merge commit `8accaec`, closing the frontend UI wiring for isolated question regeneration. Feature commits on the branch: `e78ae6d` (feat(frontend): add single-question regeneration action), `8616e0d` (feat(frontend): update quiz view after isolated regeneration), and `b15d829` (test(frontend): cover single-question regeneration smoke paths). Russian/Cyrillic UI preservation is verified by the shell tests, and the rest of the quiz stays unchanged outside the targeted question.
+- [x] (2026-04-24) Integrated a comprehensive post-MVP frontend UX polish pass on `main` under the same merge commit `8accaec`, split into three in-branch batches. Batch P1 unifies the shell (commits `1d69faa`, `c3017ff`, `8f2574d`, `133dafb`, `b346959`): four-phase stepper as single source of truth, dropzone preview with remove, confirm dialog before destructive regeneration, model/profile selectors driven by `/generation/settings`, and removal of the global diagnostics panel. Batch P2 sharpens feedback (commits `4cffb47`, `6a9257b`, `655994d`, `975293b`, `732571a`, `a252a3a`): failed review phase highlight, real empty state in the idle result panel, auto-persisted defaults hint plus post-generation refresh, Ctrl/⌘+Enter/S/. keyboard shortcuts, copy buttons for quiz/document IDs, and removal of duplicate stepper phases inside panel headings. Batch P3 polishes the surface (commits `e90f918`, `ed4476d`, `b4804e1`): compact hero with reduced-motion-guarded pulse, per-theme icon in the theme toggle, and accessibility hooks for disabled actions plus elevated `role="alert"` for error toasts.
+- [x] (2026-04-24) Integrated a dev-experience batch on `main` under the same merge commit `8accaec`, feature commit `bf030d3`. Adds a dotenv-style loader to `AppConfig.from_env` (with `QUIZCRAFT_ENV_FILE` override), lazy FastAPI app export in `backend/app/main.py`, a committed `.env.example`, PowerShell helpers `run-backend.ps1` and `run-frontend.ps1`, `.gitignore` entries for `.env`, `.env.local`, and `*.egg-info/`, and a README "Running Locally" section that documents the new one-command flow. Backend tests isolate `QUIZCRAFT_ENV_FILE` so the real `.env` cannot leak into CI.
+- [x] (2026-04-24) Integrated a config hotfix on `main` via merge commit `bdfca15`, feature commit `1e083ac`. Raises the default `REQUEST_TIMEOUT` from 30 to 300 seconds, matching the `.env.example` template, so fresh installs no longer 504 on slow local CPU inference through LM Studio. Evidence: a regression test pins the 300-second default; shell variables and a loaded `.env` file continue to override it.
+- [x] (2026-04-24) Completed and integrated all of Stage 12 on `main`, closing the single-question regeneration stage (backend endpoint, generation-mode prompt and pipeline, and frontend UI wiring).
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -127,9 +132,9 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 ## Outcomes & Retrospective
 
-At this stopping point, the repository no longer contains only planning artifacts, and the early MVP is complete on `main`. The integrated surface now includes the Stage 1 foundation contracts, the full Stage 2 ingestion and parsing scope for TXT, DOCX, and PDF, the complete Stage 3 LM Studio provider integration scope, the full Stage 4 direct generation pipeline, the full Stage 5 HTTP bootstrap/upload/generate API surface, the full Stage 6 quiz read/update API surface, the accepted Cyrillic compatibility fixes, the full Stage 7 frontend upload-to-result flow, the full Stage 8 quiz editing flow, the full Stage 9 JSON export scope (canonical exporter, download endpoint, and frontend action), an unplanned API quality hardening batch (Pydantic bodies, enum whitelists, `413` enforcement, and the initial `pyproject.toml`/Ruff/GitHub Actions tooling), and a role-based frontend timeout fix that makes LM Studio generation viable under real latency (PR #3, merge `d964ad1`).
+At this stopping point, the early MVP and the P2 slice of the backlog are both complete on `main`. The integrated surface includes Stages 1 through 9 (foundation, ingestion, LM Studio integration, direct generation pipeline, HTTP API, quiz read/update, Cyrillic fixes, frontend upload-to-result, frontend editing, and JSON export), the unplanned API quality hardening batch, the role-based frontend timeout fix, Stage 10 (backend generation status with pipeline step logging and a Russian/Cyrillic-safe progress UI), Stage 11 (model whitelist, named generation profiles, and persisted generation settings reused as defaults), and Stage 12 (single-question regeneration: backend endpoint, `single_question_regen` prompt and pipeline, and frontend UI wiring). On top of those feature stages, `main` also carries three post-MVP frontend UX polish batches (P1 unified shell, P2 sharper feedback, P3 polish and accessibility), a dev-experience batch with a dotenv loader, PowerShell run scripts, and the committed `.env.example`, and a config hotfix that raises the default `REQUEST_TIMEOUT` from 30 to 300 seconds so fresh installs no longer 504 on slow local LM Studio inference.
 
-The key outcome is that the Validation and Acceptance criteria for the early MVP now hold end-to-end: a user can upload a document, choose generation parameters, trigger quiz generation through LM Studio, review the generated quiz, edit it, and export the final quiz as a JSON file. The next contributor should start the second-wave backlog from Stage 10 (generation status and user-facing operation states) rather than revisiting any Stage 1–9 surface or the timeout fix.
+The key outcome is that the Validation and Acceptance criteria for the early MVP still hold end-to-end and are now complemented by a more approachable UX surface: a user can upload a document, choose generation parameters (with model and profile selectors driven by `/generation/settings`), trigger quiz generation through LM Studio with a cancel button and live timer, review the generated quiz, regenerate individual questions after an explicit confirmation, edit the quiz, and export the final quiz as a JSON file. Keyboard shortcuts, copy buttons, a compact hero, a per-theme toggle icon, and screen-reader hints for disabled actions round out the polish. The next contributor should start from Stage 13 (DOCX and PPTX export) rather than revisiting any Stage 1–12 surface, the dev-experience batch, the post-MVP UX polish batches, or the REQUEST_TIMEOUT hotfix.
 
 ## Context and Orientation
 
@@ -493,7 +498,7 @@ Recommended batch breakdown:
 2. Batch 2: prompt template and generation-mode support for targeted regeneration, including the provider request builder/orchestration path and compatibility with profiles/settings.
 3. Batch 3: focused tests and frontend UI wiring for isolated question replacement, including Russian/Cyrillic preservation in the UI and unchanged quiz structure outside the target question.
 
-Current status on `main`: Batch 1 is implemented and integrated via merge commit `651daed`, covering the API/request contract. Batch 2 is implemented and integrated via merge commit `98c5b48`, covering the targeted-regeneration prompt template, `single_question_regen` generation-mode support, provider request builder/orchestration path, profile/settings compatibility, isolated target-question replacement, and persisted quiz updates. Batch 3 remains planned and should be limited to focused tests plus frontend UI wiring for isolated question replacement, Russian/Cyrillic UI preservation, and unchanged quiz structure outside the target question.
+Current status on `main`: fully implemented and integrated. Batch 1 landed via merge commit `651daed` (API/request contract). Batch 2 landed via merge commit `98c5b48` (targeted-regeneration prompt template, `single_question_regen` generation-mode support, provider request builder/orchestration path, profile/settings compatibility, isolated target-question replacement, and persisted quiz updates). Batch 3 landed via merge commit `8accaec` (frontend UI wiring for isolated question replacement, Russian/Cyrillic UI preservation confirmed by shell tests, and unchanged quiz structure outside the target question). Stage 12 is complete.
 
 Definition of done: The backend exposes an endpoint that can regenerate one question inside an existing quiz without replacing the rest of the quiz, using a dedicated prompt template and a new `single_question_regen` generation mode. The operation is verifiable through API tests even if a dedicated UI story is added later rather than now.
 
@@ -626,6 +631,8 @@ Current integrated state:
     d964ad1 Merge pull request #3 from bk-ru/devin/1776937949-frontend-timeouts
     eb1f79b feat(frontend): declutter happy path and escalate lm studio unavailable state
     99529e2 feat(frontend): surface operation feedback with 422 mapper and progress indicator
+    8accaec merge(frontend): stage 12 batch 03 — full UX pass + dev experience
+    bdfca15 merge(config): raise default REQUEST_TIMEOUT to 300s
 
 Current backlog completion status:
 
@@ -663,14 +670,21 @@ Current backlog completion status:
     Stage 11: fully integrated on main
     Stage 12 Batch 1 (`BE-013` API/request-contract slice): integrated on main
     Stage 12 Batch 2 (`PM-005`, `CF-002` single-question regeneration mode slice): integrated on main
+    Stage 12 Batch 3 (frontend UI wiring for isolated question replacement): integrated on main
+    Stage 12: fully integrated on main
+    Post-MVP UX polish Batch P1 (unified shell: stepper, dropzone preview, regenerate confirm, model/profile selectors, diagnostics panel removal): integrated on main
+    Post-MVP UX polish Batch P2 (sharper feedback: failed step highlight, idle empty state, auto-persisted defaults hint, keyboard shortcuts, copy buttons, duplicate stepper badges removed): integrated on main
+    Post-MVP UX polish Batch P3 (polish: compact hero, per-theme icon, a11y hints, alert-role toasts): integrated on main
+    Dev-experience batch (dotenv loader, run scripts, README, .env.example, .gitignore): integrated on main
+    Config hotfix (raise default `REQUEST_TIMEOUT` from 30 to 300 seconds): integrated on main
 
 Next recommended stage:
 
-    Stage 12: Single-Question Regeneration
+    Stage 13: Advanced Export Formats (DOCX and PPTX)
 
 Next recommended batch:
 
-    Stage 12 Batch 3: focused tests and frontend UI wiring for isolated question replacement, Russian/Cyrillic UI preservation, and unchanged quiz structure outside the target question
+    Stage 13 Batch 1: exporter registry plus DOCX and PPTX exporters (`EX-002`, `EX-003`, `EX-004`, `TS-009` exporter slice). Batch 2 should then add the `BE-011`/`BE-012` download endpoints and the `UI-006` frontend controls once the exporter surface is stable.
 
 ## Interfaces and Dependencies
 
