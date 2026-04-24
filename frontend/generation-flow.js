@@ -209,7 +209,7 @@ export function createGenerationFlow({
       clearQuizResult();
       setBusyState(true);
       setExportAvailability(null);
-      advanceStepper("generate");
+      advanceStepper("review");
       startGenerationProgress();
       startTimer();
       setCancelButtonVisible(true);

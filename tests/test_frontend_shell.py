@@ -668,3 +668,45 @@ def test_frontend_generation_timer_formats_and_warns_on_slow_generation() -> Non
     assert "SLOW_GENERATION_WARNING_MS" in content
     assert "setInterval" in content
     assert "clearInterval" in content
+
+
+def test_frontend_main_stepper_holds_four_product_phases() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    progress_content = PROGRESS_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    stepper_block = re.search(
+        r'<ol class="stepper"[^>]*id="stepper"[\s\S]+?</ol>',
+        index_content,
+    )
+    assert stepper_block is not None, "main stepper must exist in the index"
+    stepper_html = stepper_block.group(0)
+    stepper_steps = re.findall(r'data-step="([^"]+)"', stepper_html)
+    assert stepper_steps == ["upload", "params", "review", "edit"], (
+        "main stepper must expose exactly the four product phases"
+    )
+    assert 'data-step="generate"' not in stepper_html, (
+        "the technical generate stage must not duplicate the product stepper"
+    )
+    assert "Результат" in stepper_html, (
+        "the third stepper phase must be labelled Результат, not Просмотр"
+    )
+
+    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in layout_css
+    assert 'STEPPER_ORDER = ["upload", "params", "review", "edit"]' in progress_content
+    assert 'advanceStepper("generate")' not in generation_content, (
+        "generation flow must drive the product stepper, not the technical generate slot"
+    )
+    assert 'advanceStepper("review")' in generation_content
+
+
+def test_frontend_editor_panel_badge_matches_four_step_product_flow() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "Шаг 5" not in content, (
+        "editor badge must match the collapsed four-phase flow"
+    )
+    assert "Шаг 4" in content
+    assert "Шаг 1" in content
+    assert "Шаг 2" in content
