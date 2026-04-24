@@ -95,6 +95,26 @@ export class QuizCraftApiClient {
     });
   }
 
+  regenerateQuestion(quizId, questionId, payload = {}) {
+    const resolvedQuizId = typeof quizId === "string" ? quizId.trim() : "";
+    const resolvedQuestionId = typeof questionId === "string" ? questionId.trim() : "";
+    if (!resolvedQuizId) {
+      throw new Error("quizId is required");
+    }
+    if (!resolvedQuestionId) {
+      throw new Error("questionId is required");
+    }
+
+    return this._request(
+      `/quizzes/${encodeURIComponent(resolvedQuizId)}/questions/${encodeURIComponent(resolvedQuestionId)}/regenerate`,
+      {
+        method: "POST",
+        json: payload ?? {},
+        timeoutMs: this._timeouts.generate,
+      },
+    );
+  }
+
   async _request(path, { method = "GET", headers = {}, body, json, timeoutMs } = {}) {
     const controller = new AbortController();
     const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
