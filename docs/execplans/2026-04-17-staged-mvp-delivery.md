@@ -44,6 +44,8 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-24) Implemented, reviewed, and integrated Stage 10 Batch 2 on `main` via merge commit `3e816de`, covering the remaining `UI-007` slice by aligning the existing plain-JS progress UI with backend status evidence when available while preserving Russian/Cyrillic-safe rendering and avoiding a visual redesign.
 - [x] (2026-04-24) Completed and integrated all of Stage 10 on `main`, covering backend generation status, pipeline step logging, and frontend progress behavior aligned with backend evidence.
 - [x] (2026-04-24) Implemented, reviewed, and integrated Stage 11 Batch 1 on `main` via merge commit `e212758`, covering `LM-006` and the `CF-003` model/profile slice with model whitelist configuration, request-time model validation, named generation profile resolution, default profile behavior, and backward-compatible generation requests.
+- [x] (2026-04-24) Implemented, reviewed, and integrated Stage 11 Batch 2 on `main` via merge commit `10c00e0`, covering `ST-003` and the remaining settings portion of `CF-003` with local generation settings persistence, minimal settings API support, saved-settings reuse as generation defaults, model/profile compatibility, and backward-compatible generation requests.
+- [x] (2026-04-24) Completed and integrated all of Stage 11 on `main`, covering model selection, generation profiles, and settings persistence/reuse.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -465,7 +467,7 @@ Recommended batch breakdown:
 1. Batch 1: model whitelist and generation profile resolution.
 2. Batch 2: settings persistence and reuse (`ST-003` and the remaining settings portion of `CF-003`).
 
-Current status on `main`: Batch 1 is implemented and integrated via merge commit `e212758`, covering model whitelist configuration, request-time model validation and resolution, named profile resolution, invalid model/profile rejection, default profile behavior, and compatibility with the existing generation request shape. Batch 2 remains planned and should be limited to settings persistence and reuse.
+Current status on `main`: fully implemented and integrated. Batch 1 landed via merge commit `e212758`, covering model whitelist configuration, request-time model validation and resolution, named profile resolution, invalid model/profile rejection, default profile behavior, and compatibility with the existing generation request shape. Batch 2 landed via merge commit `10c00e0`, covering local generation settings persistence, the minimal settings API surface, saved-settings reuse as generation defaults, invalid settings rejection, and compatibility with allowed model/profile resolution.
 
 Definition of done: The generation request path can accept a whitelisted model name, resolve a named profile such as `fast`, `balanced`, or `strict`, persist the user's most recent generation settings, and reuse those settings on the next request.
 
@@ -483,6 +485,11 @@ Task IDs: `BE-013`, `PM-005`, `CF-002` (single-question regeneration slice).
 Rationale for grouping: Single-question regeneration is a coherent post-MVP editing enhancement. It needs one API capability, one prompt template, and one generation-mode extension, but it does not require full RAG support.
 
 Dependencies: Stages 4 through 8 and Stage 11 if profiles should influence regeneration behavior.
+
+Recommended batch breakdown:
+1. Batch 1: backend single-question regeneration endpoint and request model.
+2. Batch 2: prompt template and generation-mode support for targeted regeneration.
+3. Batch 3: tests and UI wiring for isolated question replacement.
 
 Definition of done: The backend exposes an endpoint that can regenerate one question inside an existing quiz without replacing the rest of the quiz, using a dedicated prompt template and a new `single_question_regen` generation mode. The operation is verifiable through API tests even if a dedicated UI story is added later rather than now.
 
@@ -648,14 +655,16 @@ Current backlog completion status:
     Stage 10 Batch 2 (remaining `UI-007`): integrated on main
     Stage 10: fully integrated on main
     Stage 11 Batch 1 (`LM-006`, `CF-003` model/profile slice): integrated on main
+    Stage 11 Batch 2 (`ST-003`, remaining settings portion of `CF-003`): integrated on main
+    Stage 11: fully integrated on main
 
 Next recommended stage:
 
-    Stage 11: Model Selection, Profiles, and Settings Persistence
+    Stage 12: Single-Question Regeneration
 
 Next recommended batch:
 
-    Stage 11 Batch 2: settings persistence and reuse (`ST-003` and remaining settings portion of `CF-003`)
+    Stage 12 Batch 1: backend single-question regeneration endpoint and request model
 
 ## Interfaces and Dependencies
 
