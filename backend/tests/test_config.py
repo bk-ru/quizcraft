@@ -43,6 +43,24 @@ def test_max_document_chars_defaults_when_env_missing(monkeypatch: pytest.Monkey
     assert config.max_document_chars == 50_000
 
 
+def test_request_timeout_defaults_to_five_minutes_when_env_missing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ensure local CPU LM Studio installs do not 504 on a fresh install.
+
+    The default matches the `.env.example` value so behaviour is consistent
+    whether or not the developer copied the template.
+    """
+
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.delenv("REQUEST_TIMEOUT", raising=False)
+
+    config = AppConfig.from_env()
+
+    assert config.request_timeout == 300
+
+
 def test_max_document_chars_rejects_non_positive_value(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
     monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
