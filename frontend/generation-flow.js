@@ -8,6 +8,7 @@ const mediaTypeByExtension = {
 };
 
 const SLOW_GENERATION_WARNING_MS = 60000;
+const DEFAULT_GENERATION_MODE = "direct";
 
 const FILE_SIZE_UNITS = Object.freeze([
   { limit: 1024, unit: "Б", divisor: 1 },
@@ -222,7 +223,7 @@ export function createGenerationFlow({
     const difficulty = String(formData.get("difficulty") ?? "").trim();
     const quizType = String(formData.get("quiz_type") ?? "").trim();
     const language = String(formData.get("language") ?? "").trim() || "ru";
-    const generationMode = String(formData.get("generation_mode") ?? "").trim() || "direct";
+    const generationMode = DEFAULT_GENERATION_MODE;
 
     if (!difficulty || !quizType) {
       throw new Error("Заполните обязательные параметры генерации.");
