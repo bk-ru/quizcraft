@@ -14,6 +14,7 @@ from backend.app.domain.enums import Language
 from backend.app.domain.enums import QuizType
 from backend.app.domain.models import Explanation
 from backend.app.domain.models import GenerationRequest
+from backend.app.domain.models import GenerationSettings
 from backend.app.domain.models import Option
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
@@ -28,17 +29,40 @@ class _StrictModel(BaseModel):
 class GenerationRequestBody(_StrictModel):
     """Request body for direct quiz generation."""
 
-    question_count: int = Field(
+    question_count: int | None = Field(
+        default=None,
         strict=True,
         gt=0,
         description="Number of quiz questions to generate",
     )
-    language: Language
-    difficulty: Difficulty
-    quiz_type: QuizType
-    generation_mode: GenerationMode
+    language: Language | None = None
+    difficulty: Difficulty | None = None
+    quiz_type: QuizType | None = None
+    generation_mode: GenerationMode | None = None
     model_name: str | None = Field(default=None, min_length=1)
     profile_name: str | None = Field(default=None, min_length=1)
+
+    def to_settings(self, defaults: GenerationSettings | None = None) -> GenerationSettings:
+        """Convert a partial request body into complete generation settings."""
+
+        overrides = self.to_settings_overrides()
+        if defaults is not None:
+            return defaults.merge(overrides)
+        return GenerationSettings.from_dict(overrides)
+
+    def to_settings_overrides(self) -> dict[str, Any]:
+        """Return only explicitly provided settings values."""
+
+        values = {
+            "question_count": self.question_count,
+            "language": None if self.language is None else self.language.value,
+            "difficulty": None if self.difficulty is None else self.difficulty.value,
+            "quiz_type": None if self.quiz_type is None else self.quiz_type.value,
+            "generation_mode": None if self.generation_mode is None else self.generation_mode.value,
+            "model_name": self.model_name,
+            "profile_name": self.profile_name,
+        }
+        return {key: value for key, value in values.items() if value is not None}
 
     def to_domain(
         self,
@@ -49,15 +73,36 @@ class GenerationRequestBody(_StrictModel):
     ) -> GenerationRequest:
         """Convert the validated body into a domain generation request."""
 
-        return GenerationRequest(
+        settings = self.to_settings()
+        return settings.to_generation_request(
+            model_name=model_name,
+            profile_name=profile_name,
+            inference_parameters={} if inference_parameters is None else dict(inference_parameters),
+        )
+
+
+class GenerationSettingsBody(_StrictModel):
+    """Request body for persisted generation settings."""
+
+    question_count: int = Field(strict=True, gt=0)
+    language: Language
+    difficulty: Difficulty
+    quiz_type: QuizType
+    generation_mode: GenerationMode
+    model_name: str | None = Field(default=None, min_length=1)
+    profile_name: str | None = Field(default=None, min_length=1)
+
+    def to_settings(self) -> GenerationSettings:
+        """Convert the validated payload into persisted generation settings."""
+
+        return GenerationSettings(
             question_count=self.question_count,
             language=self.language.value,
             difficulty=self.difficulty.value,
             quiz_type=self.quiz_type.value,
             generation_mode=self.generation_mode,
-            model_name=model_name,
-            profile_name=profile_name,
-            inference_parameters={} if inference_parameters is None else dict(inference_parameters),
+            model_name=self.model_name,
+            profile_name=self.profile_name,
         )
 
 

@@ -21,6 +21,7 @@ from backend.app.api.generation import register_generation_routes
 from backend.app.api.health import register_health_routes
 from backend.app.api.quizzes import register_quiz_routes
 from backend.app.api.runtime import resolve_default_storage_root
+from backend.app.api.settings import register_generation_settings_routes
 from backend.app.core.config import AppConfig
 from backend.app.domain.errors import BackendError
 from backend.app.llm.lm_studio import LMStudioClient
@@ -54,6 +55,7 @@ def create_app(
     app.add_exception_handler(RequestValidationError, handle_request_validation_error)
     register_health_routes(app, resolved_config)
     register_document_routes(app)
+    register_generation_settings_routes(app)
     register_generation_routes(app)
     register_quiz_routes(app)
 
