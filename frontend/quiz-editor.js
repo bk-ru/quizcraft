@@ -7,6 +7,16 @@ export function cloneQuizPayload(quiz) {
   return JSON.parse(JSON.stringify(quiz));
 }
 
+const REGENERATE_CONFIRM_PROMPT =
+  "Перегенерировать этот вопрос? Текущий текст вопроса, ответы и пояснение будут заменены новой версией из backend. Несохранённые правки других вопросов останутся без изменений.";
+
+function defaultConfirmAction(message) {
+  if (typeof globalThis !== "undefined" && typeof globalThis.confirm === "function") {
+    return globalThis.confirm(message);
+  }
+  return true;
+}
+
 export function createQuizEditor({
   editorState,
   client,
@@ -25,7 +35,9 @@ export function createQuizEditor({
   describeError,
   describeValidationError,
   saveQuizToHistory,
+  confirmAction,
 }, documentRef = document) {
+  const askForConfirmation = typeof confirmAction === "function" ? confirmAction : defaultConfirmAction;
   function setEditorBusyState(isBusy) {
     if (!quizEditorLoader) {
       return;
@@ -327,6 +339,11 @@ export function createQuizEditor({
     const questionId = typeof action.dataset.questionId === "string" ? action.dataset.questionId.trim() : "";
     if (!quizId || !questionId || !(card instanceof HTMLElement)) {
       setEditorStatus("Сначала откройте сохранённый квиз и выберите вопрос для перегенерации.", "bad");
+      return;
+    }
+
+    if (!askForConfirmation(REGENERATE_CONFIRM_PROMPT)) {
+      setEditorStatus("Перегенерация отменена. Текущий вопрос остался без изменений.", "warn");
       return;
     }
 

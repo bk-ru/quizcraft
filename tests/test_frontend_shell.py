@@ -750,3 +750,32 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     assert "replace(\".\", \",\")" in content, (
         "file size formatter must emit locale-friendly decimal commas"
     )
+
+
+def test_frontend_editor_confirms_destructive_regenerate_action() -> None:
+    content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert "REGENERATE_CONFIRM_PROMPT" in content, (
+        "the confirmation copy must be extracted into a single Russian constant"
+    )
+    assert "Перегенерировать этот вопрос" in content, (
+        "confirmation prompt must ask the user in Russian"
+    )
+    assert "Несохранённые правки других вопросов останутся" in content, (
+        "confirmation prompt must reassure the user about unsaved edits"
+    )
+    assert "askForConfirmation" in content
+    assert "defaultConfirmAction" in content
+    assert "globalThis.confirm" in content, (
+        "default confirmation must delegate to the native window.confirm"
+    )
+    assert "Перегенерация отменена" in content, (
+        "cancel path must show a Russian status about leaving the question untouched"
+    )
+    confirm_guard_index = content.find("if (!askForConfirmation(REGENERATE_CONFIRM_PROMPT))")
+    client_call_index = content.find("client.regenerateQuestion(quizId")
+    assert confirm_guard_index != -1, "regenerate must be guarded by askForConfirmation"
+    assert client_call_index != -1
+    assert confirm_guard_index < client_call_index, (
+        "confirmation must run before invoking the backend regenerate endpoint"
+    )
