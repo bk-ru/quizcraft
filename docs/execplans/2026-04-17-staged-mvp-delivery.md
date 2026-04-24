@@ -40,6 +40,9 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-23) Fixed the MVP-blocking frontend generation timeout on `main` via merge commit `d964ad1` (PR #3, feature commit `2f24024`), replacing the single 8 s `requestTimeoutMs` with role-based timeouts (`health` 5 s, `upload` 30 s, `generate` 120 s, `quizEditor` 15 s), also guarding the JSON export `fetch` with `AbortController`, returning a Russian-language timeout error, and adding smoke coverage for the new configuration shape.
 - [x] (2026-04-23) Integrated post-MVP frontend UX polish Batch 1 on `main` via commit `eb1f79b`, three coherent user-facing improvements: (1) auto-load the freshly generated quiz into the editor so no manual `quiz_id` paste is required, (2) collapse `Document ID`, `Quiz ID`, `Request ID`, `Модель`, and `Prompt version` into `<details class="inline-details">` blocks with Russian summaries, (3) escalate LM Studio `unavailable` from `warn` to `bad` with a Russian topbar marker plus a toast/log instruction pointing to `http://127.0.0.1:1234`.
 - [x] (2026-04-23) Integrated post-MVP frontend UX polish Batch 2 on `main` via commit `99529e2`, two operation-feedback improvements that partially cover Stage 10 task `UI-007` without requiring `GN-006`: (1) `describeValidationError` translates backend 422 responses into Russian field labels and messages through a `VALIDATION_FIELD_EXACT_LABELS` registry plus nested `quiz.questions.N.*` and `options.M.*` regex handlers and a `VALIDATION_MESSAGE_RULES` dictionary, wired into both `submitQuizEdits` and `submitGeneration`; (2) a pseudo-step generation progress panel (`#generation-progress`) with four Russian labels `Загружаем документ → Парсим → Генерируем → Валидируем` and a per-state styling (pending/active/done/failed), driven by `startGenerationProgress` / `advanceGenerationProgress` / `completeGenerationProgress` / `failGenerationProgress`.
+- [x] (2026-04-24) Implemented, reviewed, and integrated Stage 10 Batch 1 on `main` via merge commit `05ff078`, covering `GN-006` and `LG-005` with the backend generation status model, controlled status transitions, and structured pipeline step logging around parse, generate, repair, and persist phases.
+- [x] (2026-04-24) Implemented, reviewed, and integrated Stage 10 Batch 2 on `main` via merge commit `3e816de`, covering the remaining `UI-007` slice by aligning the existing plain-JS progress UI with backend status evidence when available while preserving Russian/Cyrillic-safe rendering and avoiding a visual redesign.
+- [x] (2026-04-24) Completed and integrated all of Stage 10 on `main`, covering backend generation status, pipeline step logging, and frontend progress behavior aligned with backend evidence.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -438,7 +441,7 @@ Rationale for grouping: Once the MVP works, the next useful improvement is visib
 
 Dependencies: Stages 4 through 9.
 
-Current status on `main`: partially covered. Commit `99529e2` already landed a client-side pseudo-step progress panel (`UI-007`) driven by the frontend itself (four Russian pseudo-steps `Загружаем документ → Парсим → Генерируем → Валидируем` advanced around the upload and generate API calls) without requiring any backend status stream. The backend-side slice (`GN-006` pipeline step status model, `LG-005` pipeline step logging) is still pending; once landed, the frontend pseudo-steps can be replaced by actual backend-emitted status events.
+Current status on `main`: fully implemented and integrated. Batch 1 landed via merge commit `05ff078`, covering `GN-006` and `LG-005` with backend generation status transitions and structured pipeline step logging. Batch 2 landed via merge commit `3e816de`, covering the remaining `UI-007` behavior by keeping the existing Russian/Cyrillic-safe progress UI and aligning it with backend status evidence where available.
 
 Definition of done: The generation pipeline emits step-level logs, the backend can report status transitions such as `queued`, `running`, `done`, and `failed`, and the UI reflects those states without appearing frozen.
 
@@ -456,6 +459,10 @@ Task IDs: `LM-006`, `CF-003`, `ST-003`.
 Rationale for grouping: Per-request model selection, named generation profiles, and saved generation settings all refine how generation is configured. They change the same responsibility boundary and should be reviewed together rather than being spread across unrelated stages.
 
 Dependencies: Stages 1 through 5, and preferably Stage 10 so status behavior already exists when new generation options are introduced.
+
+Recommended batch breakdown:
+1. Batch 1: model whitelist and generation profile resolution.
+2. Batch 2: settings persistence and reuse.
 
 Definition of done: The generation request path can accept a whitelisted model name, resolve a named profile such as `fast`, `balanced`, or `strict`, persist the user's most recent generation settings, and reuse those settings on the next request.
 
@@ -634,14 +641,17 @@ Current backlog completion status:
     Frontend role-based timeouts (PR #3): integrated on main
     Post-MVP UX polish Batch 1 (editor autoload, collapsed technical fields, critical LM Studio tone): integrated on main
     Post-MVP UX polish Batch 2 (Russian 422 mapper, `UI-007` pseudo-step progress panel): integrated on main
+    Stage 10 Batch 1 (`GN-006`, `LG-005`): integrated on main
+    Stage 10 Batch 2 (remaining `UI-007`): integrated on main
+    Stage 10: fully integrated on main
 
 Next recommended stage:
 
-    Stage 10: Generation Status and User-Facing Operation States
+    Stage 11: Model Selection, Profiles, and Settings Persistence
 
 Next recommended batch:
 
-    Stage 10 has no predefined batch breakdown yet; plan batches before implementation per the Batch execution policy.
+    Stage 11 Batch 1: model whitelist and generation profile resolution
 
 ## Interfaces and Dependencies
 
