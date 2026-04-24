@@ -137,10 +137,11 @@ export function createGenerationFlow({
 
   function cancelGeneration() {
     if (!currentAbortController || currentAbortController.signal.aborted) {
-      return;
+      return false;
     }
     currentAbortController.abort();
     setCancelButtonVisible(false);
+    return true;
   }
 
   function resolveMediaType(file) {

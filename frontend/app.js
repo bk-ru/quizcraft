@@ -2,6 +2,7 @@ import { QuizCraftApiClient } from "./api/client.js";
 import { createJsonExporter } from "./download.js";
 import { createGenerationFlow } from "./generation-flow.js";
 import { createGenerationSettingsController } from "./generation-settings.js";
+import { createKeyboardShortcuts } from "./keyboard.js";
 import { createProgressController } from "./progress.js";
 import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
@@ -204,6 +205,15 @@ const jsonExporter = createJsonExporter({
   editorState,
   showToast: toastController.showToast,
 });
+
+const keyboardShortcuts = createKeyboardShortcuts({
+  generationForm: form,
+  generationFlow,
+  quizEditor,
+  editorState,
+  toastController,
+});
+keyboardShortcuts.register();
 
 async function bootstrapShell() {
   generationFlow.updateSelectedFileSummary();
