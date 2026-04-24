@@ -566,10 +566,14 @@ def test_frontend_index_hides_legacy_developer_only_sections() -> None:
     assert 'id="endpoint-title"' not in content
     assert 'id="shell-runtime-badge"' not in content
     assert "Используемые endpoint" not in content
-    assert "technical-details" in content, (
-        "the collapsed diagnostics panel must still exist for advanced users"
+    assert 'id="technical-details"' not in content, (
+        "the global diagnostics panel must be removed; technical IDs live in per-section inline-details"
     )
-    assert "Технические детали" in content
+    assert 'id="shell-log-message"' not in content, (
+        "the shell log pane duplicated toasts and must be dropped"
+    )
+    assert 'id="backend-base-url"' not in content
+    assert 'id="request-timeout"' not in content
 
 
 def test_frontend_quiz_history_module_and_wiring() -> None:

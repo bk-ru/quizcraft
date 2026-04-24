@@ -204,11 +204,6 @@ const jsonExporter = createJsonExporter({
 });
 
 async function bootstrapShell() {
-  setTextContent("backend-base-url", backendBaseUrl);
-  const t = client.timeouts;
-  setTextContent("request-timeout",
-    `health ${t.health / 1000} с · upload ${t.upload / 1000} с · generate ${t.generate / 1000} с · editor ${t.quizEditor / 1000} с`,
-  );
   generationFlow.updateSelectedFileSummary();
   quizRenderer.clearQuizResult();
   quizEditor.clearQuizEditor();
