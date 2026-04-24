@@ -113,17 +113,27 @@ class GenerationRequest:
     difficulty: str
     quiz_type: str
     generation_mode: GenerationMode
+    model_name: str | None = None
+    profile_name: str | None = None
+    inference_parameters: dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the generation request into a JSON-compatible dictionary."""
 
-        return {
+        payload = {
             "question_count": self.question_count,
             "language": self.language,
             "difficulty": self.difficulty,
             "quiz_type": self.quiz_type,
             "generation_mode": self.generation_mode.value,
         }
+        if self.model_name is not None:
+            payload["model_name"] = self.model_name
+        if self.profile_name is not None:
+            payload["profile_name"] = self.profile_name
+        if self.inference_parameters:
+            payload["inference_parameters"] = dict(self.inference_parameters)
+        return payload
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "GenerationRequest":
@@ -135,6 +145,9 @@ class GenerationRequest:
             difficulty=payload["difficulty"],
             quiz_type=payload["quiz_type"],
             generation_mode=GenerationModeRegistry.ensure_supported(payload["generation_mode"]),
+            model_name=payload.get("model_name"),
+            profile_name=payload.get("profile_name"),
+            inference_parameters=dict(payload.get("inference_parameters", {})),
         )
 
 

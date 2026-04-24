@@ -10,6 +10,7 @@ from fastapi import Request
 from backend.app.api.runtime import get_generation_orchestrator
 from backend.app.api.schemas import GenerationRequestBody
 from backend.app.domain.models import GenerationResult
+from backend.app.generation.profiles import GenerationProfileResolver
 
 
 def register_generation_routes(app: FastAPI) -> None:
@@ -21,7 +22,18 @@ def register_generation_routes(app: FastAPI) -> None:
         document_id: str,
         payload: GenerationRequestBody,
     ) -> dict[str, Any]:
-        result = get_generation_orchestrator(request.app).generate(document_id, payload.to_domain())
+        profile = GenerationProfileResolver(request.app.state.config).resolve(
+            model_name=payload.model_name,
+            profile_name=payload.profile_name,
+        )
+        result = get_generation_orchestrator(request.app).generate(
+            document_id,
+            payload.to_domain(
+                model_name=profile.model_name,
+                profile_name=profile.profile_name,
+                inference_parameters=dict(profile.inference_parameters),
+            ),
+        )
         return _serialize_generation_result(result, request.state.correlation_id)
 
 

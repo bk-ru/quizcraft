@@ -37,8 +37,16 @@ class GenerationRequestBody(_StrictModel):
     difficulty: Difficulty
     quiz_type: QuizType
     generation_mode: GenerationMode
+    model_name: str | None = Field(default=None, min_length=1)
+    profile_name: str | None = Field(default=None, min_length=1)
 
-    def to_domain(self) -> GenerationRequest:
+    def to_domain(
+        self,
+        *,
+        model_name: str | None = None,
+        profile_name: str | None = None,
+        inference_parameters: dict[str, Any] | None = None,
+    ) -> GenerationRequest:
         """Convert the validated body into a domain generation request."""
 
         return GenerationRequest(
@@ -47,6 +55,9 @@ class GenerationRequestBody(_StrictModel):
             difficulty=self.difficulty.value,
             quiz_type=self.quiz_type.value,
             generation_mode=self.generation_mode,
+            model_name=model_name,
+            profile_name=profile_name,
+            inference_parameters={} if inference_parameters is None else dict(inference_parameters),
         )
 
 
