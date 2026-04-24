@@ -1,4 +1,4 @@
-const STEPPER_ORDER = ["upload", "params", "generate", "review", "edit"];
+const STEPPER_ORDER = ["upload", "params", "review", "edit"];
 const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "validate"];
 const BACKEND_STEP_TO_PROGRESS_STEP = Object.freeze({
   parse: "parse",
