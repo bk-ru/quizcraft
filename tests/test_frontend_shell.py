@@ -772,6 +772,28 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     )
 
 
+def test_frontend_theme_toggle_swaps_icon_per_active_theme() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    for theme_icon in ("auto", "light", "dark"):
+        assert f'data-theme-icon="{theme_icon}"' in index_content, (
+            f"theme toggle must carry an icon for the {theme_icon} theme"
+        )
+
+    assert ".theme-toggle .theme-toggle-icon" in layout_css, (
+        "icons must be hidden by default so only the active one renders"
+    )
+    for theme_name in ("auto", "light", "dark"):
+        assert f':root[data-theme="{theme_name}"] .theme-toggle .theme-toggle-icon[data-theme-icon="{theme_name}"]' in layout_css, (
+            f"stylesheet must reveal the {theme_name} icon when that theme is active"
+        )
+
+    assert ':root:not([data-theme]) .theme-toggle .theme-toggle-icon[data-theme-icon="auto"]' in layout_css, (
+        "when no theme is applied yet, the auto icon must still be visible"
+    )
+
+
 def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")

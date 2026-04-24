@@ -113,6 +113,20 @@
   height: 16px;
 }
 
+.theme-toggle .theme-toggle-icon {
+  display: none;
+}
+
+:root[data-theme="auto"] .theme-toggle .theme-toggle-icon[data-theme-icon="auto"],
+:root[data-theme="light"] .theme-toggle .theme-toggle-icon[data-theme-icon="light"],
+:root[data-theme="dark"] .theme-toggle .theme-toggle-icon[data-theme-icon="dark"] {
+  display: inline-block;
+}
+
+:root:not([data-theme]) .theme-toggle .theme-toggle-icon[data-theme-icon="auto"] {
+  display: inline-block;
+}
+
 .hero {
   display: grid;
   gap: 20px;
