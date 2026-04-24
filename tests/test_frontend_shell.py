@@ -760,6 +760,39 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     )
 
 
+def test_frontend_explains_auto_persisted_generation_defaults() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    forms_css = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+
+    assert 'data-hint="defaults"' in index_content, (
+        "form must carry an inline hint explaining that parameters are remembered automatically"
+    )
+    assert "После успешной генерации выбранные параметры запоминаются" in index_content, (
+        "hint copy must explain the behavior in Russian"
+    )
+    assert "id=\"remember-generation-settings\"" not in index_content, (
+        "the misleading remember checkbox must not ship"
+    )
+    assert ".form-hint" in forms_css
+
+    assert "refreshAfterGeneration" in settings_content, (
+        "controller must expose a refresh helper so selectors reflect the freshly saved defaults"
+    )
+    assert "rememberCheckbox" not in settings_content, (
+        "controller must not depend on a remember checkbox"
+    )
+
+    assert "refreshGenerationDefaults: generationSettings.refreshAfterGeneration" in app_content, (
+        "app bootstrap must wire the refresh helper into the generation flow"
+    )
+    assert "refreshGenerationDefaults()" in generation_content, (
+        "generation flow must refresh the defaults after a successful run"
+    )
+
+
 def test_frontend_result_panel_has_idle_empty_state_illustration() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")

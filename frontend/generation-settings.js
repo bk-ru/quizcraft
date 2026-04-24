@@ -118,8 +118,13 @@ export function createGenerationSettingsController({
     return overrides;
   }
 
+  function refreshAfterGeneration() {
+    return loadSettings();
+  }
+
   return {
     loadSettings,
+    refreshAfterGeneration,
     getGenerationOverrides,
     populateModelSelect,
     populateProfileSelect,
