@@ -256,6 +256,31 @@
   display: none;
 }
 
+.step[data-state="failed"] {
+  background: var(--bad-soft, rgba(220, 38, 38, 0.12));
+  color: var(--bad, #b91c1c);
+}
+
+.step[data-state="failed"] .step-label {
+  color: var(--bad, #b91c1c);
+}
+
+.step[data-state="failed"] .step-index {
+  background: var(--bad, #b91c1c);
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(185, 28, 28, 0.18);
+}
+
+.step[data-state="failed"] .step-index::before {
+  content: "!";
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.step[data-state="failed"] .step-index-number {
+  display: none;
+}
+
 .workspace {
   display: grid;
   gap: 20px;

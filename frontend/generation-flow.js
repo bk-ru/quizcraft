@@ -56,6 +56,7 @@ export function createGenerationFlow({
   renderQuizEditor,
   setQuizEditorSummary,
   advanceStepper,
+  markStepperFailed,
   waitForProgressVisibility,
   startGenerationProgress,
   advanceGenerationProgress,
@@ -355,6 +356,7 @@ export function createGenerationFlow({
         setResultState("Генерация отменена. Запустите повторно, когда будете готовы.", "warn", "Отменено");
         setLogMessage("Генерация отменена пользователем до завершения ответа backend.", "warn");
         showToast("Генерация отменена.", "warn");
+        advanceStepper("params");
       } else {
         const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
         const message = isValidationError ? describeValidationError(error) : describeError(error);
@@ -362,6 +364,9 @@ export function createGenerationFlow({
         setResultState(`Результат не получен: ${message}`, "bad", "Ошибка");
         setLogMessage(`Submit flow завершился ошибкой: ${message}`, "bad");
         showToast(message, "bad");
+        if (typeof markStepperFailed === "function") {
+          markStepperFailed("review");
+        }
       }
     } finally {
       setBusyState(false);
