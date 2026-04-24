@@ -112,7 +112,7 @@ def test_frontend_index_exposes_russian_result_view_shell() -> None:
     assert '<html lang="ru">' in content
     assert '<meta charset="utf-8"' in content.lower()
     assert "QuizCraft" in content
-    assert "Панель состояния" in content
+    assert "Генерация квизов" in content
     assert "Загрузить документ" in content
     assert "Параметры генерации" in content
     assert "Сгенерировать квиз" in content
@@ -126,6 +126,7 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "Редактирование квиза" in content
+    assert "Откройте редактор только когда нужно править готовый квиз или загрузить сохранённый." in content
     assert "Открыть существующий квиз" in content
     assert "Идентификатор квиза" in content
     assert "Загрузить квиз" in content
@@ -136,6 +137,7 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
     assert 'id="quiz-editor-fields"' in content
     assert 'id="quiz-editor-status"' in content
     assert 'id="save-quiz-button"' in content
+    assert '<details id="quiz-editor" class="panel panel-editor editor-disclosure"' in content
 
 
 def test_frontend_app_imports_focused_modules() -> None:
@@ -280,19 +282,29 @@ def test_frontend_editor_preserves_displayed_state_outside_regenerated_question(
     assert "сохранены локально" in editor_content
 
 
-def test_frontend_app_autoloads_generated_quiz_into_editor() -> None:
+def test_frontend_generation_focuses_result_before_explicit_editor_open() -> None:
     content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "async function submitGeneration" in content
     assert "renderQuizResult(generationPayload)" in content
-    assert "renderQuizEditor(generatedQuiz)" in content, (
-        "submitGeneration must auto-render the freshly generated quiz into the editor"
+    assert "renderQuizEditor(generatedQuiz)" not in content, (
+        "submitGeneration must not auto-present the freshly generated quiz in the editor"
     )
-    assert "setQuizEditorSummary(generatedQuiz)" in content, (
-        "submitGeneration must refresh the editor summary with the generated quiz"
+    assert "setQuizEditorSummary(generatedQuiz)" not in content, (
+        "submitGeneration must leave editor rendering to the explicit edit action"
     )
-    assert "Новый квиз загружен в редактор" in content, (
-        "editor status after auto-load must be in Russian and confirm the load"
+    assert "Квиз готов. Нажмите «Редактировать квиз», чтобы открыть редактор." in content, (
+        "generation completion must explain the explicit edit action in Russian"
+    )
+    assert "focusResultView()" in content
+    assert 'id="generation-result"' in index_content and 'tabindex="-1"' in index_content
+    assert "function focusResultView" in app_content
+    assert "resultPanel.scrollIntoView" in app_content
+    assert "resultPanel.focus" in app_content
+    assert "editorPanel.open = true" in app_content, (
+        "the result edit action must explicitly open the collapsed editor"
     )
 
 
@@ -320,7 +332,7 @@ def test_frontend_collapses_technical_identifiers_into_details() -> None:
     assert 'class="inline-details"' in content, (
         "technical fields must be wrapped into collapsible inline-details blocks"
     )
-    assert "<summary>Технические идентификаторы</summary>" in content, (
+    assert "<summary>Диагностика и технические ID</summary>" in content, (
         "operation summary must expose a Russian-language collapse affordance"
     )
     assert "<summary>Технические детали квиза</summary>" in content, (
@@ -336,6 +348,23 @@ def test_frontend_collapses_technical_identifiers_into_details() -> None:
     )
     assert 'id="last-filename"' in content.split('<details class="inline-details">', 1)[0], (
         "filename must stay visible outside the collapsed technical identifiers block"
+    )
+    assert '<details class="inline-details" open' not in content, (
+        "technical identifiers must stay collapsed by default"
+    )
+
+
+def test_frontend_visible_status_surface_receives_shell_log_messages() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="shell-log-message"' in index_content, (
+        "index must expose a visible Russian status target for setLogMessage"
+    )
+    assert "Проверяем подключение к сервисам генерации" in index_content
+    assert 'document.getElementById("shell-log-message")' in app_content
+    assert "element.hidden = !text" in app_content, (
+        "empty log messages must hide the status target instead of leaving stale text"
     )
 
 
@@ -442,9 +471,9 @@ def test_frontend_index_exposes_generation_progress_panel() -> None:
         )
     for russian_label in (
         "Загружаем документ",
-        "Парсим",
+        "Извлекаем текст",
         "Генерируем",
-        "Валидируем",
+        "Проверяем квиз",
     ):
         assert russian_label in content, (
             f"progress panel must include Russian label: {russian_label}"
@@ -494,7 +523,7 @@ def test_frontend_progress_aligns_with_backend_generation_status_evidence() -> N
     assert "pipeline_events" in progress_content
     assert "completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence" in app_content
     assert "Генерируем" in index_content
-    assert "Валидируем" in index_content
+    assert "Проверяем квиз" in index_content
 
 
 def test_frontend_styles_theme_generation_progress() -> None:
@@ -577,8 +606,8 @@ def test_frontend_index_hides_legacy_developer_only_sections() -> None:
     assert 'id="technical-details"' not in content, (
         "the global diagnostics panel must be removed; technical IDs live in per-section inline-details"
     )
-    assert 'id="shell-log-message"' not in content, (
-        "the shell log pane duplicated toasts and must be dropped"
+    assert 'id="shell-log-message"' in content, (
+        "the shell log target now backs the visible Russian status surface"
     )
     assert 'id="backend-base-url"' not in content
     assert 'id="request-timeout"' not in content
