@@ -61,3 +61,5 @@ QUIZ_JSON_SCHEMA = {
         },
     },
 }
+
+QUESTION_JSON_SCHEMA = QUIZ_JSON_SCHEMA["properties"]["questions"]["items"]

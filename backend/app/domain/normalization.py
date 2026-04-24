@@ -38,6 +38,12 @@ def normalize_quiz_output(raw_payload: dict[str, Any]) -> Quiz:
     )
 
 
+def normalize_question_output(raw_payload: dict[str, Any]) -> Question:
+    """Normalize raw model JSON into the canonical question structure."""
+
+    return _normalize_question(raw_payload, 0)
+
+
 def _normalize_question(raw_payload: Any, question_index: int) -> Question:
     """Normalize one raw question payload."""
 

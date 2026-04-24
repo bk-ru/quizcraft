@@ -37,7 +37,7 @@ def test_backend_health_endpoint_returns_backend_status_and_basic_config_info() 
     assert response.json() == {
         "status": "ok",
         "default_model": "local-model",
-        "generation_modes": ["direct"],
+        "generation_modes": ["direct", "single_question_regen"],
     }
     assert response.headers["X-Request-ID"]
 

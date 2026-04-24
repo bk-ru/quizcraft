@@ -9,14 +9,19 @@ from fastapi import FastAPI
 from fastapi import Request
 from fastapi.responses import Response
 
+from backend.app.api.runtime import get_generation_settings_repository
+from backend.app.api.runtime import get_single_question_regeneration_orchestrator
 from backend.app.api.schemas import QuizUpdateBody
 from backend.app.api.schemas import SingleQuestionRegenerationBody
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import RepositoryNotFoundError
+from backend.app.domain.models import GenerationSettings
 from backend.app.domain.models import Quiz
 from backend.app.domain.models import Question
 from backend.app.domain.validation import validate_quiz
 from backend.app.export.json_exporter import QuizJsonExporter
+from backend.app.generation.profiles import GenerationProfileResolver
+from backend.app.generation.single_question import SingleQuestionRegenerationResult
 from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
@@ -56,20 +61,24 @@ def register_quiz_routes(app: FastAPI) -> None:
         repository = FileSystemQuizRepository(request.app.state.storage_root)
         quiz = repository.get(quiz_id)
         _validate_regeneration_boundary(payload, quiz_id, question_id)
-        target_question = _get_quiz_question(quiz, question_id)
-        return {
-            "quiz_id": quiz.quiz_id,
-            "question_id": target_question.question_id,
-            "target_question": _serialize_question(target_question),
-            "request": payload.to_contract_dict(),
-            "regeneration": {
-                "status": "contract_validated",
-                "provider_call": False,
-                "quiz_mutated": False,
-                "prompt_mode": "not_configured",
-            },
-            "request_id": request.state.correlation_id,
-        }
+        _get_quiz_question(quiz, question_id)
+        settings_repository = get_generation_settings_repository(request.app)
+        settings = payload.to_generation_settings(defaults=_load_saved_settings(settings_repository))
+        profile = GenerationProfileResolver(request.app.state.config).resolve(
+            model_name=settings.model_name,
+            profile_name=settings.profile_name,
+        )
+        result = get_single_question_regeneration_orchestrator(request.app).regenerate(
+            quiz_id=quiz_id,
+            question_id=question_id,
+            generation_request=settings.to_generation_request(
+                model_name=profile.model_name,
+                profile_name=profile.profile_name,
+                inference_parameters=dict(profile.inference_parameters),
+            ),
+            instructions=payload.instructions,
+        )
+        return _serialize_single_question_regeneration_result(result, request.state.correlation_id)
 
 
 def _serialize_quiz(quiz: Quiz, request_id: str) -> dict[str, Any]:
@@ -78,6 +87,23 @@ def _serialize_quiz(quiz: Quiz, request_id: str) -> dict[str, Any]:
     return {
         "quiz_id": quiz.quiz_id,
         "quiz": quiz.to_dict(),
+        "request_id": request_id,
+    }
+
+
+def _serialize_single_question_regeneration_result(
+    result: SingleQuestionRegenerationResult,
+    request_id: str,
+) -> dict[str, Any]:
+    """Serialize a targeted regeneration result for API responses."""
+
+    return {
+        "quiz_id": result.quiz.quiz_id,
+        "question_id": result.regenerated_question.question_id,
+        "quiz": result.quiz.to_dict(),
+        "regenerated_question": _serialize_question(result.regenerated_question),
+        "model_name": result.model_name,
+        "prompt_version": result.prompt_version,
         "request_id": request_id,
     }
 
@@ -138,3 +164,12 @@ def _serialize_question(question: Question) -> dict[str, Any]:
         "correct_option_index": question.correct_option_index,
         "explanation": None if question.explanation is None else {"text": question.explanation.text},
     }
+
+
+def _load_saved_settings(settings_repository) -> GenerationSettings | None:
+    """Load saved generation settings if they exist."""
+
+    try:
+        return settings_repository.get()
+    except RepositoryNotFoundError:
+        return None
