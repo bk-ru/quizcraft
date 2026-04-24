@@ -760,6 +760,34 @@ def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     )
 
 
+def test_frontend_stepper_exposes_failed_state_on_generation_error() -> None:
+    progress_content = PROGRESS_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert "markStepperFailed" in progress_content, (
+        "progress controller must expose a helper to mark a stepper phase as failed"
+    )
+    assert "options.state === \"failed\"" in progress_content, (
+        "advanceStepper must accept an explicit failed state option"
+    )
+
+    assert "markStepperFailed: progressController.markStepperFailed" in app_content, (
+        "the failed-step helper must be wired into the generation flow"
+    )
+    assert "markStepperFailed(\"review\")" in generation_content, (
+        "generation flow must mark the review phase as failed on real errors"
+    )
+    assert "advanceStepper(\"params\")" in generation_content, (
+        "user-cancelled generation must roll the stepper back to params, not failed"
+    )
+
+    assert ".step[data-state=\"failed\"]" in layout_content, (
+        "stylesheet must provide a visual for the failed step state"
+    )
+
+
 def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")

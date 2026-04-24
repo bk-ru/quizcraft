@@ -186,6 +186,7 @@ const generationFlow = createGenerationFlow({
   renderQuizEditor: quizEditor.renderQuizEditor,
   setQuizEditorSummary: quizEditor.setQuizEditorSummary,
   advanceStepper: progressController.advanceStepper,
+  markStepperFailed: progressController.markStepperFailed,
   waitForProgressVisibility: progressController.waitForProgressVisibility,
   startGenerationProgress: progressController.startGenerationProgress,
   advanceGenerationProgress: progressController.advanceGenerationProgress,
