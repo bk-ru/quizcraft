@@ -11,6 +11,7 @@ from backend.app.export.base import ExportedQuizFile
 from backend.app.export.base import QuizExporter
 from backend.app.export.docx_exporter import QuizDocxExporter
 from backend.app.export.json_exporter import QuizJsonExporter
+from backend.app.export.pptx_exporter import QuizPptxExporter
 
 
 class QuizExportRegistry:
@@ -65,5 +66,6 @@ DEFAULT_QUIZ_EXPORT_REGISTRY = QuizExportRegistry(
     {
         "docx": QuizDocxExporter(),
         "json": QuizJsonExporter(),
+        "pptx": QuizPptxExporter(),
     }
 )
