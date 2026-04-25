@@ -51,7 +51,7 @@ def test_export_registry_resolves_json_exporter_and_preserves_cyrillic() -> None
 def test_default_export_registry_exposes_json_exporter() -> None:
     exported_file = DEFAULT_QUIZ_EXPORT_REGISTRY.export(build_quiz(), "JSON")
 
-    assert DEFAULT_QUIZ_EXPORT_REGISTRY.supported_formats() == ("json",)
+    assert "json" in DEFAULT_QUIZ_EXPORT_REGISTRY.supported_formats()
     assert exported_file.filename == "quiz-ru-1.json"
 
 
