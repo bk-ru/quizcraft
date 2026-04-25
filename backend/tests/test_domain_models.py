@@ -88,7 +88,7 @@ def test_generation_mode_registry_supports_direct_mode() -> None:
 
 def test_generation_mode_registry_rejects_unknown_mode() -> None:
     with pytest.raises(UnsupportedGenerationModeError, match="unsupported"):
-        GenerationModeRegistry.ensure_supported("rag")
+        GenerationModeRegistry.ensure_supported("hybrid_super_mode")
 
 
 def test_configuration_error_inherits_from_backend_error() -> None:
