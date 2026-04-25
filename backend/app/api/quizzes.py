@@ -29,6 +29,13 @@ from backend.app.storage.quizzes import FileSystemQuizRepository
 def register_quiz_routes(app: FastAPI) -> None:
     """Register quiz read, update, and export routes on the FastAPI app."""
 
+    @app.get("/export/formats")
+    async def get_export_formats(request: Request) -> dict[str, Any]:
+        return {
+            "formats": _serialize_export_formats(),
+            "request_id": request.state.correlation_id,
+        }
+
     @app.get("/quizzes/{quiz_id}")
     async def get_quiz(request: Request, quiz_id: str) -> dict[str, Any]:
         quiz = FileSystemQuizRepository(request.app.state.storage_root).get(quiz_id)
@@ -36,8 +43,12 @@ def register_quiz_routes(app: FastAPI) -> None:
 
     @app.get("/quizzes/{quiz_id}/export/json")
     async def export_quiz_json(request: Request, quiz_id: str) -> Response:
-        quiz = FileSystemQuizRepository(request.app.state.storage_root).get(quiz_id)
-        exported_file = DEFAULT_QUIZ_EXPORT_REGISTRY.export(quiz, "json")
+        exported_file = _export_persisted_quiz(request.app.state.storage_root, quiz_id, "json")
+        return _build_export_response(exported_file)
+
+    @app.get("/quizzes/{quiz_id}/export/{export_format}")
+    async def export_quiz(request: Request, quiz_id: str, export_format: str) -> Response:
+        exported_file = _export_persisted_quiz(request.app.state.storage_root, quiz_id, export_format)
         return _build_export_response(exported_file)
 
     @app.put("/quizzes/{quiz_id}")
@@ -96,6 +107,26 @@ def _build_export_response(exported_file: ExportedQuizFile) -> Response:
     response.headers["content-disposition"] = f'attachment; filename="{exported_file.filename}"'
     response.headers["content-type"] = exported_file.media_type
     return response
+
+
+def _export_persisted_quiz(storage_root, quiz_id: str, export_format: str) -> ExportedQuizFile:
+    """Export a persisted quiz through the registered exporter for the requested format."""
+
+    exporter = DEFAULT_QUIZ_EXPORT_REGISTRY.get(export_format)
+    quiz = FileSystemQuizRepository(storage_root).get(quiz_id)
+    return exporter.export(quiz)
+
+
+def _serialize_export_formats() -> list[dict[str, str]]:
+    """Serialize supported export formats for API capability discovery."""
+
+    return [
+        {
+            "format": export_format,
+            "media_type": DEFAULT_QUIZ_EXPORT_REGISTRY.get(export_format).media_type,
+        }
+        for export_format in DEFAULT_QUIZ_EXPORT_REGISTRY.supported_formats()
+    ]
 
 
 def _serialize_single_question_regeneration_result(
