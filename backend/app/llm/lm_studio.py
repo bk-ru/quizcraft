@@ -16,7 +16,6 @@ from backend.app.domain.errors import LLMRequestError
 from backend.app.domain.errors import LLMResponseFormatError
 from backend.app.domain.errors import LLMServerError
 from backend.app.domain.errors import LLMTimeoutError
-from backend.app.domain.errors import UnsupportedProviderCapabilityError
 from backend.app.domain.models import EmbeddingRequest
 from backend.app.domain.models import EmbeddingResponse
 from backend.app.domain.models import ProviderHealthStatus
@@ -89,9 +88,9 @@ class LMStudioClient(LLMProvider):
         return self._retrying_caller.execute(lambda: self._generate_structured_once(request))
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Raise a controlled placeholder until the embeddings stage lands."""
+        """Generate embeddings for one or more texts via the LM Studio embeddings endpoint."""
 
-        raise UnsupportedProviderCapabilityError("LM Studio embeddings are not implemented in Batch 1")
+        return self._retrying_caller.execute(lambda: self._embed_once(request))
 
     def _generate_structured_once(
         self,
@@ -100,8 +99,15 @@ class LMStudioClient(LLMProvider):
         """Perform one chat-completion request without retry orchestration."""
 
         payload = self._build_payload(request)
-        response_payload = self._post_json(payload)
+        response_payload = self._post_json("/chat/completions", payload)
         return self._extract_structured_response(response_payload)
+
+    def _embed_once(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        """Perform one embeddings request without retry orchestration."""
+
+        payload = self._build_embeddings_payload(request)
+        response_payload = self._post_json("/embeddings", payload)
+        return self._extract_embeddings_response(response_payload, expected_count=len(request.texts))
 
     def _build_payload(self, request: StructuredGenerationRequest) -> dict[str, object]:
         """Build the LM Studio chat-completions payload."""
@@ -124,11 +130,19 @@ class LMStudioClient(LLMProvider):
         payload.update(request.inference_parameters)
         return payload
 
-    def _post_json(self, payload: dict[str, object]) -> dict[str, object]:
-        """POST a JSON payload to the LM Studio chat-completions endpoint."""
+    def _build_embeddings_payload(self, request: EmbeddingRequest) -> dict[str, object]:
+        """Build the LM Studio embeddings payload."""
+
+        return {
+            "model": request.model_name or self._default_model,
+            "input": list(request.texts),
+        }
+
+    def _post_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
+        """POST a JSON payload to one of the LM Studio OpenAI-compatible endpoints."""
 
         request = Request(
-            url=f"{self._base_url}/chat/completions",
+            url=f"{self._base_url}{path}",
             data=json.dumps(payload).encode("utf-8"),
             headers={
                 "Accept": "application/json",
@@ -199,6 +213,55 @@ class LMStudioClient(LLMProvider):
             content=structured_content,
             raw_response=response_payload,
         )
+
+    def _extract_embeddings_response(
+        self,
+        response_payload: dict[str, object],
+        expected_count: int,
+    ) -> EmbeddingResponse:
+        """Validate and unwrap the embeddings response payload."""
+
+        model_name = response_payload.get("model")
+        if not isinstance(model_name, str) or not model_name:
+            raise LLMResponseFormatError("LM Studio returned a malformed embeddings response")
+
+        data = response_payload.get("data")
+        if not isinstance(data, list) or not data:
+            raise LLMResponseFormatError("LM Studio returned a malformed embeddings response")
+
+        ordered_vectors = self._sort_embedding_items(data)
+
+        if len(ordered_vectors) != expected_count:
+            raise LLMResponseFormatError("LM Studio returned a malformed embeddings response")
+
+        logger.info("Received embeddings response from LM Studio model %s", model_name)
+        return EmbeddingResponse(
+            model_name=model_name,
+            vectors=tuple(ordered_vectors),
+        )
+
+    @staticmethod
+    def _sort_embedding_items(data: list[object]) -> list[tuple[float, ...]]:
+        """Convert raw embedding items into ordered tuples of floats."""
+
+        indexed_vectors: list[tuple[int, tuple[float, ...]]] = []
+        for fallback_index, item in enumerate(data):
+            if not isinstance(item, dict):
+                raise LLMResponseFormatError("LM Studio returned a malformed embeddings response")
+            embedding = item.get("embedding")
+            if not isinstance(embedding, list) or not embedding:
+                raise LLMResponseFormatError("LM Studio returned a malformed embeddings response")
+            vector: list[float] = []
+            for value in embedding:
+                if isinstance(value, bool) or not isinstance(value, (int, float)):
+                    raise LLMResponseFormatError("LM Studio returned a malformed embeddings response")
+                vector.append(float(value))
+            raw_index = item.get("index", fallback_index)
+            if isinstance(raw_index, bool) or not isinstance(raw_index, int):
+                raise LLMResponseFormatError("LM Studio returned a malformed embeddings response")
+            indexed_vectors.append((raw_index, tuple(vector)))
+        indexed_vectors.sort(key=lambda pair: pair[0])
+        return [vector for _, vector in indexed_vectors]
 
     def _map_http_error(self, error: HTTPError):
         """Convert HTTP status failures into controlled domain errors."""
