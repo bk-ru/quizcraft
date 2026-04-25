@@ -1211,3 +1211,89 @@ def test_frontend_editor_confirms_destructive_regenerate_action() -> None:
     assert confirm_guard_index < client_call_index, (
         "confirmation must run before invoking the backend regenerate endpoint"
     )
+
+
+def test_frontend_quiz_history_persists_language_for_regeneration() -> None:
+    history_content = QUIZ_HISTORY_JS.read_text(encoding="utf-8")
+
+    assert "function findLanguageByQuizId" in history_content, (
+        "history must expose a lookup so the editor can recover the original language"
+    )
+    assert "saveQuizToHistory({ quiz_id, title, language }" in history_content, (
+        "saveQuizToHistory must accept the language used to generate the quiz"
+    )
+    assert "normalized.language = language" in history_content, (
+        "history entries must carry language when provided"
+    )
+    assert "findLanguageByQuizId," in history_content, (
+        "createQuizHistory must export findLanguageByQuizId"
+    )
+
+
+def test_frontend_generation_flow_records_language_in_history() -> None:
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "language: generationBody.language" in generation_content, (
+        "successful generation must save the requested language alongside the quiz id"
+    )
+
+
+def test_frontend_editor_uses_recorded_language_for_question_regeneration() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "getLanguageForQuiz," in editor_content, (
+        "createQuizEditor must accept a language lookup callback"
+    )
+    assert "function resolveQuizLanguage" in editor_content, (
+        "editor must encapsulate the language fallback in a single helper"
+    )
+    assert "editorState.loadedQuizLanguage = resolveQuizLanguage" in editor_content, (
+        "loadQuizForEditing must remember the resolved language for the open quiz"
+    )
+    assert 'language: "ru"' not in editor_content, (
+        "regeneration request must not hardcode language to ru"
+    )
+    assert "language," in editor_content, (
+        "regeneration request must forward the resolved language variable to the backend"
+    )
+    assert "loadedQuizLanguage: null" in app_content, (
+        "editorState must expose a slot for the resolved language at bootstrap"
+    )
+    assert "getLanguageForQuiz: quizHistory.findLanguageByQuizId" in app_content, (
+        "app must wire history.findLanguageByQuizId into the editor"
+    )
+
+
+def test_frontend_editor_falls_back_to_russian_when_language_is_unknown() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert 'DEFAULT_REGENERATION_LANGUAGE = "ru"' in editor_content, (
+        "explicit fallback constant must keep Russian as the safe default for legacy quizzes"
+    )
+    assert "return DEFAULT_REGENERATION_LANGUAGE" in editor_content
+
+
+def test_frontend_progress_marks_active_step_with_aria_current() -> None:
+    progress_content = PROGRESS_JS.read_text(encoding="utf-8")
+
+    assert 'target.setAttribute("aria-current", "step")' in progress_content, (
+        "active stepper item must announce itself as the current step"
+    )
+    assert 'target.removeAttribute("aria-current")' in progress_content, (
+        "non-active stepper items must drop aria-current"
+    )
+
+
+def test_frontend_app_warns_before_unloading_dirty_editor() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'window.addEventListener("beforeunload"' in app_content, (
+        "app must register a beforeunload listener to protect unsaved editor changes"
+    )
+    assert "if (!editorState.isDirty)" in app_content, (
+        "beforeunload guard must short-circuit when the editor has no unsaved changes"
+    )
+    assert "event.returnValue = \"\"" in app_content, (
+        "beforeunload guard must populate returnValue so browsers display the native confirmation"
+    )
