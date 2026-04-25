@@ -7,14 +7,14 @@ export function cloneQuizPayload(quiz) {
   return JSON.parse(JSON.stringify(quiz));
 }
 
-const REGENERATE_CONFIRM_PROMPT =
-  "Перегенерировать этот вопрос? Текущий текст вопроса, ответы и пояснение будут заменены новой версией. Несохранённые правки других вопросов останутся без изменений.";
+const REGENERATE_CONFIRM_TITLE = "Перегенерировать вопрос?";
+const REGENERATE_CONFIRM_BODY =
+  "Текущий текст вопроса, ответы и пояснение будут заменены новой версией. Несохранённые правки других вопросов останутся без изменений.";
+const REGENERATE_CONFIRM_LABEL = "Перегенерировать";
+const REGENERATE_CONFIRM_CANCEL_LABEL = "Оставить как есть";
 
-function defaultConfirmAction(message) {
-  if (typeof globalThis !== "undefined" && typeof globalThis.confirm === "function") {
-    return globalThis.confirm(message);
-  }
-  return true;
+function defaultConfirmAction() {
+  return Promise.resolve(true);
 }
 
 const DEFAULT_REGENERATION_LANGUAGE = "ru";
@@ -42,6 +42,7 @@ export function createQuizEditor({
 }, documentRef = document) {
   const askForConfirmation = typeof confirmAction === "function" ? confirmAction : defaultConfirmAction;
   const lookupLanguage = typeof getLanguageForQuiz === "function" ? getLanguageForQuiz : null;
+  let activeRegenerationController = null;
   function setEditorBusyState(isBusy) {
     if (!quizEditorLoader) {
       return;
@@ -72,10 +73,15 @@ export function createQuizEditor({
 
   function setRegenerationActionState(card, { busy, text, tone } = {}) {
     const button = card?.querySelector('[data-editor-action="regenerate-question"]');
+    const cancelButton = card?.querySelector('[data-editor-action="cancel-regenerate-question"]');
     const status = card?.querySelector('[data-regeneration-status="question"]');
     if (button instanceof HTMLButtonElement) {
       button.disabled = Boolean(busy);
       button.textContent = busy ? "Перегенерируем вопрос…" : "Перегенерировать вопрос";
+    }
+    if (cancelButton instanceof HTMLButtonElement) {
+      cancelButton.hidden = !busy;
+      cancelButton.disabled = !busy;
     }
     if (status instanceof HTMLElement) {
       status.textContent = text ?? "";
@@ -86,6 +92,14 @@ export function createQuizEditor({
         delete status.dataset.statusTone;
       }
     }
+  }
+
+  function cancelActiveRegeneration() {
+    if (!activeRegenerationController || activeRegenerationController.signal.aborted) {
+      return false;
+    }
+    activeRegenerationController.abort();
+    return true;
   }
 
   function markEditorDirty() {
@@ -178,13 +192,23 @@ export function createQuizEditor({
     regenerateButton.dataset.questionId = article.dataset.questionId;
     regenerateButton.setAttribute("aria-label", `Перегенерировать вопрос ${index + 1}`);
 
+    const cancelRegenerateButton = documentRef.createElement("button");
+    cancelRegenerateButton.className = "ghost-action question-regenerate-cancel";
+    cancelRegenerateButton.type = "button";
+    cancelRegenerateButton.textContent = "Отменить";
+    cancelRegenerateButton.setAttribute("data-editor-action", "cancel-regenerate-question");
+    cancelRegenerateButton.dataset.questionId = article.dataset.questionId;
+    cancelRegenerateButton.setAttribute("aria-label", `Отменить перегенерацию вопроса ${index + 1}`);
+    cancelRegenerateButton.hidden = true;
+    cancelRegenerateButton.disabled = true;
+
     const regenerationStatus = documentRef.createElement("span");
     regenerationStatus.className = "question-regenerate-status";
     regenerationStatus.setAttribute("data-regeneration-status", "question");
     regenerationStatus.setAttribute("aria-live", "polite");
     regenerationStatus.hidden = true;
 
-    header.append(badge, note, regenerateButton, regenerationStatus);
+    header.append(badge, note, regenerateButton, cancelRegenerateButton, regenerationStatus);
     article.append(header);
 
     const promptField = createEditorField("Текст вопроса", createEditorTextarea(question.prompt ?? "", 3));
@@ -364,11 +388,20 @@ export function createQuizEditor({
       return;
     }
 
-    if (!askForConfirmation(REGENERATE_CONFIRM_PROMPT)) {
+    const confirmed = await askForConfirmation({
+      title: REGENERATE_CONFIRM_TITLE,
+      body: REGENERATE_CONFIRM_BODY,
+      confirmLabel: REGENERATE_CONFIRM_LABEL,
+      cancelLabel: REGENERATE_CONFIRM_CANCEL_LABEL,
+      tone: "warn",
+    });
+    if (!confirmed) {
       setEditorStatus("Перегенерация отменена. Текущий вопрос остался без изменений.", "warn");
       return;
     }
 
+    const abortController = new AbortController();
+    activeRegenerationController = abortController;
     try {
       const hadUnsavedEdits = editorState.isDirty;
       const displayedQuiz = buildQuizUpdatePayload();
@@ -381,11 +414,16 @@ export function createQuizEditor({
       const language = typeof editorState.loadedQuizLanguage === "string" && editorState.loadedQuizLanguage.trim()
         ? editorState.loadedQuizLanguage.trim()
         : resolveQuizLanguage(quizId);
-      const response = await client.regenerateQuestion(quizId, questionId, {
-        quiz_id: quizId,
-        question_id: questionId,
-        language,
-      });
+      const response = await client.regenerateQuestion(
+        quizId,
+        questionId,
+        {
+          quiz_id: quizId,
+          question_id: questionId,
+          language,
+        },
+        { signal: abortController.signal },
+      );
       const regeneratedQuestion = response.regenerated_question;
       if (!regeneratedQuestion?.question_id) {
         throw new Error("Backend не вернул обновлённый вопрос.");
@@ -427,13 +465,30 @@ export function createQuizEditor({
         "ok",
       );
     } catch (error) {
-      setRegenerationActionState(card, {
-        busy: false,
-        text: `Не удалось перегенерировать вопрос: ${describeError(error)}`,
-        tone: "bad",
-      });
-      setEditorStatus(`Не удалось перегенерировать вопрос: ${describeError(error)}`, "bad");
-      showToast("Не удалось перегенерировать вопрос.", "bad");
+      const wasCancelled = abortController.signal.aborted
+        && error instanceof QuizCraftApiError
+        && error.status === 0;
+      if (wasCancelled) {
+        setRegenerationActionState(card, {
+          busy: false,
+          text: "Регенерация отменена. Вопрос остался без изменений.",
+          tone: "warn",
+        });
+        setEditorStatus("Регенерация отменена пользователем.", "warn");
+        showToast("Регенерация вопроса отменена.", "warn");
+      } else {
+        setRegenerationActionState(card, {
+          busy: false,
+          text: `Не удалось перегенерировать вопрос: ${describeError(error)}`,
+          tone: "bad",
+        });
+        setEditorStatus(`Не удалось перегенерировать вопрос: ${describeError(error)}`, "bad");
+        showToast("Не удалось перегенерировать вопрос.", "bad");
+      }
+    } finally {
+      if (activeRegenerationController === abortController) {
+        activeRegenerationController = null;
+      }
     }
   }
 
@@ -488,6 +543,7 @@ export function createQuizEditor({
     buildQuizUpdatePayload,
     loadQuizForEditing,
     regenerateQuizQuestion,
+    cancelActiveRegeneration,
     submitQuizEdits,
   };
 }

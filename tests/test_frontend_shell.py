@@ -1180,29 +1180,190 @@ def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
 def test_frontend_editor_confirms_destructive_regenerate_action() -> None:
     content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
 
-    assert "REGENERATE_CONFIRM_PROMPT" in content, (
-        "the confirmation copy must be extracted into a single Russian constant"
+    assert "REGENERATE_CONFIRM_TITLE" in content, (
+        "the confirmation title must be extracted into a single Russian constant"
     )
-    assert "Перегенерировать этот вопрос" in content, (
-        "confirmation prompt must ask the user in Russian"
+    assert "REGENERATE_CONFIRM_BODY" in content, (
+        "the confirmation body must be extracted into a single Russian constant"
+    )
+    assert "Перегенерировать вопрос?" in content, (
+        "confirmation title must ask the user in Russian"
     )
     assert "Несохранённые правки других вопросов останутся" in content, (
-        "confirmation prompt must reassure the user about unsaved edits"
+        "confirmation body must reassure the user about unsaved edits"
     )
     assert "askForConfirmation" in content
     assert "defaultConfirmAction" in content
-    assert "globalThis.confirm" in content, (
-        "default confirmation must delegate to the native window.confirm"
+    assert "globalThis.confirm" not in content, (
+        "default confirmation must no longer delegate to the native window.confirm"
+    )
+    assert "Promise.resolve(true)" in content, (
+        "defaultConfirmAction must keep its async Promise<boolean> contract"
     )
     assert "Перегенерация отменена" in content, (
         "cancel path must show a Russian status about leaving the question untouched"
     )
-    confirm_guard_index = content.find("if (!askForConfirmation(REGENERATE_CONFIRM_PROMPT))")
-    client_call_index = content.find("client.regenerateQuestion(quizId")
-    assert confirm_guard_index != -1, "regenerate must be guarded by askForConfirmation"
+    confirm_guard_index = content.find("const confirmed = await askForConfirmation({")
+    client_call_index = content.find("client.regenerateQuestion(")
+    assert confirm_guard_index != -1, (
+        "regenerate must await an async confirmation that receives a structured options object"
+    )
     assert client_call_index != -1
     assert confirm_guard_index < client_call_index, (
         "confirmation must run before invoking the backend regenerate endpoint"
+    )
+
+
+def test_frontend_modal_module_exposes_createConfirmModal() -> None:
+    modal_path = FRONTEND_DIR / "modal.js"
+    assert modal_path.is_file(), "frontend must ship a modal module backing destructive confirmations"
+    content = modal_path.read_text(encoding="utf-8")
+
+    assert "export function createConfirmModal" in content, (
+        "modal module must expose createConfirmModal as the only public factory"
+    )
+    assert "dialog.showModal" in content, (
+        "confirm modal must use the native <dialog> element so focus trap and Esc are free"
+    )
+    assert "dialog.addEventListener(\"cancel\"" in content, (
+        "Esc on the dialog must resolve the promise as cancelled"
+    )
+    assert "dialog.addEventListener(\"close\"" in content, (
+        "dialog close must resolve the promise"
+    )
+    assert "dialog.addEventListener(\"click\"" in content, (
+        "backdrop click must resolve the promise as cancelled"
+    )
+    assert "restore.focus" in content, (
+        "modal must restore focus to the previously focused element after closing"
+    )
+
+
+def test_frontend_index_mounts_modal_region() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="modal-region"' in content, (
+        "index must expose a modal-region container so confirm dialogs have a stable mount point"
+    )
+    assert 'class="modal-region"' in content, (
+        "modal-region must use a styled class to opt into the fixed-position overlay"
+    )
+
+
+def test_frontend_modal_region_is_styled_in_feedback_css() -> None:
+    feedback_css = (FRONTEND_DIR / "feedback.css").read_text(encoding="utf-8")
+
+    assert ".modal-region" in feedback_css, (
+        "feedback.css must style the modal-region container"
+    )
+    assert ".confirm-modal" in feedback_css, (
+        "feedback.css must style the confirm-modal dialog"
+    )
+    assert ".confirm-modal::backdrop" in feedback_css, (
+        "confirm-modal must dim the page behind the dialog using ::backdrop"
+    )
+    assert ".confirm-modal-actions" in feedback_css, (
+        "confirm-modal action row must be styled"
+    )
+
+
+def test_frontend_app_wires_confirm_modal_into_quiz_editor() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'import { createConfirmModal } from "./modal.js"' in app_content, (
+        "app must import the modal factory"
+    )
+    assert "const modalRegion = document.getElementById(\"modal-region\")" in app_content, (
+        "app must locate the modal-region container before constructing the modal"
+    )
+    assert "const confirmModal = createConfirmModal({ modalRegion })" in app_content, (
+        "app must construct the confirm modal against the modal-region"
+    )
+    assert "confirmAction: confirmModal.confirm" in app_content, (
+        "quizEditor must receive the modal-backed async confirm action"
+    )
+
+
+def test_frontend_app_attaches_cancel_regeneration_listener() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "cancel-regenerate-question" in app_content, (
+        "app must listen for clicks on the cancel-regeneration buttons"
+    )
+    assert "quizEditor.cancelActiveRegeneration()" in app_content, (
+        "the cancel listener must delegate to quizEditor.cancelActiveRegeneration"
+    )
+
+
+def test_frontend_editor_renders_cancel_button_for_active_regeneration() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert 'data-editor-action", "cancel-regenerate-question"' in editor_content, (
+        "every editor card must render a cancel-regenerate-question button"
+    )
+    assert "cancelRegenerateButton.hidden = true" in editor_content, (
+        "cancel button must start hidden until a regeneration is in flight"
+    )
+    assert "cancelButton.hidden = !busy" in editor_content, (
+        "setRegenerationActionState must show the cancel button while busy"
+    )
+    assert "cancelButton.disabled = !busy" in editor_content, (
+        "cancel button must be disabled while no regeneration is running"
+    )
+
+
+def test_frontend_editor_aborts_in_flight_regeneration_request() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert "let activeRegenerationController = null" in editor_content, (
+        "editor must track the active AbortController in module scope"
+    )
+    assert "const abortController = new AbortController()" in editor_content, (
+        "regenerateQuizQuestion must allocate a new AbortController per request"
+    )
+    assert "{ signal: abortController.signal }" in editor_content, (
+        "regenerate request must forward the abort signal to the API client"
+    )
+    assert "function cancelActiveRegeneration" in editor_content, (
+        "editor must expose cancelActiveRegeneration so external callers can abort"
+    )
+    assert "activeRegenerationController.abort()" in editor_content, (
+        "cancelActiveRegeneration must call abort on the live controller"
+    )
+    assert "abortController.signal.aborted" in editor_content, (
+        "the catch path must distinguish cancellation from generic errors"
+    )
+    assert "Регенерация отменена пользователем" in editor_content, (
+        "cancellation status must be in Russian"
+    )
+    assert "cancelActiveRegeneration," in editor_content, (
+        "createQuizEditor must export cancelActiveRegeneration"
+    )
+
+
+def test_frontend_api_client_forwards_signal_for_question_regeneration() -> None:
+    client_content = API_CLIENT_JS.read_text(encoding="utf-8")
+
+    assert "regenerateQuestion(quizId, questionId, payload = {}, { signal } = {})" in client_content, (
+        "regenerateQuestion must accept an optional signal so callers can cancel the request"
+    )
+    assert (
+        "json: payload ?? {}," in client_content
+        and "signal," in client_content
+    ), "the regenerate _request must include the forwarded signal alongside the payload"
+
+
+def test_frontend_keyboard_shortcut_cancels_active_regeneration() -> None:
+    keyboard_content = KEYBOARD_JS.read_text(encoding="utf-8")
+
+    assert "quizEditor.cancelActiveRegeneration" in keyboard_content, (
+        "Esc must try to cancel a running question regeneration before falling back to toast dismissal"
+    )
+    cancel_index = keyboard_content.find("quizEditor.cancelActiveRegeneration")
+    dismiss_index = keyboard_content.find("toastController.dismissAllToasts")
+    assert cancel_index != -1 and dismiss_index != -1
+    assert cancel_index < dismiss_index, (
+        "regeneration cancel must be attempted before toast dismissal so an in-flight request is stopped"
     )
 
 
