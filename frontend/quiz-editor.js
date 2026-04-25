@@ -17,6 +17,8 @@ function defaultConfirmAction(message) {
   return true;
 }
 
+const DEFAULT_REGENERATION_LANGUAGE = "ru";
+
 export function createQuizEditor({
   editorState,
   client,
@@ -35,9 +37,11 @@ export function createQuizEditor({
   describeError,
   describeValidationError,
   saveQuizToHistory,
+  getLanguageForQuiz,
   confirmAction,
 }, documentRef = document) {
   const askForConfirmation = typeof confirmAction === "function" ? confirmAction : defaultConfirmAction;
+  const lookupLanguage = typeof getLanguageForQuiz === "function" ? getLanguageForQuiz : null;
   function setEditorBusyState(isBusy) {
     if (!quizEditorLoader) {
       return;
@@ -103,6 +107,7 @@ export function createQuizEditor({
   function clearQuizEditor() {
     editorState.loadedQuiz = null;
     editorState.isDirty = false;
+    editorState.loadedQuizLanguage = null;
     setQuizEditorSummary({});
     setEditorSaveState({ disabled: true });
     if (quizEditorFields) {
@@ -111,6 +116,16 @@ export function createQuizEditor({
       placeholder.textContent = "После загрузки квиза здесь появятся редактируемые поля.";
       quizEditorFields.replaceChildren(placeholder);
     }
+  }
+
+  function resolveQuizLanguage(quizId) {
+    if (lookupLanguage) {
+      const recovered = lookupLanguage(quizId);
+      if (typeof recovered === "string" && recovered.trim()) {
+        return recovered.trim();
+      }
+    }
+    return DEFAULT_REGENERATION_LANGUAGE;
   }
 
   function createEditorField(labelText, control) {
@@ -312,6 +327,7 @@ export function createQuizEditor({
 
       renderQuizEditor(quiz);
       setQuizEditorSummary(quiz);
+      editorState.loadedQuizLanguage = resolveQuizLanguage(payload.quiz_id ?? quiz.quiz_id ?? quizId);
       setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
       setExportAvailability(payload.quiz_id ?? quiz.quiz_id ?? quizId);
       advanceStepper("edit");
@@ -362,10 +378,13 @@ export function createQuizEditor({
         tone: "warn",
       });
       setEditorStatus("Перегенерируем один вопрос. Остальные вопросы останутся без изменений.", "warn");
+      const language = typeof editorState.loadedQuizLanguage === "string" && editorState.loadedQuizLanguage.trim()
+        ? editorState.loadedQuizLanguage.trim()
+        : resolveQuizLanguage(quizId);
       const response = await client.regenerateQuestion(quizId, questionId, {
         quiz_id: quizId,
         question_id: questionId,
-        language: "ru",
+        language,
       });
       const regeneratedQuestion = response.regenerated_question;
       if (!regeneratedQuestion?.question_id) {

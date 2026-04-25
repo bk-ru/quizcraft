@@ -39,6 +39,11 @@ export function createProgressController({ stepper, generationProgressPanel }, w
     } else {
       delete target.dataset.state;
     }
+    if (state === "active") {
+      target.setAttribute("aria-current", "step");
+    } else {
+      target.removeAttribute("aria-current");
+    }
   }
 
   function advanceStepper(stageName, options = {}) {

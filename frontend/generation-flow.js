@@ -329,6 +329,7 @@ export function createGenerationFlow({
         saveQuizToHistory({
           quiz_id: generationPayload.quiz_id ?? generatedQuiz.quiz_id,
           title: generatedQuiz.title,
+          language: generationBody.language,
         });
       }
       setEditorStatus("Квиз готов. Нажмите «Редактировать квиз», чтобы открыть редактор.", "ok");

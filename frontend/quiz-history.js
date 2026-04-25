@@ -34,7 +34,14 @@ function normalizeEntry(entry) {
   const timestamp = typeof entry.timestamp === "string" && entry.timestamp
     ? entry.timestamp
     : new Date().toISOString();
-  return { quiz_id: quizId, title, timestamp };
+  const language = typeof entry.language === "string" && entry.language.trim()
+    ? entry.language.trim()
+    : null;
+  const normalized = { quiz_id: quizId, title, timestamp };
+  if (language) {
+    normalized.language = language;
+  }
+  return normalized;
 }
 
 export function createQuizHistory({
@@ -71,11 +78,16 @@ export function createQuizHistory({
     datalistElement.replaceChildren(...options);
   }
 
-  function saveQuizToHistory({ quiz_id, title } = {}) {
+  function saveQuizToHistory({ quiz_id, title, language } = {}) {
     if (!storageRef) {
       return loadQuizHistory();
     }
-    const candidate = normalizeEntry({ quiz_id, title, timestamp: new Date().toISOString() });
+    const candidate = normalizeEntry({
+      quiz_id,
+      title,
+      language,
+      timestamp: new Date().toISOString(),
+    });
     if (!candidate) {
       return loadQuizHistory();
     }
@@ -84,6 +96,15 @@ export function createQuizHistory({
     writeRawEntries(storageRef, next);
     renderHistoryDatalist();
     return next;
+  }
+
+  function findLanguageByQuizId(quizId) {
+    const normalizedId = typeof quizId === "string" ? quizId.trim() : "";
+    if (!normalizedId) {
+      return null;
+    }
+    const match = loadQuizHistory().find((entry) => entry.quiz_id === normalizedId);
+    return match && typeof match.language === "string" && match.language ? match.language : null;
   }
 
   function removeQuizFromHistory(quizId) {
@@ -118,6 +139,7 @@ export function createQuizHistory({
     removeQuizFromHistory,
     clearQuizHistory,
     renderHistoryDatalist,
+    findLanguageByQuizId,
   };
 }
 
