@@ -54,6 +54,7 @@ const profileSelect = document.getElementById("generation-profile");
 
 const editorState = {
   loadedQuiz: null,
+  loadedQuizLanguage: null,
   isDirty: false,
   lastGeneratedQuizId: null,
   supportedExportFormats: new Set(["json"]),
@@ -204,6 +205,7 @@ const quizEditor = createQuizEditor({
   describeError,
   describeValidationError,
   saveQuizToHistory: quizHistory.saveQuizToHistory,
+  getLanguageForQuiz: quizHistory.findLanguageByQuizId,
 });
 
 const generationFlow = createGenerationFlow({
@@ -341,6 +343,14 @@ function openEditorForCurrentQuiz() {
 
 themeController.applyTheme(themeController.resolveStoredTheme());
 themeToggleButton?.addEventListener("click", themeController.cycleTheme);
+
+window.addEventListener("beforeunload", (event) => {
+  if (!editorState.isDirty) {
+    return;
+  }
+  event.preventDefault();
+  event.returnValue = "";
+});
 generationFlow.attachDropzone();
 exportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
 exportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
