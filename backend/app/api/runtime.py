@@ -9,7 +9,9 @@ from fastapi import FastAPI
 from backend.app.core.config import AppConfig
 from backend.app.generation import DirectGenerationOrchestrator
 from backend.app.generation import DirectGenerationRequestBuilder
+from backend.app.generation import GenerationOrchestratorDispatcher
 from backend.app.generation import GenerationQualityChecker
+from backend.app.generation import RagGenerationOrchestrator
 from backend.app.generation import SingleQuestionRegenerationOrchestrator
 from backend.app.generation import SingleQuestionRegenerationRequestBuilder
 from backend.app.parsing.docx import DocxParser
@@ -50,13 +52,10 @@ def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
 
     orchestrator = getattr(app.state, "generation_orchestrator", None)
     if orchestrator is None:
-        document_repository = _get_document_repository(app.state.storage_root)
-        quiz_repository = FileSystemQuizRepository(app.state.storage_root)
-        generation_result_repository = FileSystemGenerationResultRepository(app.state.storage_root)
         orchestrator = DirectGenerationOrchestrator(
-            document_repository=document_repository,
-            quiz_repository=quiz_repository,
-            generation_result_repository=generation_result_repository,
+            document_repository=_get_document_repository(app.state.storage_root),
+            quiz_repository=FileSystemQuizRepository(app.state.storage_root),
+            generation_result_repository=FileSystemGenerationResultRepository(app.state.storage_root),
             request_builder=DirectGenerationRequestBuilder(prompt_registry=PromptRegistry),
             provider=app.state.provider,
             quality_checker=GenerationQualityChecker(),
@@ -64,6 +63,37 @@ def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
         )
         app.state.generation_orchestrator = orchestrator
     return orchestrator
+
+
+def get_rag_generation_orchestrator(app: FastAPI) -> RagGenerationOrchestrator:
+    """Get or lazily build the rag generation orchestrator for the FastAPI app."""
+
+    orchestrator = getattr(app.state, "rag_generation_orchestrator", None)
+    if orchestrator is None:
+        orchestrator = RagGenerationOrchestrator(
+            document_repository=_get_document_repository(app.state.storage_root),
+            quiz_repository=FileSystemQuizRepository(app.state.storage_root),
+            generation_result_repository=FileSystemGenerationResultRepository(app.state.storage_root),
+            provider=app.state.provider,
+            quality_checker=GenerationQualityChecker(),
+            max_document_chars=app.state.config.max_document_chars,
+        )
+        app.state.rag_generation_orchestrator = orchestrator
+    return orchestrator
+
+
+def get_generation_dispatcher(app: FastAPI) -> GenerationOrchestratorDispatcher:
+    """Get or lazily build the generation dispatcher routing direct and rag paths."""
+
+    dispatcher = getattr(app.state, "generation_dispatcher", None)
+    if dispatcher is None:
+        dispatcher = GenerationOrchestratorDispatcher(
+            direct_orchestrator=get_generation_orchestrator(app),
+            rag_orchestrator=get_rag_generation_orchestrator(app),
+            document_repository=_get_document_repository(app.state.storage_root),
+        )
+        app.state.generation_dispatcher = dispatcher
+    return dispatcher
 
 
 def get_generation_settings_repository(app: FastAPI) -> FileSystemGenerationSettingsRepository:
