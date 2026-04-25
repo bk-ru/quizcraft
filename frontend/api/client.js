@@ -57,6 +57,10 @@ export class QuizCraftApiClient {
     return this._request("/generation/settings", { timeoutMs: this._timeouts.health });
   }
 
+  getExportFormats() {
+    return this._request("/export/formats", { timeoutMs: this._timeouts.health });
+  }
+
   putGenerationSettings(payload) {
     return this._request("/generation/settings", {
       method: "PUT",
