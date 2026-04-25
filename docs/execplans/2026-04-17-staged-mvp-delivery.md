@@ -62,6 +62,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-25) Completed and integrated all of Stage 13 on `main`, closing the advanced export formats stage end-to-end: export registry, DOCX exporter, PPTX exporter, advanced quiz export endpoints with capability reporting, and capability-driven frontend export controls preserving the existing JSON action.
 - [x] (2026-04-25) Synced this ExecPlan to Stage 13 completion state on `main` via merge commit `4da1f50`, feature commit `b88c6a3`. Recorded Progress entries for Stage 13 Batches 1–5 and the Stage 13 closeout, extended `Outcomes & Retrospective` and `Context and Orientation` to include Stage 13 (advanced export formats), appended the Stage 13 merge commits to `Artifacts and Notes / Current integrated state`, added the Stage 13 entries to `Current backlog completion status`, and switched `Next recommended stage` to Stage 14 RAG Generation.
 - [x] (2026-04-25) Implemented, reviewed, and integrated Stage 14 Batch 1 on `main` via merge commit `a8b2ad9`, feature commits `50bd844` (`feat(parsing): add deterministic text chunker for retrieval`) and `47e3cd0` (`feat(llm): add lm studio embeddings client`). Adds `backend/app/parsing/chunking.py` with `TextChunk` plus `chunk_text(text, *, chunk_size, overlap)` returning deterministic overlapping character chunks (`DomainValidationError` for invalid inputs, empty text returns an empty tuple, no extra step after the chunk reaches end of text), wires `LMStudioClient.embed` to LM Studio `/v1/embeddings` through the existing `RetryingCaller` (refactored shared `_post_json(path, payload)` helper, response items sorted by `index` with controlled `LLMResponseFormatError` on count mismatch or non-numeric vectors), and tightens `EmbeddingRequest.__post_init__` to reject empty/blank/non-string texts and blank `model_name`. Adds `backend/tests/test_chunking.py` and `backend/tests/test_lm_studio_embeddings.py` covering positive Russian/Cyrillic round-trip flows, retry-on-timeout/503 behavior, malformed-response branches, and `EmbeddingRequest` validation negatives.
+- [x] (2026-04-25) Implemented, reviewed, and integrated Stage 14 Batch 2 on `main` via merge commit `e8350c8`, feature commits `d0da510` (`feat(generation): add chunk embeddings and in-memory vector index`) and `89cb3f9` (`feat(generation): add bounded retrieval context assembler`). Adds `backend/app/generation/retrieval.py` with `EmbeddedChunk`, `ScoredChunk`, the `embed_chunks(chunks, *, provider, model_name=None, batch_size=32)` helper that batches embedding requests through any `LLMProvider` and validates the response length, and the `InMemoryVectorIndex(embedded_chunks)` class exposing `__len__`, `dimension`, `embedded_chunks`, and `search(query_vector, *, top_k)` with deterministic cosine-similarity ranking (insertion-order tie-break, top-`k` clamping, controlled `DomainValidationError` for empty vectors, mixed dimensions, dimension mismatch, non-positive `top_k`, or string query vectors). Adds `backend/app/generation/context.py` with `assemble_context(scored_chunks, *, max_chars, separator='\n\n')` that joins retrieved chunks in supplied order, stops when the next chunk would exceed `max_chars`, truncates the first chunk if it alone exceeds `max_chars`, returns `""` for empty input, and rejects non-positive `max_chars`, non-string `separator`, or non-`ScoredChunk` entries. Adds `backend/tests/test_retrieval.py` and `backend/tests/test_context_assembler.py` covering Russian/Cyrillic positive flows (Москва, Россия, Питер, Беларусь, Кемерово), batched embedding requests through a `FakeEmbeddingProvider` stub, deterministic tie-break, empty-index/zero-vector edge cases, dimension validation, and full input-validation negatives.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -650,6 +651,8 @@ Current integrated state:
     7acc1c7 merge(frontend): integrate stage 13 batch 5 exports
     4da1f50 merge(docs): integrate stage 13 completion sync
     a8b2ad9 merge(rag): integrate stage 14 batch 1 embeddings
+    20fe09c merge(docs): integrate stage 14 batch 1 sync
+    e8350c8 merge(rag): integrate stage 14 batch 2 retrieval
 
 Current backlog completion status:
 
@@ -705,6 +708,8 @@ Current backlog completion status:
     Stage 13: fully integrated on main
     Stage 13 completion sync: integrated on main (merge `4da1f50`, feature `b88c6a3`)
     Stage 14 Batch 1 (`LM-005`, `PR-007`, `TS-008` embeddings/chunker slice): integrated on main
+    Stage 14 Batch 1 sync: integrated on main (merge `20fe09c`, feature `6279dd6`)
+    Stage 14 Batch 2 (`RAG-001` through `RAG-004`, `TS-008` retrieval/context slice): integrated on main
 
 Next recommended stage:
 
@@ -712,7 +717,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 14 Batch 2: in-memory vector index, top-`k` retriever, and bounded context assembler (`RAG-001` through `RAG-004`, plus the retrieval/context slice of `TS-008`) layered on top of the embeddings client and chunker delivered in Batch 1, without yet wiring the RAG orchestrator. Stage 14 Batch 3 should add the RAG master prompt, the RAG orchestrator, and the rule-based direct/RAG mode selector (`PM-004`, `RAG-005`, `GN-007`, plus the RAG slice of `CF-002`), wire everything through the existing generation pipeline, and add the RAG orchestration tests (`TS-008` orchestration slice).
+    Stage 14 Batch 3: RAG master prompt, RAG orchestrator, and rule-based direct/RAG mode selector (`PM-004`, `RAG-005`, `GN-007`, plus the RAG slice of `CF-002`, plus the orchestration slice of `TS-008`) that wires the chunker, embeddings client, in-memory index, top-`k` retriever, and bounded context assembler delivered in Batches 1 and 2 into a complete `parse → normalize → chunk → embed → retrieve → generate → validate` flow, registers the new `rag` mode alongside the existing `direct` and `single_question_regen` modes, adds a rule-based selector for choosing between `direct` and `rag` based on document length and explicit user override, and preserves backward compatibility for the existing direct generation path.
 
 ## Interfaces and Dependencies
 
