@@ -50,6 +50,13 @@ export function createKeyboardShortcuts({
           return;
         }
       }
+      if (quizEditor && typeof quizEditor.cancelActiveRegeneration === "function") {
+        const didCancelRegen = quizEditor.cancelActiveRegeneration();
+        if (didCancelRegen) {
+          event.preventDefault();
+          return;
+        }
+      }
       if (toastController && typeof toastController.dismissAllToasts === "function") {
         toastController.dismissAllToasts();
       }
