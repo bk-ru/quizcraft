@@ -921,10 +921,6 @@ def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
     assert 'class="hero-copy"' not in index_content, (
         "the hero must not duplicate the upload-panel copy"
     )
-    assert 'id="generation-mode"' not in index_content, (
-        "the hidden generation_mode input must be replaced by a module constant"
-    )
-    assert 'name="generation_mode"' not in index_content
 
     assert "padding: 28px 0 20px;" in layout_css, (
         "hero vertical footprint must be compact"
@@ -940,10 +936,7 @@ def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
     )
 
     assert "DEFAULT_GENERATION_MODE" in generation_content, (
-        "generation_mode must live as a module constant"
-    )
-    assert 'formData.get("generation_mode")' not in generation_content, (
-        "generation flow must stop reading generation_mode from FormData"
+        "generation_mode must keep a module-level fallback constant for unsupported user input"
     )
 
 
@@ -1296,4 +1289,88 @@ def test_frontend_app_warns_before_unloading_dirty_editor() -> None:
     )
     assert "event.returnValue = \"\"" in app_content, (
         "beforeunload guard must populate returnValue so browsers display the native confirmation"
+    )
+
+
+def test_frontend_index_exposes_generation_mode_selector() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="generation-mode"' in index_content, (
+        "parameters panel must offer an explicit generation_mode select"
+    )
+    assert 'name="generation_mode"' in index_content, (
+        "select must use the backend-aligned name generation_mode"
+    )
+    assert "Режим генерации" in index_content, (
+        "selector label must be in Russian"
+    )
+    assert '<option value="direct" selected>' in index_content, (
+        "direct must be the default generation mode"
+    )
+    assert '<option value="rag">' in index_content, (
+        "rag must be selectable"
+    )
+    assert "Прямая (с авто-RAG для длинных документов)" in index_content, (
+        "direct option copy must explain the auto-promotion behaviour in Russian"
+    )
+    assert "RAG (всегда использовать поиск по документу)" in index_content, (
+        "rag option copy must explain the explicit retrieval mode in Russian"
+    )
+
+
+def test_frontend_index_surfaces_resolved_generation_mode_in_result() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="quiz-generation-mode"' in index_content, (
+        "result panel must expose a dedicated slot for the resolved generation mode"
+    )
+    assert "<dt>Режим</dt>" in index_content, (
+        "result panel must label the slot in Russian"
+    )
+
+
+def test_frontend_generation_flow_forwards_requested_generation_mode() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert 'SUPPORTED_REQUEST_MODES = Object.freeze(["direct", "rag"])' in content, (
+        "frontend must whitelist the modes it can send to the backend"
+    )
+    assert 'formData.get("generation_mode")' in content, (
+        "generation flow must read the user-selected mode instead of hardcoding it"
+    )
+    assert "SUPPORTED_REQUEST_MODES.includes(requestedMode)" in content, (
+        "unsupported modes must fall back to the default before being sent to the backend"
+    )
+    assert "const generationMode = DEFAULT_GENERATION_MODE;" not in content, (
+        "generation_mode must no longer be hardcoded to the default"
+    )
+
+
+def test_frontend_quiz_renderer_describes_generation_mode_from_prompt_version() -> None:
+    content = QUIZ_RENDERER_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "export function describeGenerationMode" in content, (
+        "renderer must expose a deterministic prompt_version -> mode label mapping"
+    )
+    assert 'rag: "RAG (поиск по документу)"' in content, (
+        "rag prompt versions must surface a Russian RAG label"
+    )
+    assert 'direct: "Прямая"' in content, (
+        "direct prompt versions must surface a Russian direct label"
+    )
+    assert 'single_question_regen: "Регенерация одного вопроса"' in content, (
+        "single-question regeneration must be labelled in Russian"
+    )
+    assert 'describeGenerationMode(generationPayload.prompt_version)' in content, (
+        "renderQuizResult must populate the mode field via the helper"
+    )
+    assert 'setTextContent("quiz-generation-mode"' in content, (
+        "renderer must write into the quiz-generation-mode slot"
+    )
+    assert 'setTextContent("quiz-generation-mode", "Ещё нет результата")' in content, (
+        "clearQuizResult must reset the generation mode label between runs"
+    )
+    assert "describeGenerationMode" not in app_content, (
+        "describeGenerationMode is a renderer concern and should not leak into app.js"
     )

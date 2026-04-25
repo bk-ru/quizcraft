@@ -1,3 +1,22 @@
+const GENERATION_MODE_LABELS = Object.freeze({
+  rag: "RAG (поиск по документу)",
+  direct: "Прямая",
+  single_question_regen: "Регенерация одного вопроса",
+});
+
+export function describeGenerationMode(promptVersion) {
+  if (typeof promptVersion !== "string" || !promptVersion.trim()) {
+    return "Не указан";
+  }
+  const trimmed = promptVersion.trim().toLowerCase();
+  for (const [prefix, label] of Object.entries(GENERATION_MODE_LABELS)) {
+    if (trimmed.startsWith(`${prefix}-`) || trimmed === prefix) {
+      return label;
+    }
+  }
+  return "Не указан";
+}
+
 export function createQuizRenderer({
   resultPanel,
   resultStateBadge,
@@ -32,6 +51,7 @@ export function createQuizRenderer({
   function clearQuizResult() {
     setTextContent("quiz-title", "Ещё нет результата");
     setTextContent("quiz-question-count", "0");
+    setTextContent("quiz-generation-mode", "Ещё нет результата");
     setTextContent("quiz-model-name", "Ещё нет результата");
     setTextContent("quiz-prompt-version", "Ещё нет результата");
     if (questionList) {
@@ -98,6 +118,7 @@ export function createQuizRenderer({
 
     setTextContent("quiz-title", quiz.title ?? "Без названия");
     setTextContent("quiz-question-count", String(questions.length));
+    setTextContent("quiz-generation-mode", describeGenerationMode(generationPayload.prompt_version));
     setTextContent("quiz-model-name", generationPayload.model_name ?? "Не указана");
     setTextContent("quiz-prompt-version", generationPayload.prompt_version ?? "Не указана");
 
