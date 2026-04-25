@@ -169,6 +169,13 @@
                 <option value="en">English</option>
               </select>
             </label>
+            <label class="field" for="generation-mode">
+              <span class="field-label">Режим генерации</span>
+              <select id="generation-mode" name="generation_mode">
+                <option value="direct" selected>Прямая (с авто-RAG для длинных документов)</option>
+                <option value="rag">RAG (всегда использовать поиск по документу)</option>
+              </select>
+            </label>
             <label class="field" for="generation-model">
               <span class="field-label">Модель</span>
               <select id="generation-model" name="model_name" disabled>
@@ -306,6 +313,10 @@
           <div>
             <dt>Количество вопросов</dt>
             <dd id="quiz-question-count">0</dd>
+          </div>
+          <div>
+            <dt>Режим</dt>
+            <dd id="quiz-generation-mode">Ещё нет результата</dd>
           </div>
         </dl>
         <details class="inline-details">
