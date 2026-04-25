@@ -23,6 +23,7 @@ from backend.app.domain.errors import LLMTimeoutError
 from backend.app.domain.errors import PromptResolutionError
 from backend.app.domain.errors import RepositoryNotFoundError
 from backend.app.domain.errors import TextExtractionError
+from backend.app.domain.errors import UnsupportedExportFormatError
 from backend.app.domain.errors import UnsupportedGenerationModeError
 from backend.app.domain.errors import UnsupportedProviderCapabilityError
 
@@ -34,7 +35,15 @@ def map_backend_error_to_status_code(error: BackendError) -> int:
 
     if isinstance(error, RepositoryNotFoundError):
         return 404
-    if isinstance(error, (FileValidationError, TextExtractionError, UnsupportedGenerationModeError)):
+    if isinstance(
+        error,
+        (
+            FileValidationError,
+            TextExtractionError,
+            UnsupportedExportFormatError,
+            UnsupportedGenerationModeError,
+        ),
+    ):
         return 400
     if isinstance(error, DocumentTooLargeForGenerationError):
         return 413

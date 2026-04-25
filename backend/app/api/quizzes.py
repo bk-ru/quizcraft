@@ -19,7 +19,8 @@ from backend.app.domain.models import GenerationSettings
 from backend.app.domain.models import Quiz
 from backend.app.domain.models import Question
 from backend.app.domain.validation import validate_quiz
-from backend.app.export.json_exporter import QuizJsonExporter
+from backend.app.export.base import ExportedQuizFile
+from backend.app.export.registry import DEFAULT_QUIZ_EXPORT_REGISTRY
 from backend.app.generation.profiles import GenerationProfileResolver
 from backend.app.generation.single_question import SingleQuestionRegenerationResult
 from backend.app.storage.quizzes import FileSystemQuizRepository
@@ -36,11 +37,8 @@ def register_quiz_routes(app: FastAPI) -> None:
     @app.get("/quizzes/{quiz_id}/export/json")
     async def export_quiz_json(request: Request, quiz_id: str) -> Response:
         quiz = FileSystemQuizRepository(request.app.state.storage_root).get(quiz_id)
-        exported_file = QuizJsonExporter().export(quiz)
-        response = Response(content=exported_file.content_bytes, media_type="application/json")
-        response.headers["content-disposition"] = f'attachment; filename="{exported_file.filename}"'
-        response.headers["content-type"] = exported_file.media_type
-        return response
+        exported_file = DEFAULT_QUIZ_EXPORT_REGISTRY.export(quiz, "json")
+        return _build_export_response(exported_file)
 
     @app.put("/quizzes/{quiz_id}")
     async def update_quiz(request: Request, quiz_id: str, payload: QuizUpdateBody) -> dict[str, Any]:
@@ -89,6 +87,15 @@ def _serialize_quiz(quiz: Quiz, request_id: str) -> dict[str, Any]:
         "quiz": quiz.to_dict(),
         "request_id": request_id,
     }
+
+
+def _build_export_response(exported_file: ExportedQuizFile) -> Response:
+    """Build a file download response for an exported quiz artifact."""
+
+    response = Response(content=exported_file.content_bytes, media_type=exported_file.media_type)
+    response.headers["content-disposition"] = f'attachment; filename="{exported_file.filename}"'
+    response.headers["content-type"] = exported_file.media_type
+    return response
 
 
 def _serialize_single_question_regeneration_result(
