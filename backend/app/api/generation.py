@@ -7,7 +7,7 @@ from typing import Any
 from fastapi import FastAPI
 from fastapi import Request
 
-from backend.app.api.runtime import get_generation_orchestrator
+from backend.app.api.runtime import get_generation_dispatcher
 from backend.app.api.runtime import get_generation_settings_repository
 from backend.app.api.schemas import GenerationRequestBody
 from backend.app.domain.errors import RepositoryNotFoundError
@@ -31,7 +31,7 @@ def register_generation_routes(app: FastAPI) -> None:
             model_name=settings.model_name,
             profile_name=settings.profile_name,
         )
-        result = get_generation_orchestrator(request.app).generate(
+        result = get_generation_dispatcher(request.app).dispatch(
             document_id,
             settings.to_generation_request(
                 model_name=profile.model_name,
