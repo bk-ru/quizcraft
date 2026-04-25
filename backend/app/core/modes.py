@@ -12,6 +12,7 @@ class GenerationMode(str, Enum):
 
     DIRECT = "direct"
     SINGLE_QUESTION_REGEN = "single_question_regen"
+    RAG = "rag"
 
 
 class GenerationModeRegistry:
