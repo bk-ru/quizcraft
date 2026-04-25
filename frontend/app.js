@@ -4,6 +4,7 @@ import { createCopyButtonController } from "./copy.js";
 import { createGenerationFlow } from "./generation-flow.js";
 import { createGenerationSettingsController } from "./generation-settings.js";
 import { createKeyboardShortcuts } from "./keyboard.js";
+import { createConfirmModal } from "./modal.js";
 import { createProgressController } from "./progress.js";
 import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
@@ -156,7 +157,9 @@ function setExportAvailability(quizId) {
   toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !hasQuiz);
 }
 
+const modalRegion = document.getElementById("modal-region");
 const toastController = createToastController(toastRegion);
+const confirmModal = createConfirmModal({ modalRegion });
 const progressController = createProgressController({ stepper, generationProgressPanel });
 const themeController = createThemeController({ themeToggleLabel });
 const quizHistory = createQuizHistory({
@@ -206,6 +209,7 @@ const quizEditor = createQuizEditor({
   describeValidationError,
   saveQuizToHistory: quizHistory.saveQuizToHistory,
   getLanguageForQuiz: quizHistory.findLanguageByQuizId,
+  confirmAction: confirmModal.confirm,
 });
 
 const generationFlow = createGenerationFlow({
@@ -375,5 +379,15 @@ quizEditorFields?.addEventListener("input", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("change", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("click", quizEditor.regenerateQuizQuestion);
 saveQuizButton?.addEventListener("click", quizEditor.submitQuizEdits);
+quizEditorFields?.addEventListener("click", (event) => {
+  const cancelTarget = event.target instanceof Element
+    ? event.target.closest('[data-editor-action="cancel-regenerate-question"]')
+    : null;
+  if (!cancelTarget) {
+    return;
+  }
+  event.preventDefault();
+  quizEditor.cancelActiveRegeneration();
+});
 
 bootstrapShell();

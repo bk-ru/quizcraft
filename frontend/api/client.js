@@ -113,7 +113,7 @@ export class QuizCraftApiClient {
     });
   }
 
-  regenerateQuestion(quizId, questionId, payload = {}) {
+  regenerateQuestion(quizId, questionId, payload = {}, { signal } = {}) {
     const resolvedQuizId = typeof quizId === "string" ? quizId.trim() : "";
     const resolvedQuestionId = typeof questionId === "string" ? questionId.trim() : "";
     if (!resolvedQuizId) {
@@ -129,6 +129,7 @@ export class QuizCraftApiClient {
         method: "POST",
         json: payload ?? {},
         timeoutMs: this._timeouts.generate,
+        signal,
       },
     );
   }
