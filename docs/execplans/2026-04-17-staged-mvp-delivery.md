@@ -60,6 +60,8 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-25) Implemented, reviewed, and integrated Stage 13 Batch 4 on `main` via merge commit `95774a4`, feature commit `c4cb067`. Adds `GET /quizzes/{quiz_id}/export/{export_format}` and `GET /export/formats` to the quiz API while keeping `GET /quizzes/{quiz_id}/export/json` backward compatible, routes downloads through the registry, and adds API tests for the new endpoints (including an `unsupported_export_format` 400 case) with Russian/Cyrillic body content.
 - [x] (2026-04-25) Implemented, reviewed, and integrated Stage 13 Batch 5 on `main` via merge commit `7acc1c7`, feature commit `46c2009`. Adds `QuizCraftApiClient.getExportFormats()`, refactors `frontend/download.js` into a generic `createQuizExporter` (JSON/DOCX/PPTX) while keeping `createJsonExporter` backward compatible, adds DOCX and PPTX result-actions buttons in `frontend/index.html` with Russian-language a11y hints, wires capability-driven enable/disable in `frontend/app.js` from `/export/formats` (with a graceful warn fallback when the capability fetch fails), and extends `tests/test_frontend_shell.py` smoke coverage for the API client method, the new buttons, and the capability-driven wiring.
 - [x] (2026-04-25) Completed and integrated all of Stage 13 on `main`, closing the advanced export formats stage end-to-end: export registry, DOCX exporter, PPTX exporter, advanced quiz export endpoints with capability reporting, and capability-driven frontend export controls preserving the existing JSON action.
+- [x] (2026-04-25) Synced this ExecPlan to Stage 13 completion state on `main` via merge commit `4da1f50`, feature commit `b88c6a3`. Recorded Progress entries for Stage 13 Batches 1–5 and the Stage 13 closeout, extended `Outcomes & Retrospective` and `Context and Orientation` to include Stage 13 (advanced export formats), appended the Stage 13 merge commits to `Artifacts and Notes / Current integrated state`, added the Stage 13 entries to `Current backlog completion status`, and switched `Next recommended stage` to Stage 14 RAG Generation.
+- [x] (2026-04-25) Implemented, reviewed, and integrated Stage 14 Batch 1 on `main` via merge commit `a8b2ad9`, feature commits `50bd844` (`feat(parsing): add deterministic text chunker for retrieval`) and `47e3cd0` (`feat(llm): add lm studio embeddings client`). Adds `backend/app/parsing/chunking.py` with `TextChunk` plus `chunk_text(text, *, chunk_size, overlap)` returning deterministic overlapping character chunks (`DomainValidationError` for invalid inputs, empty text returns an empty tuple, no extra step after the chunk reaches end of text), wires `LMStudioClient.embed` to LM Studio `/v1/embeddings` through the existing `RetryingCaller` (refactored shared `_post_json(path, payload)` helper, response items sorted by `index` with controlled `LLMResponseFormatError` on count mismatch or non-numeric vectors), and tightens `EmbeddingRequest.__post_init__` to reject empty/blank/non-string texts and blank `model_name`. Adds `backend/tests/test_chunking.py` and `backend/tests/test_lm_studio_embeddings.py` covering positive Russian/Cyrillic round-trip flows, retry-on-timeout/503 behavior, malformed-response branches, and `EmbeddingRequest` validation negatives.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -646,6 +648,8 @@ Current integrated state:
     d4fe651 merge(export): integrate stage 13 batch 3 pptx
     95774a4 merge(api): integrate stage 13 batch 4 exports
     7acc1c7 merge(frontend): integrate stage 13 batch 5 exports
+    4da1f50 merge(docs): integrate stage 13 completion sync
+    a8b2ad9 merge(rag): integrate stage 14 batch 1 embeddings
 
 Current backlog completion status:
 
@@ -699,6 +703,8 @@ Current backlog completion status:
     Stage 13 Batch 4 (`BE-011`, `BE-012`, `TS-009` API slice): integrated on main
     Stage 13 Batch 5 (`UI-006` capability-driven frontend export controls): integrated on main
     Stage 13: fully integrated on main
+    Stage 13 completion sync: integrated on main (merge `4da1f50`, feature `b88c6a3`)
+    Stage 14 Batch 1 (`LM-005`, `PR-007`, `TS-008` embeddings/chunker slice): integrated on main
 
 Next recommended stage:
 
@@ -706,7 +712,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 14 Batch 1: embeddings client and chunker (`LM-005`, `PR-007`, plus the embeddings/chunker slice of `TS-008`) that introduces the LM Studio `/v1/embeddings` adapter and a deterministic text chunker with overlap, without yet wiring them into a RAG orchestrator. Stage 14 Batch 2 should add the in-memory vector index, the top-`k` retriever, and the bounded context assembler (`RAG-001` through `RAG-004`) and cover them with retrieval/context tests. Stage 14 Batch 3 should add the RAG master prompt, the RAG orchestrator, and the rule-based direct/RAG mode selector (`PM-004`, `RAG-005`, `GN-007`, plus the RAG slice of `CF-002`), wire everything through the existing generation pipeline, and add the RAG orchestration tests (`TS-008` orchestration slice).
+    Stage 14 Batch 2: in-memory vector index, top-`k` retriever, and bounded context assembler (`RAG-001` through `RAG-004`, plus the retrieval/context slice of `TS-008`) layered on top of the embeddings client and chunker delivered in Batch 1, without yet wiring the RAG orchestrator. Stage 14 Batch 3 should add the RAG master prompt, the RAG orchestrator, and the rule-based direct/RAG mode selector (`PM-004`, `RAG-005`, `GN-007`, plus the RAG slice of `CF-002`), wire everything through the existing generation pipeline, and add the RAG orchestration tests (`TS-008` orchestration slice).
 
 ## Interfaces and Dependencies
 
