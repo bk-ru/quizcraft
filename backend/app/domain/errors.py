@@ -79,6 +79,20 @@ class UnsupportedGenerationModeError(BackendError):
     code = "unsupported_generation_mode"
 
 
+class UnsupportedExportFormatError(BackendError):
+    """Raised when a requested quiz export format is not registered."""
+
+    code = "unsupported_export_format"
+
+    def __init__(self, export_format: str, supported_formats: tuple[str, ...]) -> None:
+        self.export_format = export_format
+        self.supported_formats = supported_formats
+        supported_message = ", ".join(supported_formats) if supported_formats else "none"
+        super().__init__(
+            f"export format '{export_format}' is not supported; supported formats: {supported_message}"
+        )
+
+
 class RepositoryNotFoundError(BackendError):
     """Raised when a repository cannot load a requested entity."""
 
