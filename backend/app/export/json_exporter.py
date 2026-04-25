@@ -3,18 +3,9 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
 
 from backend.app.domain.models import Quiz
-
-
-@dataclass(frozen=True, slots=True)
-class ExportedQuizFile:
-    """Download-ready exported quiz artifact."""
-
-    filename: str
-    media_type: str
-    content_bytes: bytes
+from backend.app.export.base import ExportedQuizFile
 
 
 class QuizJsonExporter:
