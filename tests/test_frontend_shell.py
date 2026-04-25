@@ -178,8 +178,10 @@ def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
     assert "getQuiz" in content
     assert "updateQuiz" in content
     assert "regenerateQuestion" in content
+    assert "getExportFormats" in content
     assert "/health" in content
     assert "/health/lm-studio" in content
+    assert "/export/formats" in content
     assert "/documents" in content
     assert "/quizzes/" in content
     assert "/questions/" in content
@@ -237,6 +239,39 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "Изменения пока не сохранены." in content
     assert "Изменения сохранены." in content
     assert "Исправьте ошибки и повторите сохранение." in content
+
+
+def test_frontend_wires_capability_driven_advanced_exports() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    download_content = DOWNLOAD_JS.read_text(encoding="utf-8")
+
+    assert 'id="export-json-button"' in index_content
+    assert 'id="export-docx-button"' in index_content
+    assert 'id="export-pptx-button"' in index_content
+    assert "Скачать JSON" in index_content
+    assert "Скачать DOCX" in index_content
+    assert "Скачать PPTX" in index_content
+    assert "подтверждения поддержки DOCX сервером" in index_content
+    assert "подтверждения поддержки PPTX сервером" in index_content
+
+    assert "supportedExportFormats" in app_content
+    assert "getExportFormats" in app_content
+    assert "parseSupportedExportFormats" in app_content
+    assert "loadExportFormats" in app_content
+    assert "format === \"json\" || editorState.supportedExportFormats.has(format)" in app_content
+    assert "exportDocxButton?.addEventListener(\"click\", quizExporter.exportQuizAsDocx)" in app_content
+    assert "exportPptxButton?.addEventListener(\"click\", quizExporter.exportQuizAsPptx)" in app_content
+
+    assert "createQuizExporter" in download_content
+    assert "exportQuizAsDocx" in download_content
+    assert "exportQuizAsPptx" in download_content
+    assert "/export/${exportFormat}" in download_content
+    assert "application/vnd.openxmlformats-officedocument.wordprocessingml.document" in download_content
+    assert "application/vnd.openxmlformats-officedocument.presentationml.presentation" in download_content
+    assert "Не удалось скачать ${describeExportFormat(format)}" in download_content
+    assert "function describeExportFormat" in download_content
+    assert "${formatConfig.label}-файл квиза скачан." in download_content
 
 
 def test_frontend_editor_wires_single_question_regeneration_action() -> None:
@@ -814,6 +849,8 @@ def test_frontend_a11y_disabled_buttons_have_screen_reader_hints() -> None:
 
     for button_id, hint_id in (
         ("export-json-button", "export-json-hint"),
+        ("export-docx-button", "export-docx-hint"),
+        ("export-pptx-button", "export-pptx-hint"),
         ("edit-quiz-shortcut", "edit-shortcut-hint"),
         ("save-quiz-button", "save-quiz-hint"),
     ):

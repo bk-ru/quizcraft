@@ -1,5 +1,5 @@
 import { QuizCraftApiClient } from "./api/client.js";
-import { createJsonExporter } from "./download.js";
+import { createQuizExporter } from "./download.js";
 import { createCopyButtonController } from "./copy.js";
 import { createGenerationFlow } from "./generation-flow.js";
 import { createGenerationSettingsController } from "./generation-settings.js";
@@ -35,6 +35,8 @@ const loadQuizButton = document.getElementById("load-quiz-button");
 const saveQuizButton = document.getElementById("save-quiz-button");
 const quizEditorFields = document.getElementById("quiz-editor-fields");
 const exportJsonButton = document.getElementById("export-json-button");
+const exportDocxButton = document.getElementById("export-docx-button");
+const exportPptxButton = document.getElementById("export-pptx-button");
 const editShortcutButton = document.getElementById("edit-quiz-shortcut");
 const themeToggleButton = document.getElementById("theme-toggle");
 const themeToggleLabel = document.getElementById("theme-toggle-label");
@@ -54,7 +56,23 @@ const editorState = {
   loadedQuiz: null,
   isDirty: false,
   lastGeneratedQuizId: null,
+  supportedExportFormats: new Set(["json"]),
 };
+
+const exportButtons = Object.freeze({
+  json: {
+    button: exportJsonButton,
+    hintId: "export-json-hint",
+  },
+  docx: {
+    button: exportDocxButton,
+    hintId: "export-docx-hint",
+  },
+  pptx: {
+    button: exportPptxButton,
+    hintId: "export-pptx-hint",
+  },
+});
 
 const statusMap = {
   ok: "ok",
@@ -129,9 +147,12 @@ function toggleUnavailableHint(buttonElement, hintId, isDisabled) {
 
 function setExportAvailability(quizId) {
   editorState.lastGeneratedQuizId = typeof quizId === "string" && quizId.trim() ? quizId.trim() : null;
-  const available = Boolean(editorState.lastGeneratedQuizId);
-  toggleUnavailableHint(exportJsonButton, "export-json-hint", !available);
-  toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !available);
+  const hasQuiz = Boolean(editorState.lastGeneratedQuizId);
+  for (const [format, exportButton] of Object.entries(exportButtons)) {
+    const supported = format === "json" || editorState.supportedExportFormats.has(format);
+    toggleUnavailableHint(exportButton.button, exportButton.hintId, !(hasQuiz && supported));
+  }
+  toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !hasQuiz);
 }
 
 const toastController = createToastController(toastRegion);
@@ -219,7 +240,7 @@ const generationFlow = createGenerationFlow({
   refreshGenerationDefaults: generationSettings.refreshAfterGeneration,
 });
 
-const jsonExporter = createJsonExporter({
+const quizExporter = createQuizExporter({
   backendBaseUrl,
   client,
   editorState,
@@ -275,7 +296,31 @@ async function bootstrapShell() {
     setStatus("backend", "Проверка не удалась", "bad");
     setStatus("provider", "Проверка не удалась", "bad");
     setLogMessage(`Не удалось проверить подключение: ${describeError(error)}`, "bad");
+    setExportAvailability(editorState.lastGeneratedQuizId);
+    return;
   }
+  await loadExportFormats();
+}
+
+async function loadExportFormats() {
+  try {
+    const payload = await client.getExportFormats();
+    editorState.supportedExportFormats = parseSupportedExportFormats(payload);
+    editorState.supportedExportFormats.add("json");
+    setExportAvailability(editorState.lastGeneratedQuizId);
+  } catch (error) {
+    setLogMessage(`Не удалось получить форматы экспорта: ${describeError(error)}`, "warn");
+    setExportAvailability(editorState.lastGeneratedQuizId);
+  }
+}
+
+function parseSupportedExportFormats(payload) {
+  const formats = Array.isArray(payload?.formats) ? payload.formats : [];
+  return new Set(
+    formats
+      .map((item) => typeof item?.format === "string" ? item.format.trim().toLowerCase() : "")
+      .filter(Boolean),
+  );
 }
 
 function openEditorForCurrentQuiz() {
@@ -297,7 +342,9 @@ function openEditorForCurrentQuiz() {
 themeController.applyTheme(themeController.resolveStoredTheme());
 themeToggleButton?.addEventListener("click", themeController.cycleTheme);
 generationFlow.attachDropzone();
-exportJsonButton?.addEventListener("click", jsonExporter.exportQuizAsJson);
+exportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
+exportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
+exportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
 editShortcutButton?.addEventListener("click", openEditorForCurrentQuiz);
 cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration);
 dropzoneRemoveButton?.addEventListener("click", (event) => {

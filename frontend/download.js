@@ -1,6 +1,24 @@
 import { describeError } from "./validation-errors.js";
 
-export function triggerJsonDownload(blob, suggestedName, windowRef = window, documentRef = document) {
+const EXPORT_FORMATS = Object.freeze({
+  json: {
+    extension: "json",
+    label: "JSON",
+    accept: "application/json",
+  },
+  docx: {
+    extension: "docx",
+    label: "DOCX",
+    accept: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  },
+  pptx: {
+    extension: "pptx",
+    label: "PPTX",
+    accept: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  },
+});
+
+export function triggerFileDownload(blob, suggestedName, windowRef = window, documentRef = document) {
   const url = windowRef.URL.createObjectURL(blob);
   const anchor = documentRef.createElement("a");
   anchor.href = url;
@@ -11,18 +29,24 @@ export function triggerJsonDownload(blob, suggestedName, windowRef = window, doc
   windowRef.URL.revokeObjectURL(url);
 }
 
-export function createJsonExporter({
+export function triggerJsonDownload(blob, suggestedName, windowRef = window, documentRef = document) {
+  triggerFileDownload(blob, suggestedName, windowRef, documentRef);
+}
+
+export function createQuizExporter({
   backendBaseUrl,
   client,
   editorState,
   showToast,
 }, windowRef = window, fetchImpl = globalThis.fetch?.bind(globalThis)) {
-  async function exportQuizAsJson() {
+  async function exportQuiz(format) {
     if (!editorState.lastGeneratedQuizId) {
       showToast("Сначала сгенерируйте или загрузите квиз.", "warn");
       return;
     }
     try {
+      const exportFormat = resolveExportFormat(format);
+      const formatConfig = EXPORT_FORMATS[exportFormat];
       if (typeof fetchImpl !== "function") {
         throw new Error("fetch implementation is required");
       }
@@ -34,8 +58,8 @@ export function createJsonExporter({
       let response;
       try {
         response = await fetchImpl(
-          `${backendBaseUrl}/quizzes/${encodeURIComponent(editorState.lastGeneratedQuizId)}/export/json`,
-          { headers: { Accept: "application/json" }, signal: exportController.signal },
+          `${backendBaseUrl}/quizzes/${encodeURIComponent(editorState.lastGeneratedQuizId)}/export/${exportFormat}`,
+          { headers: { Accept: formatConfig.accept }, signal: exportController.signal },
         );
       } finally {
         windowRef.clearTimeout(exportTimeoutId);
@@ -44,12 +68,35 @@ export function createJsonExporter({
         throw new Error(`HTTP ${response.status}`);
       }
       const blob = await response.blob();
-      triggerJsonDownload(blob, `${editorState.lastGeneratedQuizId}.json`, windowRef);
-      showToast("JSON-файл квиза скачан.", "ok");
+      triggerFileDownload(blob, `${editorState.lastGeneratedQuizId}.${formatConfig.extension}`, windowRef);
+      showToast(`${formatConfig.label}-файл квиза скачан.`, "ok");
     } catch (error) {
-      showToast(`Не удалось скачать JSON: ${describeError(error)}`, "bad");
+      showToast(`Не удалось скачать ${describeExportFormat(format)}: ${describeError(error)}`, "bad");
     }
   }
 
-  return { exportQuizAsJson };
+  return {
+    exportQuiz,
+    exportQuizAsJson: () => exportQuiz("json"),
+    exportQuizAsDocx: () => exportQuiz("docx"),
+    exportQuizAsPptx: () => exportQuiz("pptx"),
+  };
+}
+
+export function createJsonExporter(options, windowRef = window, fetchImpl = globalThis.fetch?.bind(globalThis)) {
+  const exporter = createQuizExporter(options, windowRef, fetchImpl);
+  return { exportQuizAsJson: exporter.exportQuizAsJson };
+}
+
+function resolveExportFormat(format) {
+  const exportFormat = typeof format === "string" ? format.trim().toLowerCase() : "";
+  if (!Object.hasOwn(EXPORT_FORMATS, exportFormat)) {
+    throw new Error(`unsupported export format: ${format}`);
+  }
+  return exportFormat;
+}
+
+function describeExportFormat(format) {
+  const exportFormat = typeof format === "string" ? format.trim().toLowerCase() : "";
+  return EXPORT_FORMATS[exportFormat]?.label ?? "файл";
 }
