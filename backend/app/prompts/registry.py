@@ -13,6 +13,7 @@ from backend.app.domain.schema import QUIZ_JSON_SCHEMA
 DIRECT_GENERATION_PROMPT_KEY = "direct_generation"
 REPAIR_GENERATION_PROMPT_KEY = "repair_generation"
 SINGLE_QUESTION_REGENERATION_PROMPT_KEY = "single_question_regeneration"
+RAG_GENERATION_PROMPT_KEY = "rag_generation"
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +92,28 @@ class PromptRegistry:
                 "Document text:\n{document_text}\n"
                 "Existing quiz JSON:\n{quiz_json}\n"
                 "Target question JSON:\n{target_question_json}"
+            ),
+            inference_parameters={"temperature": 0.2},
+        ),
+        RAG_GENERATION_PROMPT_KEY: PromptDefinition(
+            key=RAG_GENERATION_PROMPT_KEY,
+            version="rag-v1",
+            schema_name="quiz_payload",
+            schema=QUIZ_JSON_SCHEMA,
+            system_template=(
+                "You generate quiz content strictly from the retrieved context provided by the caller. "
+                "Return only JSON that matches the supplied JSON Schema. "
+                "Do not rely on outside knowledge, do not invent facts, and use the requested language exactly."
+            ),
+            user_template=(
+                "Create a quiz from the retrieved context below.\n"
+                "Question count: {question_count}\n"
+                "Language: {language}\n"
+                "Difficulty: {difficulty}\n"
+                "Quiz type: {quiz_type}\n"
+                "Use only the retrieved context.\n"
+                "Document ID: {document_id}\n"
+                "Retrieved context:\n{retrieved_context}"
             ),
             inference_parameters={"temperature": 0.2},
         ),
