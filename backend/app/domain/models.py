@@ -8,6 +8,7 @@ from typing import Any
 
 from backend.app.core.modes import GenerationMode
 from backend.app.core.modes import GenerationModeRegistry
+from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import GenerationSettingsError
 
 
@@ -347,15 +348,32 @@ class StructuredGenerationResponse:
 
 @dataclass(frozen=True, slots=True)
 class EmbeddingRequest:
-    """Provider-facing embeddings request reserved for later stages."""
+    """Provider-facing embeddings request for one or more texts."""
 
     texts: tuple[str, ...]
     model_name: str | None = None
 
+    def __post_init__(self) -> None:
+        """Validate embeddings request payload."""
+
+        if not isinstance(self.texts, tuple):
+            raise DomainValidationError("texts must be a tuple of strings")
+        if not self.texts:
+            raise DomainValidationError("texts must contain at least one entry")
+        for index, text in enumerate(self.texts):
+            if not isinstance(text, str):
+                raise DomainValidationError(f"texts[{index}] must be a string")
+            if not text.strip():
+                raise DomainValidationError(f"texts[{index}] must not be empty")
+        if self.model_name is not None:
+            if not isinstance(self.model_name, str) or not self.model_name.strip():
+                raise DomainValidationError("model_name must be a non-empty string")
+            object.__setattr__(self, "model_name", self.model_name.strip())
+
 
 @dataclass(frozen=True, slots=True)
 class EmbeddingResponse:
-    """Provider-facing embeddings result reserved for later stages."""
+    """Provider-facing embeddings result with one vector per requested text."""
 
     model_name: str
     vectors: tuple[tuple[float, ...], ...]
