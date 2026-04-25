@@ -132,20 +132,19 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 
 ## Outcomes & Retrospective
 
-At this stopping point, the early MVP and the P2 slice of the backlog are both complete on `main`. The integrated surface includes Stages 1 through 9 (foundation, ingestion, LM Studio integration, direct generation pipeline, HTTP API, quiz read/update, Cyrillic fixes, frontend upload-to-result, frontend editing, and JSON export), the unplanned API quality hardening batch, the role-based frontend timeout fix, Stage 10 (backend generation status with pipeline step logging and a Russian/Cyrillic-safe progress UI), Stage 11 (model whitelist, named generation profiles, and persisted generation settings reused as defaults), and Stage 12 (single-question regeneration: backend endpoint, `single_question_regen` prompt and pipeline, and frontend UI wiring). On top of those feature stages, `main` also carries three post-MVP frontend UX polish batches (P1 unified shell, P2 sharper feedback, P3 polish and accessibility), a dev-experience batch with a dotenv loader, PowerShell run scripts, and the committed `.env.example`, and a config hotfix that raises the default `REQUEST_TIMEOUT` from 30 to 300 seconds so fresh installs no longer 504 on slow local LM Studio inference.
+At this stopping point, the early MVP is complete on `main`, while the remaining second-wave P2 backlog now starts with advanced export formats. The integrated surface includes Stages 1 through 9 (foundation, ingestion, LM Studio integration, direct generation pipeline, HTTP API, quiz read/update, Cyrillic fixes, frontend upload-to-result, frontend editing, and JSON export), the unplanned API quality hardening batch, the role-based frontend timeout fix, Stage 10 (backend generation status with pipeline step logging and a Russian/Cyrillic-safe progress UI), Stage 11 (model whitelist, named generation profiles, and persisted generation settings reused as defaults), and Stage 12 (single-question regeneration: backend endpoint, `single_question_regen` prompt and pipeline, and frontend UI wiring). On top of those feature stages, `main` also carries the post-MVP frontend UX polish batches, the additional UX cleanup batch that simplified the primary generation flow, a dev-experience batch with a dotenv loader, PowerShell run scripts, and the committed `.env.example`, a config hotfix that raises the default `REQUEST_TIMEOUT` from 30 to 300 seconds, and a generation cleanup that removed an unused structured response import.
 
-The key outcome is that the Validation and Acceptance criteria for the early MVP still hold end-to-end and are now complemented by a more approachable UX surface: a user can upload a document, choose generation parameters (with model and profile selectors driven by `/generation/settings`), trigger quiz generation through LM Studio with a cancel button and live timer, review the generated quiz, regenerate individual questions after an explicit confirmation, edit the quiz, and export the final quiz as a JSON file. Keyboard shortcuts, copy buttons, a compact hero, a per-theme toggle icon, and screen-reader hints for disabled actions round out the polish. The next contributor should start from Stage 13 (DOCX and PPTX export) rather than revisiting any Stage 1–12 surface, the dev-experience batch, the post-MVP UX polish batches, or the REQUEST_TIMEOUT hotfix.
+The key outcome is that the Validation and Acceptance criteria for the early MVP still hold end-to-end and are now complemented by a more approachable UX surface: a user can upload a document, choose generation parameters (with model and profile selectors driven by `/generation/settings`), trigger quiz generation through LM Studio with a cancel button and live timer, review the generated quiz, regenerate individual questions after an explicit confirmation, edit the quiz, and export the final quiz as a JSON file. Keyboard shortcuts, copy buttons, a compact hero, a per-theme toggle icon, screen-reader hints for disabled actions, and the simplified primary generation flow round out the polish. The next contributor should start from Stage 13 (DOCX and PPTX export) rather than revisiting any Stage 1–12 surface, the dev-experience batch, the post-MVP UX/UX-cleanup batches, or the REQUEST_TIMEOUT hotfix.
 
 ## Context and Orientation
 
-The current repository has both planning artifacts and implemented product slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the implemented foundation, storage, parsing, LM Studio integration, direct generation pipeline, and HTTP API layers covered by Stages 1 through 6. `frontend/` now contains the plain JavaScript Stage 7 shell, upload flow, generation parameter form, and result view. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` and the frontend smoke coverage now cover the implemented behavior. Editing, export, and later-stage features remain pending.
+The current repository has both planning artifacts and implemented product slices. `AGENTS.md` and `.agent/PLANS.md` contain repository and planning rules. `docs/planning/backlog.md` remains the source-of-truth feature inventory. `docs/design/concepts/v2/` still contains static mockups for the intended product screens. `backend/` now contains the implemented foundation, storage, parsing, LM Studio integration, direct generation pipeline, HTTP API, status, settings, editing, single-question regeneration, and JSON export layers covered by Stages 1 through 12. `frontend/` now contains the plain JavaScript shell, upload/generation flow, result view, editing UI, single-question regeneration controls, JSON download action, and post-MVP UX polish. `tests/test_repository_layout.py` still checks repository structure, while `backend/tests/` and the frontend smoke coverage now cover the implemented behavior. Advanced DOCX/PPTX export, RAG, additional providers, and RAG caching remain pending.
 
 The backlog assumes a Python backend with typed contracts, FastAPI/Pydantic-style API models, pytest tests, standard-library logging, and LM Studio as the only model provider for the MVP. The backlog does not pick a frontend framework. The implemented frontend currently stays on plain HTML, CSS, and JavaScript in `frontend/`, and later stages should preserve that minimal stack unless a separate framework decision is explicitly made and recorded.
 
-The planned runtime layout for implementation is:
+The implemented runtime layout for the current codebase is:
 
     backend/
-      pyproject.toml
       app/
         main.py
         api/
@@ -160,10 +159,9 @@ The planned runtime layout for implementation is:
       tests/
     frontend/
       index.html
-      src/
       assets/
 
-This layout is now partially implemented. `backend/` exists with `core`, `domain`, `parsing`, `storage`, and `llm` packages, while the HTTP API, generation, prompt, export, and `frontend/` portions remain target layout for later stages.
+This layout is now implemented with the project-level `pyproject.toml`, backend packages for `api`, `core`, `domain`, `parsing`, `storage`, `llm`, `generation`, `prompts`, and `export`, plus a plain JavaScript frontend under `frontend/`. Later stages should extend those existing locations instead of introducing a new runtime layout.
 
 ## Plan of Work
 
@@ -521,10 +519,12 @@ Definition of done: The backend can export DOCX and PPTX from the canonical `Qui
 
 Required tests/checks: Run `python -m pytest backend/tests/test_docx_exporter.py backend/tests/test_pptx_exporter.py backend/tests/test_export_registry.py backend/tests/test_api_advanced_exports.py -q` and expect all tests to pass. Open the generated files in compatible software to verify they render.
 
-Recommended commit breakdown:
-1. `feat(export): add exporter registry, docx exporter, and pptx exporter`
-2. `feat(api): add docx and pptx export endpoints and ui controls`
-3. `test(export): cover exporters, registry resolution, and api downloads`
+Recommended batch and commit breakdown:
+1. `refactor(export): add export registry` — introduce the export contract and registry, route the existing JSON exporter through it, and keep `/quizzes/{quiz_id}/export/json` backward compatible.
+2. `feat(export): add docx quiz exporter` — add the DOCX exporter and focused exporter tests, including Russian/Cyrillic content checks.
+3. `feat(export): add pptx quiz exporter` — add the PPTX exporter and focused exporter tests, including Russian/Cyrillic content checks.
+4. `feat(api): add advanced quiz export endpoints` — expose DOCX/PPTX downloads through the registry and add backend support reporting for export formats.
+5. `feat(frontend): add docx and pptx export actions` — add capability-driven frontend controls for DOCX/PPTX downloads without replacing the existing JSON action.
 
 ## Stage 14: RAG Generation
 
@@ -578,7 +578,7 @@ Recommended commit breakdown:
 
 ## Concrete Steps
 
-Work from the repository root, `D:\github\diplom`. Before each stage, create a dedicated branch or worktree so the stage stays isolated and reviewable. A typical sequence is:
+Work from the repository root, `D:\github\quizcraft`. Before each stage, create a dedicated branch or worktree so the stage stays isolated and reviewable. A typical sequence is:
 
     git switch -c codex/stage-01-foundation
 
@@ -677,6 +677,8 @@ Current backlog completion status:
     Post-MVP UX polish Batch P3 (polish: compact hero, per-theme icon, a11y hints, alert-role toasts): integrated on main
     Dev-experience batch (dotenv loader, run scripts, README, .env.example, .gitignore): integrated on main
     Config hotfix (raise default `REQUEST_TIMEOUT` from 30 to 300 seconds): integrated on main
+    UX cleanup Batch 1 (simplified primary generation flow and smoke coverage): integrated on main
+    Generation cleanup (remove unused structured response import): integrated on main
 
 Next recommended stage:
 
@@ -684,7 +686,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 13 Batch 1: exporter registry plus DOCX and PPTX exporters (`EX-002`, `EX-003`, `EX-004`, `TS-009` exporter slice). Batch 2 should then add the `BE-011`/`BE-012` download endpoints and the `UI-006` frontend controls once the exporter surface is stable.
+    Stage 13 Batch 1: exporter registry foundation (`EX-004`) that preserves the existing JSON export endpoint while making formats discoverable through a mapping. Stage 13 Batch 2 should add the DOCX exporter (`EX-002`, `TS-009` DOCX slice), Batch 3 should add the PPTX exporter (`EX-003`, `TS-009` PPTX slice), Batch 4 should expose the DOCX/PPTX download endpoints plus backend support reporting (`BE-011`, `BE-012`), and Batch 5 should wire capability-driven frontend controls (`UI-006`).
 
 ## Interfaces and Dependencies
 
