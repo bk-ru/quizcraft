@@ -7,6 +7,7 @@ from backend.app.domain.errors import LLMTimeoutError
 from backend.app.domain.models import ProviderHealthStatus
 from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.domain.models import StructuredGenerationResponse
+from backend.app.llm.registry import ProviderName
 from backend.app.main import create_app
 from backend.app.storage.documents import FileSystemDocumentRepository
 
@@ -44,6 +45,15 @@ def build_config(max_document_chars: int = 50_000) -> AppConfig:
         lm_studio_model="local-model",
         max_document_chars=max_document_chars,
         log_format="%(levelname)s:%(message)s",
+    )
+
+
+def build_disabled_lm_studio_config() -> AppConfig:
+    return AppConfig(
+        lm_studio_base_url="http://localhost:1234/v1",
+        lm_studio_model="local-model",
+        log_format="%(levelname)s:%(message)s",
+        providers_enabled=(ProviderName.OLLAMA,),
     )
 
 
@@ -270,6 +280,20 @@ def test_direct_generation_endpoint_maps_provider_timeout_to_gateway_timeout(tmp
 
     assert response.status_code == 504
     assert response.json()["error"]["code"] == "llm_timeout_error"
+
+
+def test_direct_generation_endpoint_rejects_disabled_provider_without_calling_provider(tmp_path) -> None:
+    provider = StubProvider(responses=[build_provider_response()])
+    app = create_app(config=build_disabled_lm_studio_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_russian_document(client)
+
+    response = client.post(f"/documents/{document_id}/generate", json=build_generation_payload())
+
+    assert response.status_code == 503
+    assert response.json()["error"]["code"] == "provider_disabled"
+    assert "lm_studio" in response.json()["error"]["message"]
+    assert provider.requests == []
 
 
 def test_document_upload_endpoint_preserves_russian_text_in_storage(tmp_path) -> None:

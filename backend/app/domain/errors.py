@@ -111,6 +111,30 @@ class LLMProviderError(BackendError):
     retryable = False
 
 
+class UnsupportedProviderError(LLMProviderError):
+    """Raised when a requested provider is not registered."""
+
+    code = "unsupported_provider"
+
+    def __init__(self, provider_name: str, registered_provider_names: tuple[str, ...]) -> None:
+        self.provider_name = provider_name
+        self.registered_provider_names = registered_provider_names
+        registered_message = ", ".join(registered_provider_names) if registered_provider_names else "none"
+        super().__init__(
+            f"provider '{provider_name}' is not registered; registered providers: {registered_message}"
+        )
+
+
+class ProviderDisabledError(LLMProviderError):
+    """Raised when a disabled provider receives a generation or embedding request."""
+
+    code = "provider_disabled"
+
+    def __init__(self, provider_name: str) -> None:
+        self.provider_name = provider_name
+        super().__init__(f"provider '{provider_name}' is disabled by PROVIDERS_ENABLED")
+
+
 class LLMConnectionError(LLMProviderError):
     """Raised when the provider cannot be reached."""
 
