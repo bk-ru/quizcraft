@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from backend.app.core.config import AppConfig, ConfigurationError, load_env_file
+from backend.app.llm.registry import ProviderName
 
 
 @pytest.fixture(autouse=True)
@@ -31,6 +32,38 @@ def test_loads_required_and_optional_settings(monkeypatch: pytest.MonkeyPatch) -
     assert config.max_document_chars == 12345
     assert config.log_level == "DEBUG"
     assert config.log_format == "%(levelname)s:%(message)s"
+    assert config.providers_enabled == (ProviderName.LM_STUDIO,)
+
+
+def test_loads_provider_feature_flags(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("PROVIDERS_ENABLED", "lm_studio, ollama")
+
+    config = AppConfig.from_env()
+
+    assert config.providers_enabled == (ProviderName.LM_STUDIO, ProviderName.OLLAMA)
+
+
+@pytest.mark.parametrize(
+    "providers_enabled",
+    (
+        "",
+        "lm_studio,",
+        "lm_studio,unknown",
+        "lm_studio,lm_studio",
+    ),
+)
+def test_rejects_invalid_provider_feature_flags(
+    monkeypatch: pytest.MonkeyPatch,
+    providers_enabled: str,
+) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("PROVIDERS_ENABLED", providers_enabled)
+
+    with pytest.raises(ConfigurationError, match="PROVIDERS_ENABLED|provider"):
+        AppConfig.from_env()
 
 
 def test_max_document_chars_defaults_when_env_missing(monkeypatch: pytest.MonkeyPatch) -> None:

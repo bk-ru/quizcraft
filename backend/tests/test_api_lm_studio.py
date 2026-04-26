@@ -5,6 +5,7 @@ from backend.app.domain.errors import LLMConnectionError
 from backend.app.domain.errors import LLMResponseFormatError
 from backend.app.domain.errors import LLMTimeoutError
 from backend.app.domain.models import ProviderHealthStatus
+from backend.app.llm.registry import ProviderName
 from backend.app.main import create_app
 
 
@@ -45,6 +46,15 @@ def build_config() -> AppConfig:
     )
 
 
+def build_disabled_lm_studio_config() -> AppConfig:
+    return AppConfig(
+        lm_studio_base_url="http://localhost:1234/v1",
+        lm_studio_model="local-model",
+        log_format="%(levelname)s:%(message)s",
+        providers_enabled=(ProviderName.OLLAMA,),
+    )
+
+
 def test_lm_studio_health_endpoint_returns_provider_status_and_default_model() -> None:
     app = create_app(config=build_config(), provider=HealthyProvider())
     client = TestClient(app)
@@ -55,6 +65,21 @@ def test_lm_studio_health_endpoint_returns_provider_status_and_default_model() -
     assert response.json() == {
         "status": "available",
         "message": "LM Studio is available",
+        "default_model": "local-model",
+    }
+
+
+def test_lm_studio_health_endpoint_reports_disabled_provider_without_calling_provider() -> None:
+    provider = HealthyProvider()
+    app = create_app(config=build_disabled_lm_studio_config(), provider=provider)
+    client = TestClient(app)
+
+    response = client.get("/health/lm-studio")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "disabled",
+        "message": "Provider 'lm_studio' is disabled by PROVIDERS_ENABLED",
         "default_model": "local-model",
     }
 

@@ -21,10 +21,12 @@ from backend.app.domain.errors import LLMResponseFormatError
 from backend.app.domain.errors import LLMServerError
 from backend.app.domain.errors import LLMTimeoutError
 from backend.app.domain.errors import PromptResolutionError
+from backend.app.domain.errors import ProviderDisabledError
 from backend.app.domain.errors import RepositoryNotFoundError
 from backend.app.domain.errors import TextExtractionError
 from backend.app.domain.errors import UnsupportedExportFormatError
 from backend.app.domain.errors import UnsupportedGenerationModeError
+from backend.app.domain.errors import UnsupportedProviderError
 from backend.app.domain.errors import UnsupportedProviderCapabilityError
 
 logger = logging.getLogger(__name__)
@@ -53,8 +55,12 @@ def map_backend_error_to_status_code(error: BackendError) -> int:
         return 504
     if isinstance(error, LLMConnectionError):
         return 503
+    if isinstance(error, ProviderDisabledError):
+        return 503
     if isinstance(error, (LLMRequestError, LLMServerError, LLMResponseFormatError)):
         return 502
+    if isinstance(error, UnsupportedProviderError):
+        return 500
     if isinstance(error, UnsupportedProviderCapabilityError):
         return 501
     if isinstance(error, (ConfigurationError, PromptResolutionError)):

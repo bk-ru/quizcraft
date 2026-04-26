@@ -17,6 +17,7 @@ def register_health_routes(app: FastAPI, config: AppConfig) -> None:
             "status": "ok",
             "default_model": config.lm_studio_model,
             "generation_modes": [mode.value for mode in GenerationMode],
+            "providers_enabled": [provider.value for provider in config.providers_enabled],
         }
 
     @app.get("/health/lm-studio")
