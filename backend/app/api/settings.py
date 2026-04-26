@@ -58,7 +58,7 @@ def _serialize_generation_settings(
     return {
         "settings": None if settings is None else settings.to_dict(),
         "available_models": list(config.allowed_models),
-        "default_model": config.lm_studio_model,
+        "default_model": config.default_model,
         "available_profiles": list(config.generation_profiles.keys()),
         "default_profile": config.default_generation_profile,
         "request_id": request_id,

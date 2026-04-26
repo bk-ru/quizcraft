@@ -25,9 +25,7 @@ from backend.app.api.runtime import resolve_default_storage_root
 from backend.app.api.settings import register_generation_settings_routes
 from backend.app.core.config import AppConfig
 from backend.app.domain.errors import BackendError
-from backend.app.llm.lm_studio import LMStudioClient
-from backend.app.llm.registry import ProviderName
-from backend.app.llm.registry import ProviderRegistry
+from backend.app.llm.factory import build_provider_runtime
 
 logger = logging.getLogger(__name__)
 
@@ -59,16 +57,9 @@ def create_app(
     )
     app.state.config = resolved_config
     app.state.storage_root = Path(storage_root) if storage_root is not None else resolve_default_storage_root()
-    lm_studio_provider = provider or LMStudioClient(
-        base_url=resolved_config.lm_studio_base_url,
-        default_model=resolved_config.lm_studio_model,
-        timeout_seconds=resolved_config.request_timeout,
-    )
-    app.state.provider_registry = ProviderRegistry(
-        providers={ProviderName.LM_STUDIO: lm_studio_provider},
-        enabled_providers=resolved_config.providers_enabled,
-    )
-    app.state.provider = app.state.provider_registry.enforced_provider(ProviderName.LM_STUDIO)
+    provider_runtime = build_provider_runtime(resolved_config, provider=provider)
+    app.state.provider_registry = provider_runtime.registry
+    app.state.provider = provider_runtime.active_provider
     app.add_exception_handler(BackendError, handle_backend_error)
     app.add_exception_handler(RequestValidationError, handle_request_validation_error)
     register_health_routes(app, resolved_config)
