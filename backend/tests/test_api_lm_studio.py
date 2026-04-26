@@ -52,6 +52,7 @@ def build_disabled_lm_studio_config() -> AppConfig:
         lm_studio_model="local-model",
         log_format="%(levelname)s:%(message)s",
         providers_enabled=(ProviderName.OLLAMA,),
+        default_provider=ProviderName.LM_STUDIO,
     )
 
 
