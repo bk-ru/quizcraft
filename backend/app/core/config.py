@@ -13,10 +13,12 @@ from typing import Any
 from typing import Mapping
 
 from backend.app.domain.errors import ConfigurationError
+from backend.app.llm.registry import ProviderName
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_GENERATION_PROFILE_NAME = "balanced"
+DEFAULT_ENABLED_PROVIDERS = (ProviderName.LM_STUDIO,)
 
 
 def load_env_file(path: str | os.PathLike[str], override: bool = False) -> dict[str, str]:
@@ -96,6 +98,7 @@ class AppConfig:
     log_level: str = "INFO"
     log_format: str = "%(asctime)s %(levelname)s %(name)s %(message)s"
     allowed_models: tuple[str, ...] = ()
+    providers_enabled: tuple[ProviderName, ...] = DEFAULT_ENABLED_PROVIDERS
     generation_profiles: Mapping[str, GenerationProfile] = field(default_factory=_default_generation_profiles)
     default_generation_profile: str = DEFAULT_GENERATION_PROFILE_NAME
 
@@ -109,6 +112,7 @@ class AppConfig:
         if self.lm_studio_model not in normalized_allowed_models:
             raise ConfigurationError("LM_STUDIO_MODEL must be listed in LM_STUDIO_ALLOWED_MODELS")
 
+        normalized_providers_enabled = self._normalize_providers_enabled(self.providers_enabled)
         normalized_profiles = self._normalize_generation_profiles(self.generation_profiles)
         if self.default_generation_profile not in normalized_profiles:
             raise ConfigurationError("DEFAULT_GENERATION_PROFILE must reference a configured profile")
@@ -118,6 +122,7 @@ class AppConfig:
                 raise ConfigurationError("generation profile model_name must be listed in LM_STUDIO_ALLOWED_MODELS")
 
         object.__setattr__(self, "allowed_models", normalized_allowed_models)
+        object.__setattr__(self, "providers_enabled", normalized_providers_enabled)
         object.__setattr__(self, "generation_profiles", MappingProxyType(dict(normalized_profiles)))
 
     @staticmethod
@@ -141,6 +146,41 @@ class AppConfig:
         if not models:
             raise ConfigurationError("LM_STUDIO_ALLOWED_MODELS must include at least one model")
         return models
+
+    @staticmethod
+    def _load_providers_enabled() -> tuple[ProviderName, ...]:
+        """Load enabled provider names from a comma-separated environment variable."""
+
+        raw_value = os.getenv("PROVIDERS_ENABLED")
+        if raw_value is None:
+            return DEFAULT_ENABLED_PROVIDERS
+
+        providers = tuple(part.strip() for part in raw_value.split(","))
+        if not providers or any(not provider for provider in providers):
+            raise ConfigurationError("PROVIDERS_ENABLED must contain non-empty provider names")
+        return AppConfig._normalize_providers_enabled(providers)
+
+    @staticmethod
+    def _normalize_providers_enabled(
+        providers_enabled: tuple[ProviderName | str, ...],
+    ) -> tuple[ProviderName, ...]:
+        """Normalize enabled provider names and reject unsupported values."""
+
+        if not providers_enabled:
+            raise ConfigurationError("PROVIDERS_ENABLED must include at least one provider")
+
+        normalized_providers: list[ProviderName] = []
+        seen_providers: set[ProviderName] = set()
+        for provider_name in providers_enabled:
+            try:
+                normalized_provider_name = ProviderName.normalize(provider_name)
+            except ValueError as error:
+                raise ConfigurationError(str(error)) from error
+            if normalized_provider_name in seen_providers:
+                raise ConfigurationError(f"PROVIDERS_ENABLED contains duplicate provider '{normalized_provider_name.value}'")
+            normalized_providers.append(normalized_provider_name)
+            seen_providers.add(normalized_provider_name)
+        return tuple(normalized_providers)
 
     @staticmethod
     def _load_generation_profiles() -> Mapping[str, GenerationProfile]:
@@ -237,6 +277,7 @@ class AppConfig:
         log_level = os.getenv("LOG_LEVEL", "INFO").upper()
         log_format = os.getenv("LOG_FORMAT", "%(asctime)s %(levelname)s %(name)s %(message)s")
         allowed_models = cls._load_allowed_models(lm_studio_model)
+        providers_enabled = cls._load_providers_enabled()
         generation_profiles = cls._load_generation_profiles()
         default_generation_profile = os.getenv(
             "DEFAULT_GENERATION_PROFILE",
@@ -255,6 +296,7 @@ class AppConfig:
             log_level=log_level,
             log_format=log_format,
             allowed_models=allowed_models,
+            providers_enabled=providers_enabled,
             generation_profiles=generation_profiles,
             default_generation_profile=default_generation_profile,
         )
