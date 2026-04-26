@@ -33,6 +33,11 @@ def test_loads_required_and_optional_settings(monkeypatch: pytest.MonkeyPatch) -
     assert config.log_level == "DEBUG"
     assert config.log_format == "%(levelname)s:%(message)s"
     assert config.providers_enabled == (ProviderName.LM_STUDIO,)
+    assert config.default_provider is ProviderName.LM_STUDIO
+    assert config.default_model == "local-model"
+    assert config.ollama_base_url == "http://localhost:11434"
+    assert config.ollama_model == "local-model"
+    assert config.ollama_embedding_model == "local-model"
 
 
 def test_loads_provider_feature_flags(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -43,6 +48,58 @@ def test_loads_provider_feature_flags(monkeypatch: pytest.MonkeyPatch) -> None:
     config = AppConfig.from_env()
 
     assert config.providers_enabled == (ProviderName.LM_STUDIO, ProviderName.OLLAMA)
+
+
+def test_loads_ollama_provider_settings(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("PROVIDERS_ENABLED", "ollama")
+    monkeypatch.setenv("DEFAULT_PROVIDER", "ollama")
+    monkeypatch.setenv("OLLAMA_BASE_URL", "http://localhost:11434")
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b")
+    monkeypatch.setenv("OLLAMA_EMBEDDING_MODEL", "nomic-embed-text")
+
+    config = AppConfig.from_env()
+
+    assert config.providers_enabled == (ProviderName.OLLAMA,)
+    assert config.default_provider is ProviderName.OLLAMA
+    assert config.default_model == "qwen2.5:7b"
+    assert config.ollama_base_url == "http://localhost:11434"
+    assert config.ollama_model == "qwen2.5:7b"
+    assert config.ollama_embedding_model == "nomic-embed-text"
+    assert config.allowed_models == ("local-model", "qwen2.5:7b")
+
+
+def test_uses_first_enabled_provider_as_default_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("PROVIDERS_ENABLED", "ollama")
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b")
+
+    config = AppConfig.from_env()
+
+    assert config.default_provider is ProviderName.OLLAMA
+    assert config.default_model == "qwen2.5:7b"
+
+
+def test_rejects_ollama_model_outside_allowed_models(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("PROVIDERS_ENABLED", "ollama")
+    monkeypatch.setenv("OLLAMA_MODEL", "qwen2.5:7b")
+    monkeypatch.setenv("LM_STUDIO_ALLOWED_MODELS", "local-model")
+
+    with pytest.raises(ConfigurationError, match="OLLAMA_MODEL"):
+        AppConfig.from_env()
+
+
+def test_rejects_invalid_default_provider(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("DEFAULT_PROVIDER", "unknown")
+
+    with pytest.raises(ConfigurationError, match="provider"):
+        AppConfig.from_env()
 
 
 @pytest.mark.parametrize(
