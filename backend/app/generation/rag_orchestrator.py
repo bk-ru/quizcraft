@@ -12,6 +12,7 @@ from typing import TypeVar
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DomainValidationError
+from backend.app.domain.errors import RepositoryNotFoundError
 from backend.app.domain.errors import UnsupportedGenerationModeError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import EmbeddingRequest
@@ -24,7 +25,11 @@ from backend.app.domain.normalization import normalize_quiz_output
 from backend.app.generation.context import assemble_context
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.quality import GenerationQualityChecker
+from backend.app.generation.rag_cache import RagCacheEntry
+from backend.app.generation.rag_cache import build_document_hash
+from backend.app.generation.rag_cache import build_rag_cache_key
 from backend.app.generation.retrieval import InMemoryVectorIndex
+from backend.app.generation.retrieval import EmbeddedChunk
 from backend.app.generation.retrieval import embed_chunks
 from backend.app.generation.safe_logging import summarize_document_payload
 from backend.app.generation.safe_logging import summarize_generation_request
@@ -34,6 +39,7 @@ from backend.app.generation.status import GenerationPipelineEvent
 from backend.app.generation.status import GenerationPipelineStep
 from backend.app.generation.status import GenerationRunStatus
 from backend.app.parsing.chunking import chunk_text
+from backend.app.parsing.chunking import TextChunk
 from backend.app.prompts.registry import PromptRegistry
 from backend.app.prompts.registry import RAG_GENERATION_PROMPT_KEY
 from backend.app.prompts.registry import REPAIR_GENERATION_PROMPT_KEY
@@ -45,6 +51,7 @@ DEFAULT_RAG_CHUNK_SIZE = 800
 DEFAULT_RAG_CHUNK_OVERLAP = 120
 DEFAULT_RAG_TOP_K = 8
 DEFAULT_RAG_MAX_CONTEXT_CHARS = 4000
+DEFAULT_RAG_CACHE_EMBEDDING_MODEL_NAME = "__provider_default__"
 
 
 def build_default_rag_query(generation_request: GenerationRequest) -> str:
@@ -82,6 +89,7 @@ class RagGenerationOrchestrator:
         max_context_chars: int = DEFAULT_RAG_MAX_CONTEXT_CHARS,
         embedding_model_name: str | None = None,
         query_builder: Callable[[GenerationRequest], str] = build_default_rag_query,
+        rag_cache_repository=None,
     ) -> None:
         self._validate_construction_inputs(
             max_document_chars=max_document_chars,
@@ -105,6 +113,7 @@ class RagGenerationOrchestrator:
         self._max_context_chars = max_context_chars
         self._embedding_model_name = embedding_model_name
         self._query_builder = query_builder
+        self._rag_cache_repository = rag_cache_repository
 
     def generate(self, document_id: str, generation_request: GenerationRequest) -> GenerationResult:
         """Run the full RAG pipeline for one document and persist the resulting quiz."""
@@ -184,10 +193,9 @@ class RagGenerationOrchestrator:
                 f"document '{document.document_id}' has no content for retrieval"
             )
 
-        embedded = embed_chunks(
-            chunks,
-            provider=self._provider,
-            model_name=self._embedding_model_name,
+        embedded = self._load_or_embed_chunks(
+            document=document,
+            chunks=chunks,
         )
         index = InMemoryVectorIndex(embedded)
 
@@ -230,6 +238,57 @@ class RagGenerationOrchestrator:
         )
         response = self._provider.generate_structured(provider_request)
         return response, rag_prompt.version, len(context), len(scored)
+
+    def _load_or_embed_chunks(
+        self,
+        *,
+        document: DocumentRecord,
+        chunks: tuple[TextChunk, ...],
+    ) -> tuple[EmbeddedChunk, ...]:
+        """Load cached chunk embeddings when available, otherwise embed and persist them."""
+
+        if self._rag_cache_repository is None:
+            return embed_chunks(
+                chunks,
+                provider=self._provider,
+                model_name=self._embedding_model_name,
+            )
+
+        document_hash = build_document_hash(document.normalized_text)
+        embedding_model_name = self._cache_embedding_model_name()
+        cache_key = build_rag_cache_key(
+            document_hash=document_hash,
+            chunk_size=self._chunk_size,
+            chunk_overlap=self._chunk_overlap,
+            embedding_model_name=embedding_model_name,
+        )
+        try:
+            cache_entry = self._rag_cache_repository.get(cache_key)
+        except RepositoryNotFoundError:
+            embedded = embed_chunks(
+                chunks,
+                provider=self._provider,
+                model_name=self._embedding_model_name,
+            )
+            self._rag_cache_repository.save(
+                RagCacheEntry(
+                    document_hash=document_hash,
+                    chunk_size=self._chunk_size,
+                    chunk_overlap=self._chunk_overlap,
+                    embedding_model_name=embedding_model_name,
+                    embedded_chunks=embedded,
+                )
+            )
+            logger.info("Stored rag cache entry document_hash=%s cache_key=%s", document_hash, cache_key)
+            return embedded
+
+        logger.info("Loaded rag cache entry document_hash=%s cache_key=%s", document_hash, cache_key)
+        return cache_entry.embedded_chunks
+
+    def _cache_embedding_model_name(self) -> str:
+        """Return the cache-visible embedding model identifier."""
+
+        return self._embedding_model_name or DEFAULT_RAG_CACHE_EMBEDDING_MODEL_NAME
 
     def _finalize_generation(
         self,
