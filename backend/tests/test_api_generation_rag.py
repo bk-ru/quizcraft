@@ -166,6 +166,48 @@ def test_rag_generation_endpoint_calls_embed_for_chunks_and_query(tmp_path) -> N
     assert query_request.texts == ("Создай 2 вопросов на языке ru, сложность medium, тип single_choice, опираясь только на содержание документа.",)
 
 
+def test_rag_generation_endpoint_reuses_runtime_cache_and_preserves_cached_russian_context(tmp_path) -> None:
+    provider = StubRagApiProvider(
+        structured_responses=[
+            build_russian_quiz_response(),
+            build_russian_quiz_response(),
+        ]
+    )
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_short_russian_document(client)
+
+    first_response = client.post(f"/documents/{document_id}/generate", json=build_rag_payload())
+    cache_files = list((tmp_path / "rag_cache").glob("*.json"))
+    second_response = client.post(f"/documents/{document_id}/generate", json=build_rag_payload())
+
+    assert first_response.status_code == 200
+    assert second_response.status_code == 200
+    assert len(cache_files) == 1
+    raw_cache_payload = cache_files[0].read_text(encoding="utf-8")
+    assert "Москва" in raw_cache_payload
+    assert "Санкт-Петербург" in raw_cache_payload
+    assert "Рњ" not in raw_cache_payload
+    assert len(provider.embedding_requests) == 3
+    first_chunk_request = provider.embedding_requests[0]
+    first_query_request = provider.embedding_requests[1]
+    second_query_request = provider.embedding_requests[2]
+    assert len(first_chunk_request.texts) >= 1
+    assert len(first_query_request.texts) == 1
+    assert len(second_query_request.texts) == 1
+    assert first_query_request.texts == second_query_request.texts
+    assert len(provider.structured_requests) == 2
+    second_structured_request = provider.structured_requests[1]
+    assert "Retrieved context" in second_structured_request.user_prompt
+    assert "Москва" in second_structured_request.user_prompt
+    assert "Санкт-Петербург" in second_structured_request.user_prompt
+    second_payload = second_response.json()
+    assert second_payload["prompt_version"] == "rag-v1"
+    assert second_payload["quiz"]["document_id"] == document_id
+    assert second_payload["quiz"]["title"] == "Квиз про Россию"
+    assert second_payload["quiz"]["questions"][0]["prompt"] == "Вопрос про Москву номер 1?"
+
+
 def test_rag_generation_endpoint_passes_retrieved_context_into_structured_request(tmp_path) -> None:
     provider = StubRagApiProvider(structured_responses=[build_russian_quiz_response()])
     app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
