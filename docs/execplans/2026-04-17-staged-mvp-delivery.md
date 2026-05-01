@@ -754,6 +754,7 @@ Current backlog completion status:
     UX RAG mode UI Batch B sync: integrated on main (merge `5c6ed85`, feature `3c9c8b4`)
     UX confirm modal and regen cancel Batch C (post-Stage 14 UX hardening: native `<dialog>`-backed confirm modal replacing `globalThis.confirm`, AbortController-driven cancel for in-flight question regeneration with a visible per-card cancel button and an Esc shortcut, signal-forwarding API client, closing audit issues 2.3 and 2.4): integrated on main (merge `2bf78ee`, feature `652a501`)
     Stage 15 Batch 1 (`CF-004` provider registry and feature flags foundation): integrated on main (merge `41e829c`, feature `44f36f7`)
+    Stage 15 Batch 2 (`LM-007` Ollama provider adapter): integrated on main (merge `d735974`, feature `c80424f`)
 
 Next recommended stage:
 
