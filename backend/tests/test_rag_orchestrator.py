@@ -307,7 +307,7 @@ def test_rag_orchestrator_misses_cache_when_document_text_changes(tmp_path) -> N
     )
     document_repository.save(build_document())
     orchestrator.generate("doc-rag", build_rag_request(question_count=2))
-    changed_text = build_document().normalized_text + "\nРќРѕРІС‹Р№ СЂР°Р·РґРµР» РґРѕРєСѓРјРµРЅС‚Р°."
+    changed_text = build_document().normalized_text + "\nНовый раздел документа."
     document_repository.save(build_document(text=changed_text))
 
     orchestrator.generate("doc-rag", build_rag_request(question_count=2))
