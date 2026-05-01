@@ -19,6 +19,46 @@ def build_document_hash(document_text: str) -> str:
     return hashlib.sha256(document_text.encode("utf-8")).hexdigest()
 
 
+def _validate_hash(value: str, field_name: str) -> None:
+    """Validate a SHA-256 hex hash field."""
+
+    if not isinstance(value, str) or len(value) != 64:
+        raise DomainValidationError(f"{field_name} must be a SHA-256 hex string")
+    try:
+        int(value, 16)
+    except ValueError as error:
+        raise DomainValidationError(f"{field_name} must be a SHA-256 hex string") from error
+
+
+def build_rag_cache_key(
+    *,
+    document_hash: str,
+    chunk_size: int,
+    chunk_overlap: int,
+    embedding_model_name: str,
+) -> str:
+    """Build the stable cache key for one RAG cache configuration."""
+
+    _validate_hash(document_hash, "document_hash")
+    if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size <= 0:
+        raise DomainValidationError("chunk_size must be a positive integer")
+    if isinstance(chunk_overlap, bool) or not isinstance(chunk_overlap, int) or chunk_overlap < 0:
+        raise DomainValidationError("chunk_overlap must be a non-negative integer")
+    if chunk_overlap >= chunk_size:
+        raise DomainValidationError("chunk_overlap must be smaller than chunk_size")
+    if not isinstance(embedding_model_name, str) or not embedding_model_name.strip():
+        raise DomainValidationError("embedding_model_name must be a non-empty string")
+    raw_key = "\0".join(
+        (
+            document_hash,
+            str(chunk_size),
+            str(chunk_overlap),
+            embedding_model_name.strip(),
+        )
+    )
+    return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
+
+
 @dataclass(frozen=True, slots=True)
 class RagCacheEntry:
     """Persisted RAG chunks, embeddings, and index metadata for one document configuration."""
@@ -52,15 +92,12 @@ class RagCacheEntry:
     def cache_key(self) -> str:
         """Return the stable key for this cache artifact."""
 
-        raw_key = "\0".join(
-            (
-                self.document_hash,
-                str(self.chunk_size),
-                str(self.chunk_overlap),
-                self.embedding_model_name,
-            )
+        return build_rag_cache_key(
+            document_hash=self.document_hash,
+            chunk_size=self.chunk_size,
+            chunk_overlap=self.chunk_overlap,
+            embedding_model_name=self.embedding_model_name,
         )
-        return hashlib.sha256(raw_key.encode("utf-8")).hexdigest()
 
     @property
     def index_metadata(self) -> dict[str, int]:
@@ -133,12 +170,7 @@ class RagCacheEntry:
     def _validate_hash(value: str, field_name: str) -> None:
         """Validate a SHA-256 hex hash field."""
 
-        if not isinstance(value, str) or len(value) != 64:
-            raise DomainValidationError(f"{field_name} must be a SHA-256 hex string")
-        try:
-            int(value, 16)
-        except ValueError as error:
-            raise DomainValidationError(f"{field_name} must be a SHA-256 hex string") from error
+        _validate_hash(value, field_name)
 
     @staticmethod
     def _validate_embedded_chunks(embedded_chunks: tuple[EmbeddedChunk, ...]) -> None:
