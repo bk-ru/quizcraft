@@ -74,6 +74,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-26) Implemented, reviewed, and integrated Stage 15 Batch 1 on `main` via merge commit `41e829c`, feature commit `44f36f7`. Adds `PROVIDERS_ENABLED` parsing/validation to `AppConfig`, a typed `ProviderName`/`ProviderRegistry` enforcement layer over the existing LM Studio provider, provider-disabled API error mapping, `/health` enabled-provider reporting, and positive/negative pytest coverage including Russian/Cyrillic generation and embedding examples. No new concrete provider adapters or production dependencies were added; Ollama and external API adapters remain deferred.
 - [x] (2026-04-26) Started Stage 15 Batch 2 planning on branch `codex/stage-15-batch-2-ollama-provider` from a clean, synchronized `main` state. Scope is limited to `LM-007`: add an Ollama adapter implementing the existing `LLMProvider` contract for healthcheck, structured generation, and embeddings, register it behind the Stage 15 Batch 1 provider registry/enforcement path, and add focused positive/negative tests including Russian/Cyrillic examples. External API adapters, frontend provider selection, and broad generation request contract changes remain deferred.
 - [x] (2026-04-26) Implemented, reviewed, and integrated Stage 15 Batch 2 on `main` via merge commit `d735974`, feature commit `c80424f`, planning commit `ecca475`. Adds `OllamaClient` implementing `LLMProvider` healthcheck, structured generation, and embeddings over the native Ollama HTTP API without new production dependencies; extends `AppConfig` with Ollama base URL/model/embedding-model settings and default-provider resolution from `PROVIDERS_ENABLED`; wires provider construction through `ProviderRegistry` while avoiding disabled-provider initialization for normal Ollama-only runtime; adds `/health/ollama` and active-provider generation coverage with Russian/Cyrillic examples. External API adapters, frontend provider selection, and request-contract provider selection remain deferred.
+- [x] (2026-05-01) Implemented, reviewed, and integrated Stage 15 Batch 3 on `main` via merge commit `f95af24`, feature commits `ebed8a5`, `022c66f`, and `2017375`. Adds `ExternalAPIClient` implementing the existing `LLMProvider` contract for OpenAI-compatible external APIs, registers it behind the existing typed `ProviderRegistry` and `PROVIDERS_ENABLED` enforcement, adds `/health/external-api`, supports structured generation and embeddings without new production dependencies, and adds focused tests for healthcheck, registry/feature-flag behavior, malformed responses, and Russian/Cyrillic structured generation and embeddings. Stage 15 is now fully complete on local `main`; Stage 16 RAG caching is the next recommended stage.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -591,6 +592,8 @@ Recommended commit breakdown:
 2. `feat(config): add provider feature flags and provider registry enforcement`
 3. `test(llm): cover provider selection and disablement`
 
+Current status on `main`: fully implemented and integrated. Batch 1 landed via merge commit `41e829c` (provider registry and feature flags foundation). Batch 2 landed via merge commit `d735974` (Ollama provider adapter). Batch 3 landed via merge commit `f95af24` (external-API provider adapter, `/health/external-api`, structured generation, embeddings, and Russian/Cyrillic provider tests). Stage 15 is complete.
+
 ## Stage 16: RAG Caching and Reuse
 
 Task IDs: `RAG-006`.
@@ -603,9 +606,15 @@ Definition of done: The backend can reuse cached embeddings and cached indexes f
 
 Required tests/checks: Run `python -m pytest backend/tests/test_rag_cache.py -q` and expect all tests to pass. Verify manually or through tests that repeated RAG generation requests reuse cached artifacts for identical documents.
 
+Recommended Stage 16 batch breakdown:
+1. Batch 1: backend RAG cache model/repository keyed by stable document hash.
+2. Batch 2: cache reuse/invalidation in embedding and index retrieval path.
+3. Batch 3: focused RAG cache tests and regression checks for Cyrillic/Russian content preservation.
+
 Recommended commit breakdown:
-1. `feat(rag): add embedding and index cache keyed by document hash`
-2. `test(rag): cover cache hits, misses, and invalidation`
+1. `feat(rag): add cache repository keyed by document hash`
+2. `feat(rag): reuse cached embeddings and indexes`
+3. `test(rag): cover cache behavior and cyrillic regressions`
 
 ## Concrete Steps
 
@@ -755,14 +764,16 @@ Current backlog completion status:
     UX confirm modal and regen cancel Batch C (post-Stage 14 UX hardening: native `<dialog>`-backed confirm modal replacing `globalThis.confirm`, AbortController-driven cancel for in-flight question regeneration with a visible per-card cancel button and an Esc shortcut, signal-forwarding API client, closing audit issues 2.3 and 2.4): integrated on main (merge `2bf78ee`, feature `652a501`)
     Stage 15 Batch 1 (`CF-004` provider registry and feature flags foundation): integrated on main (merge `41e829c`, feature `44f36f7`)
     Stage 15 Batch 2 (`LM-007` Ollama provider adapter): integrated on main (merge `d735974`, feature `c80424f`)
+    Stage 15 Batch 3 (`LM-008` external-API provider adapter): integrated on main (merge `f95af24`, feature commits `ebed8a5`, `022c66f`, `2017375`)
+    Stage 15: fully integrated on main
 
 Next recommended stage:
 
-    Stage 15: Additional Providers and Feature Flags
+    Stage 16: RAG Caching and Reuse
 
 Next recommended batch:
 
-    Stage 15 Batch 3: add an external-API provider adapter (`LM-008`) on the same typed provider registry and `PROVIDERS_ENABLED` enforcement contract. Keep frontend provider selection and broad generation request contract changes deferred unless explicitly promoted into scope. After Stage 15 the only remaining backlog tier is Stage 16 (`RAG-006` retrieval cache) and any cross-cutting Future-tier hardening that has not yet been promoted into a stage.
+    Stage 16 Batch 1: add a backend RAG cache model/repository keyed by stable document hash (`RAG-006`) without changing the existing RAG orchestration behavior yet. Keep cache reuse/invalidation wiring and focused Cyrillic/Russian cache regression checks deferred to Stage 16 Batches 2 and 3.
 
 ## Interfaces and Dependencies
 
