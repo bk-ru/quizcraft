@@ -84,6 +84,20 @@ def test_rag_cache_repository_writes_and_reads_cyrillic_cache_entry(tmp_path) ->
     assert loaded_entry.embedded_chunks[1].chunk.text == "Санкт-Петербург — культурная столица."
 
 
+def test_rag_cache_repository_preserves_raw_cyrillic_utf8_artifact(tmp_path) -> None:
+    repository = FileSystemRagCacheRepository(tmp_path)
+    entry = make_cache_entry()
+
+    repository.save(entry)
+
+    cache_path = tmp_path / "rag_cache" / f"{entry.cache_key}.json"
+    raw_payload = cache_path.read_text(encoding="utf-8")
+    assert "Москва — столица России." in raw_payload
+    assert "Санкт-Петербург — культурная столица." in raw_payload
+    assert "\\u041c" not in raw_payload
+    assert "Рњ" not in raw_payload
+
+
 def test_rag_cache_repository_delete_invalidates_entry(tmp_path) -> None:
     repository = FileSystemRagCacheRepository(tmp_path)
     entry = make_cache_entry()
