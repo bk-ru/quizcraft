@@ -77,6 +77,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-05-01) Implemented, reviewed, and integrated Stage 15 Batch 3 on `main` via merge commit `f95af24`, feature commits `ebed8a5`, `022c66f`, and `2017375`. Adds `ExternalAPIClient` implementing the existing `LLMProvider` contract for OpenAI-compatible external APIs, registers it behind the existing typed `ProviderRegistry` and `PROVIDERS_ENABLED` enforcement, adds `/health/external-api`, supports structured generation and embeddings without new production dependencies, and adds focused tests for healthcheck, registry/feature-flag behavior, malformed responses, and Russian/Cyrillic structured generation and embeddings. Stage 15 is now fully complete on local `main`; Stage 16 RAG caching is the next recommended stage.
 - [x] (2026-05-01) Implemented, reviewed, and integrated Stage 16 Batch 1 on `main` via merge commit `93a63a7`, feature commits `bb88cb7` and `b4e083e`. Adds the backend RAG cache model/repository slice for `RAG-006`: stable SHA-256 document hashing, `RagCacheEntry` for cached chunks, embeddings, and index metadata, and `FileSystemRagCacheRepository` with save/get/exists/delete primitives. Focused tests cover cache miss, write/read round-trip, invalidation, malformed artifacts, and Russian/Cyrillic hash/persistence behavior. RAG orchestration behavior, provider calls, frontend work, and cache reuse wiring remain unchanged and deferred to Stage 16 Batch 2.
 - [x] (2026-05-01) Implemented, reviewed, and integrated Stage 16 Batch 2 on `main` via merge commit `47d1781`, feature commit `6479811` (`feat(rag): reuse cached embeddings and indexes`), test commit `893b51f` (`test(rag): cover cache hits misses and invalidation`), and fix commit `e518d08` (`fix(tests): restore cyrillic rag cache fixture`). Adds cache reuse to the RAG orchestrator embedding/index path through the existing `FileSystemRagCacheRepository`, wires the runtime RAG orchestrator to the cache repository, preserves backend-only scope with no frontend work and no provider implementation changes, and verifies cache hit, cache miss, invalidation, corrupted artifact, and Russian/Cyrillic fixture behavior. Fresh checks on `main` passed: `python -m pytest backend/tests/test_rag_cache.py backend/tests/test_rag_orchestrator.py -q`, `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, `python -c "from backend.app.main import create_app; assert callable(create_app)"`, and `git diff --check HEAD~1..HEAD`.
+- [x] (2026-05-01) Implemented, reviewed, and integrated Stage 16 Batch 3 on `main` via merge commit `558f1c2`, transferred commit `9a59b27` (`test(rag): cover runtime cache reuse and cyrillic regressions`). Adds final focused backend regression evidence for `RAG-006`: API/runtime-level proof that RAG generation uses the cache repository wiring, repeated identical RAG requests reuse cached chunk embeddings without repeating chunk embedding calls, raw cache artifacts preserve Russian/Cyrillic UTF-8 text, cached embeddings keep retrieved Russian context intact, and existing RAG generation still returns valid Russian quiz output. Stage 16 is now fully implemented, reviewed, integrated, and verified on local `main`; no frontend work, provider changes, production code changes, new dependencies, or unrelated RAG refactors were introduced.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -696,6 +697,7 @@ Current integrated state:
     5c6ed85 merge(docs): integrate rag mode ui batch b sync
     2bf78ee merge(frontend): integrate confirm modal and regen cancel batch c
     47d1781 merge(rag): integrate stage 16 batch 2 cache reuse
+    558f1c2 merge(rag): integrate stage 16 batch 3 regressions
 
 Current backlog completion status:
 
@@ -771,14 +773,12 @@ Current backlog completion status:
     Stage 15: fully integrated on main
     Stage 16 Batch 1 (`RAG-006` cache repository/model slice): integrated on main (merge `93a63a7`, feature commits `bb88cb7`, `b4e083e`)
     Stage 16 Batch 2 (`RAG-006` cache reuse/invalidation slice): integrated on main (merge `47d1781`, feature commit `6479811`, test commit `893b51f`, fix commit `e518d08`)
+    Stage 16 Batch 3 (`RAG-006` closeout regression slice): integrated on main (merge `558f1c2`, transferred commit `9a59b27`)
+    Stage 16: fully integrated on main
 
-Next recommended stage:
+Next recommended item:
 
-    Stage 16: RAG Caching and Reuse
-
-Next recommended batch:
-
-    Stage 16 Batch 3: add focused RAG cache regression coverage for API/runtime-level evidence that RAG generation uses the cache repository wiring, Russian/Cyrillic UTF-8 preservation through cache artifacts, and cached embeddings reuse without corrupting retrieved Russian context. Keep this backend-only with no frontend work, no provider implementation changes, and no unrelated RAG refactor.
+    Status/planning checkpoint: confirm Stage 16 closeout on a clean, pushed `main`, review the updated backlog and ExecPlan, and choose the next stage or batch before starting any new feature implementation.
 
 ## Interfaces and Dependencies
 
@@ -822,3 +822,5 @@ Dependencies are intentionally conservative. No production dependency should be 
 Revision note: Created this ExecPlan to turn the backlog into small, verifiable delivery stages after the repository cleanup was completed and before any feature code was started.
 
 Revision note: 2026-05-01 synced the plan to the local `main` state after Stage 16 Batch 2 was integrated via merge commit `47d1781`, and moved the next recommended batch to Stage 16 Batch 3 without starting implementation.
+
+Revision note: 2026-05-01 synced Stage 16 closeout after Batch 3 was integrated via merge commit `558f1c2`, marked Stage 16 fully integrated, and moved the next recommended item to a status/planning checkpoint instead of a feature batch.
