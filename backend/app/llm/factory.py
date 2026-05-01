@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from backend.app.core.config import AppConfig
+from backend.app.llm.external_api import ExternalAPIClient
 from backend.app.llm.lm_studio import LMStudioClient
 from backend.app.llm.ollama import OllamaClient
 from backend.app.llm.provider import LLMProvider
@@ -47,6 +48,20 @@ def build_provider_runtime(
             base_url=config.ollama_base_url,
             default_model=config.ollama_model or config.lm_studio_model,
             default_embedding_model=config.ollama_embedding_model or config.ollama_model or config.lm_studio_model,
+            timeout_seconds=config.request_timeout,
+        )
+    should_register_external_api = (
+        ProviderName.EXTERNAL_API in config.providers_enabled
+        or config.default_provider is ProviderName.EXTERNAL_API
+    )
+    if should_register_external_api:
+        providers[ProviderName.EXTERNAL_API] = ExternalAPIClient(
+            base_url=config.external_api_base_url or "",
+            api_key=config.external_api_key,
+            default_model=config.external_api_model or config.lm_studio_model,
+            default_embedding_model=config.external_api_embedding_model
+            or config.external_api_model
+            or config.lm_studio_model,
             timeout_seconds=config.request_timeout,
         )
 

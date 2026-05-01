@@ -96,6 +96,10 @@ class AppConfig:
     ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
     ollama_model: str | None = None
     ollama_embedding_model: str | None = None
+    external_api_base_url: str | None = None
+    external_api_key: str | None = None
+    external_api_model: str | None = None
+    external_api_embedding_model: str | None = None
     request_timeout: int = 300
     max_file_size_mb: int = 10
     max_document_chars: int = 50_000
@@ -131,10 +135,34 @@ class AppConfig:
         normalized_ollama_embedding_model = (self.ollama_embedding_model or normalized_ollama_model).strip()
         if not normalized_ollama_embedding_model:
             raise ConfigurationError("OLLAMA_EMBEDDING_MODEL must be a non-empty string")
+        uses_external_api = (
+            ProviderName.EXTERNAL_API in normalized_providers_enabled
+            or normalized_default_provider is ProviderName.EXTERNAL_API
+        )
+        normalized_external_api_base_url = (self.external_api_base_url or "").strip()
+        if uses_external_api and not normalized_external_api_base_url:
+            raise ConfigurationError("EXTERNAL_API_BASE_URL must be a non-empty string when external_api is configured")
+        normalized_external_api_key = (
+            self.external_api_key.strip()
+            if isinstance(self.external_api_key, str) and self.external_api_key.strip()
+            else None
+        )
+        normalized_external_api_model = (self.external_api_model or "").strip()
+        if uses_external_api and not normalized_external_api_model:
+            raise ConfigurationError("EXTERNAL_API_MODEL must be a non-empty string when external_api is configured")
+        normalized_external_api_embedding_model = (
+            self.external_api_embedding_model or normalized_external_api_model
+        ).strip()
+        if uses_external_api and not normalized_external_api_embedding_model:
+            raise ConfigurationError(
+                "EXTERNAL_API_EMBEDDING_MODEL must be a non-empty string when external_api is configured"
+            )
 
         default_allowed_models = [normalized_lm_studio_model]
         if ProviderName.OLLAMA in normalized_providers_enabled or normalized_default_provider is ProviderName.OLLAMA:
             default_allowed_models.append(normalized_ollama_model)
+        if uses_external_api:
+            default_allowed_models.append(normalized_external_api_model)
         allowed_models = self.allowed_models or tuple(dict.fromkeys(default_allowed_models))
         normalized_allowed_models = tuple(model.strip() for model in allowed_models if model.strip())
         if not normalized_allowed_models:
@@ -145,6 +173,8 @@ class AppConfig:
             ProviderName.OLLAMA in normalized_providers_enabled or normalized_default_provider is ProviderName.OLLAMA
         ) and normalized_ollama_model not in normalized_allowed_models:
             raise ConfigurationError("OLLAMA_MODEL must be listed in LM_STUDIO_ALLOWED_MODELS")
+        if uses_external_api and normalized_external_api_model not in normalized_allowed_models:
+            raise ConfigurationError("EXTERNAL_API_MODEL must be listed in LM_STUDIO_ALLOWED_MODELS")
 
         normalized_profiles = self._normalize_generation_profiles(self.generation_profiles)
         if self.default_generation_profile not in normalized_profiles:
@@ -158,6 +188,14 @@ class AppConfig:
         object.__setattr__(self, "ollama_base_url", normalized_ollama_base_url)
         object.__setattr__(self, "ollama_model", normalized_ollama_model)
         object.__setattr__(self, "ollama_embedding_model", normalized_ollama_embedding_model)
+        object.__setattr__(self, "external_api_base_url", normalized_external_api_base_url or None)
+        object.__setattr__(self, "external_api_key", normalized_external_api_key)
+        object.__setattr__(self, "external_api_model", normalized_external_api_model or None)
+        object.__setattr__(
+            self,
+            "external_api_embedding_model",
+            normalized_external_api_embedding_model or None,
+        )
         object.__setattr__(self, "allowed_models", normalized_allowed_models)
         object.__setattr__(self, "providers_enabled", normalized_providers_enabled)
         object.__setattr__(self, "default_provider", normalized_default_provider)
@@ -169,6 +207,8 @@ class AppConfig:
 
         if self.default_provider is ProviderName.OLLAMA:
             return self.ollama_model or self.lm_studio_model
+        if self.default_provider is ProviderName.EXTERNAL_API:
+            return self.external_api_model or self.lm_studio_model
         return self.lm_studio_model
 
     @staticmethod
@@ -332,11 +372,18 @@ class AppConfig:
         ollama_base_url = os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
         ollama_model = os.getenv("OLLAMA_MODEL", lm_studio_model)
         ollama_embedding_model = os.getenv("OLLAMA_EMBEDDING_MODEL", ollama_model)
+        external_api_base_url = os.getenv("EXTERNAL_API_BASE_URL")
+        external_api_key = os.getenv("EXTERNAL_API_API_KEY")
+        external_api_model = os.getenv("EXTERNAL_API_MODEL")
+        external_api_embedding_model = os.getenv("EXTERNAL_API_EMBEDDING_MODEL", external_api_model or "")
         providers_enabled = cls._load_providers_enabled()
         default_provider = cls._load_default_provider()
         default_allowed_models = [lm_studio_model]
         if ProviderName.OLLAMA in providers_enabled or default_provider is ProviderName.OLLAMA:
             default_allowed_models.append(ollama_model)
+        if ProviderName.EXTERNAL_API in providers_enabled or default_provider is ProviderName.EXTERNAL_API:
+            if external_api_model:
+                default_allowed_models.append(external_api_model)
         request_timeout = cls._load_int("REQUEST_TIMEOUT", "300")
         max_file_size_mb = cls._load_int("MAX_FILE_SIZE_MB", "10")
         max_document_chars = cls._load_int("MAX_DOCUMENT_CHARS", "50000")
@@ -358,6 +405,10 @@ class AppConfig:
             ollama_base_url=ollama_base_url,
             ollama_model=ollama_model,
             ollama_embedding_model=ollama_embedding_model,
+            external_api_base_url=external_api_base_url,
+            external_api_key=external_api_key,
+            external_api_model=external_api_model,
+            external_api_embedding_model=external_api_embedding_model,
             request_timeout=request_timeout,
             max_file_size_mb=max_file_size_mb,
             max_document_chars=max_document_chars,

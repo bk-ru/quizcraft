@@ -54,3 +54,22 @@ def register_health_routes(app: FastAPI, config: AppConfig) -> None:
             "default_model": default_model,
             "embedding_model": embedding_model,
         }
+
+    @app.get("/health/external-api")
+    async def external_api_health() -> dict[str, str]:
+        default_model = config.external_api_model or config.lm_studio_model
+        embedding_model = config.external_api_embedding_model or default_model
+        if ProviderName.EXTERNAL_API not in config.providers_enabled:
+            return {
+                "status": "disabled",
+                "message": "Provider 'external_api' is disabled by PROVIDERS_ENABLED",
+                "default_model": default_model,
+                "embedding_model": embedding_model,
+            }
+        health = app.state.provider_registry.enforced_provider(ProviderName.EXTERNAL_API).healthcheck()
+        return {
+            "status": health.status,
+            "message": health.message,
+            "default_model": default_model,
+            "embedding_model": embedding_model,
+        }
