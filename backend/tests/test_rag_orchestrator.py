@@ -17,9 +17,12 @@ from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.rag_orchestrator import RagGenerationOrchestrator
 from backend.app.generation.rag_orchestrator import build_default_rag_query
+from backend.app.generation.rag_cache import build_document_hash
+from backend.app.generation.rag_cache import build_rag_cache_key
 from backend.app.storage.documents import FileSystemDocumentRepository
 from backend.app.storage.generation_results import FileSystemGenerationResultRepository
 from backend.app.storage.quizzes import FileSystemQuizRepository
+from backend.app.storage.rag_cache import FileSystemRagCacheRepository
 
 
 class StubRagProvider:
@@ -144,6 +147,7 @@ def build_orchestrator(
     top_k: int = 2,
     max_context_chars: int = 200,
     max_document_chars: int | None = None,
+    rag_cache_repository=None,
 ) -> tuple[
     RagGenerationOrchestrator,
     FileSystemDocumentRepository,
@@ -164,8 +168,24 @@ def build_orchestrator(
         max_context_chars=max_context_chars,
         max_document_chars=max_document_chars,
         embedding_model_name="rag-embed",
+        rag_cache_repository=rag_cache_repository,
     )
     return orchestrator, document_repository, result_repository
+
+
+def build_expected_cache_key(
+    document: DocumentRecord,
+    *,
+    chunk_size: int = 80,
+    chunk_overlap: int = 20,
+    embedding_model_name: str = "rag-embed",
+) -> str:
+    return build_rag_cache_key(
+        document_hash=build_document_hash(document.normalized_text),
+        chunk_size=chunk_size,
+        chunk_overlap=chunk_overlap,
+        embedding_model_name=embedding_model_name,
+    )
 
 
 def test_build_default_rag_query_renders_request_metadata_in_russian() -> None:
@@ -218,6 +238,140 @@ def test_rag_orchestrator_chunks_document_and_embeds_chunks_plus_query(tmp_path)
     query_request = provider.embedding_requests[-1]
     assert len(query_request.texts) == 1
     assert "Создай" in query_request.texts[0]
+
+
+def test_rag_orchestrator_writes_cache_on_embedding_cache_miss(tmp_path) -> None:
+    provider = StubRagProvider(
+        embedding_dimension=3,
+        structured_responses=[build_response(build_quiz_payload(question_count=2))],
+    )
+    cache_repository = FileSystemRagCacheRepository(tmp_path)
+    orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path,
+        provider,
+        rag_cache_repository=cache_repository,
+    )
+    document = build_document()
+    document_repository.save(document)
+
+    orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+
+    cached_entry = cache_repository.get(build_expected_cache_key(document))
+    assert cached_entry.document_hash == build_document_hash(document.normalized_text)
+    assert cached_entry.index_metadata["chunk_count"] >= 2
+    assert cached_entry.embedded_chunks[0].chunk.text.startswith(document.normalized_text[:5])
+    assert len(provider.embedding_requests) == 2
+
+
+def test_rag_orchestrator_reuses_cached_chunk_embeddings_for_identical_document(tmp_path) -> None:
+    provider = StubRagProvider(
+        embedding_dimension=3,
+        structured_responses=[
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-1"),
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-2"),
+        ],
+    )
+    cache_repository = FileSystemRagCacheRepository(tmp_path)
+    orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path,
+        provider,
+        rag_cache_repository=cache_repository,
+    )
+    document_repository.save(build_document())
+
+    first_result = orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+    second_result = orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+
+    assert first_result.prompt_version == "rag-v1"
+    assert second_result.prompt_version == "rag-v1"
+    assert len(provider.embedding_requests) == 3
+    assert len(provider.embedding_requests[0].texts) >= 2
+    assert len(provider.embedding_requests[1].texts) == 1
+    assert len(provider.embedding_requests[2].texts) == 1
+    assert build_document().normalized_text[:5] in provider.structured_requests[1].user_prompt
+
+
+def test_rag_orchestrator_misses_cache_when_document_text_changes(tmp_path) -> None:
+    provider = StubRagProvider(
+        embedding_dimension=3,
+        structured_responses=[
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-1"),
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-2"),
+        ],
+    )
+    cache_repository = FileSystemRagCacheRepository(tmp_path)
+    orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path,
+        provider,
+        rag_cache_repository=cache_repository,
+    )
+    document_repository.save(build_document())
+    orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+    changed_text = build_document().normalized_text + "\nНовый раздел документа."
+    document_repository.save(build_document(text=changed_text))
+
+    orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+
+    assert len(provider.embedding_requests) == 4
+    assert len(provider.embedding_requests[0].texts) >= 2
+    assert len(provider.embedding_requests[2].texts) >= 2
+
+
+def test_rag_orchestrator_misses_cache_when_chunk_parameters_change(tmp_path) -> None:
+    provider = StubRagProvider(
+        embedding_dimension=3,
+        structured_responses=[
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-1"),
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-2"),
+        ],
+    )
+    cache_repository = FileSystemRagCacheRepository(tmp_path)
+    first_orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path,
+        provider,
+        chunk_size=80,
+        chunk_overlap=20,
+        rag_cache_repository=cache_repository,
+    )
+    second_orchestrator, _, _ = build_orchestrator(
+        tmp_path,
+        provider,
+        chunk_size=100,
+        chunk_overlap=20,
+        rag_cache_repository=cache_repository,
+    )
+    document_repository.save(build_document())
+
+    first_orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+    second_orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+
+    assert len(provider.embedding_requests) == 4
+    assert len(provider.embedding_requests[0].texts) >= 2
+    assert len(provider.embedding_requests[2].texts) >= 2
+
+
+def test_rag_orchestrator_raises_controlled_error_for_corrupted_cache_artifact(tmp_path) -> None:
+    provider = StubRagProvider(
+        embedding_dimension=3,
+        structured_responses=[
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-1"),
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-2"),
+        ],
+    )
+    cache_repository = FileSystemRagCacheRepository(tmp_path)
+    orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path,
+        provider,
+        rag_cache_repository=cache_repository,
+    )
+    document_repository.save(build_document())
+    orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+    cached_files = list((tmp_path / "rag_cache").glob("*.json"))
+    assert len(cached_files) == 1
+    cached_files[0].write_text("{broken-json", encoding="utf-8")
+
+    with pytest.raises(DomainValidationError, match="malformed"):
+        orchestrator.generate("doc-rag", build_rag_request(question_count=2))
 
 
 def test_rag_orchestrator_passes_retrieved_context_to_structured_generation_request(tmp_path) -> None:
