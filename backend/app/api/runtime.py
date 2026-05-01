@@ -24,6 +24,7 @@ from backend.app.storage.documents import FileSystemDocumentRepository
 from backend.app.storage.generation_results import FileSystemGenerationResultRepository
 from backend.app.storage.generation_settings import FileSystemGenerationSettingsRepository
 from backend.app.storage.quizzes import FileSystemQuizRepository
+from backend.app.storage.rag_cache import FileSystemRagCacheRepository
 
 DEFAULT_STORAGE_DIRECTORY_NAME = ".quizcraft"
 
@@ -77,6 +78,7 @@ def get_rag_generation_orchestrator(app: FastAPI) -> RagGenerationOrchestrator:
             provider=app.state.provider,
             quality_checker=GenerationQualityChecker(),
             max_document_chars=app.state.config.max_document_chars,
+            rag_cache_repository=FileSystemRagCacheRepository(app.state.storage_root),
         )
         app.state.rag_generation_orchestrator = orchestrator
     return orchestrator
