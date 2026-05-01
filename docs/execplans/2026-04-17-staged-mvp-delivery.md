@@ -76,6 +76,7 @@ This plan does not implement code by itself. It organizes the remaining backlog 
 - [x] (2026-04-26) Implemented, reviewed, and integrated Stage 15 Batch 2 on `main` via merge commit `d735974`, feature commit `c80424f`, planning commit `ecca475`. Adds `OllamaClient` implementing `LLMProvider` healthcheck, structured generation, and embeddings over the native Ollama HTTP API without new production dependencies; extends `AppConfig` with Ollama base URL/model/embedding-model settings and default-provider resolution from `PROVIDERS_ENABLED`; wires provider construction through `ProviderRegistry` while avoiding disabled-provider initialization for normal Ollama-only runtime; adds `/health/ollama` and active-provider generation coverage with Russian/Cyrillic examples. External API adapters, frontend provider selection, and request-contract provider selection remain deferred.
 - [x] (2026-05-01) Implemented, reviewed, and integrated Stage 15 Batch 3 on `main` via merge commit `f95af24`, feature commits `ebed8a5`, `022c66f`, and `2017375`. Adds `ExternalAPIClient` implementing the existing `LLMProvider` contract for OpenAI-compatible external APIs, registers it behind the existing typed `ProviderRegistry` and `PROVIDERS_ENABLED` enforcement, adds `/health/external-api`, supports structured generation and embeddings without new production dependencies, and adds focused tests for healthcheck, registry/feature-flag behavior, malformed responses, and Russian/Cyrillic structured generation and embeddings. Stage 15 is now fully complete on local `main`; Stage 16 RAG caching is the next recommended stage.
 - [x] (2026-05-01) Implemented, reviewed, and integrated Stage 16 Batch 1 on `main` via merge commit `93a63a7`, feature commits `bb88cb7` and `b4e083e`. Adds the backend RAG cache model/repository slice for `RAG-006`: stable SHA-256 document hashing, `RagCacheEntry` for cached chunks, embeddings, and index metadata, and `FileSystemRagCacheRepository` with save/get/exists/delete primitives. Focused tests cover cache miss, write/read round-trip, invalidation, malformed artifacts, and Russian/Cyrillic hash/persistence behavior. RAG orchestration behavior, provider calls, frontend work, and cache reuse wiring remain unchanged and deferred to Stage 16 Batch 2.
+- [x] (2026-05-01) Implemented, reviewed, and integrated Stage 16 Batch 2 on `main` via merge commit `47d1781`, feature commit `6479811` (`feat(rag): reuse cached embeddings and indexes`), test commit `893b51f` (`test(rag): cover cache hits misses and invalidation`), and fix commit `e518d08` (`fix(tests): restore cyrillic rag cache fixture`). Adds cache reuse to the RAG orchestrator embedding/index path through the existing `FileSystemRagCacheRepository`, wires the runtime RAG orchestrator to the cache repository, preserves backend-only scope with no frontend work and no provider implementation changes, and verifies cache hit, cache miss, invalidation, corrupted artifact, and Russian/Cyrillic fixture behavior. Fresh checks on `main` passed: `python -m pytest backend/tests/test_rag_cache.py backend/tests/test_rag_orchestrator.py -q`, `python -m pytest backend/tests -q`, `python -m pytest tests/test_repository_layout.py -q`, `python -c "from backend.app.main import create_app; assert callable(create_app)"`, and `git diff --check HEAD~1..HEAD`.
 - [ ] Revisit this plan after each completed stage and update `Progress`, `Decision Log`, and `Outcomes & Retrospective` before starting the next stage.
 
 ## Surprises & Discoveries
@@ -694,6 +695,7 @@ Current integrated state:
     942e9d7 merge(frontend): integrate rag mode ui batch b
     5c6ed85 merge(docs): integrate rag mode ui batch b sync
     2bf78ee merge(frontend): integrate confirm modal and regen cancel batch c
+    47d1781 merge(rag): integrate stage 16 batch 2 cache reuse
 
 Current backlog completion status:
 
@@ -768,6 +770,7 @@ Current backlog completion status:
     Stage 15 Batch 3 (`LM-008` external-API provider adapter): integrated on main (merge `f95af24`, feature commits `ebed8a5`, `022c66f`, `2017375`)
     Stage 15: fully integrated on main
     Stage 16 Batch 1 (`RAG-006` cache repository/model slice): integrated on main (merge `93a63a7`, feature commits `bb88cb7`, `b4e083e`)
+    Stage 16 Batch 2 (`RAG-006` cache reuse/invalidation slice): integrated on main (merge `47d1781`, feature commit `6479811`, test commit `893b51f`, fix commit `e518d08`)
 
 Next recommended stage:
 
@@ -775,7 +778,7 @@ Next recommended stage:
 
 Next recommended batch:
 
-    Stage 16 Batch 2: add cache reuse/invalidation in the embedding and index retrieval path (`RAG-006`) using the existing Batch 1 cache repository. Keep this backend-only with no frontend work, no provider changes, and no unrelated RAG refactor; focused Cyrillic/Russian cache regression checks remain planned for Batch 3 unless needed to prove this wiring.
+    Stage 16 Batch 3: add focused RAG cache regression coverage for API/runtime-level evidence that RAG generation uses the cache repository wiring, Russian/Cyrillic UTF-8 preservation through cache artifacts, and cached embeddings reuse without corrupting retrieved Russian context. Keep this backend-only with no frontend work, no provider implementation changes, and no unrelated RAG refactor.
 
 ## Interfaces and Dependencies
 
@@ -817,3 +820,5 @@ The early MVP should converge on the following stable interfaces and boundaries:
 Dependencies are intentionally conservative. No production dependency should be added unless the standard library or the chosen existing stack is insufficient. PDF and DOCX parsing, DOCX/PPTX export, and the HTTP server will likely require implementation dependencies, but those choices should be introduced only in the stages that need them and justified in the corresponding commits.
 
 Revision note: Created this ExecPlan to turn the backlog into small, verifiable delivery stages after the repository cleanup was completed and before any feature code was started.
+
+Revision note: 2026-05-01 synced the plan to the local `main` state after Stage 16 Batch 2 was integrated via merge commit `47d1781`, and moved the next recommended batch to Stage 16 Batch 3 without starting implementation.
