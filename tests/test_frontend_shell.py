@@ -385,8 +385,9 @@ def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
 
     assert 'data-status-label="Сервер"' in index_content
     assert 'data-status-label="LM Studio"' in index_content
-    assert 'title="Сервер · Проверка…"' in index_content
-    assert 'title="LM Studio · Проверка…"' in index_content
+    assert 'data-status-tooltip="Сервер · Проверка…"' in index_content
+    assert 'data-status-tooltip="LM Studio · Проверка…"' in index_content
+    assert 'tabindex="0"' in index_content
     assert 'id="retry-backend-button"' in index_content
     assert 'id="retry-provider-button"' in index_content
     assert "Проверить сервер" in index_content
@@ -395,7 +396,7 @@ def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
     assert "BACKEND_CHECK_FAILED_INSTRUCTION" in app_content
     assert "PROVIDER_CHECK_FAILED_INSTRUCTION" in app_content
     assert "PROVIDER_CHECK_BLOCKED_INSTRUCTION" in app_content
-    assert 'container.setAttribute("title", title)' in app_content
+    assert "container.dataset.statusTooltip = title" in app_content
     assert 'container.setAttribute("aria-label", title)' in app_content
     assert "function setRetryButtonBusy" in app_content
     assert "function checkBackendConnection" in app_content
@@ -405,6 +406,12 @@ def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
 
     assert ".status-retry" in layout_content
     assert ".topbar-status-group" in layout_content
+    assert ".topbar-status::after" in layout_content
+    assert "content: attr(data-status-tooltip)" in layout_content
+    assert "border-radius: var(--radius-md)" in layout_content
+    assert "transition: opacity 120ms" in layout_content
+    assert ".topbar-status:hover::after" in layout_content
+    assert ".topbar-status:focus-visible::after" in layout_content
 
 
 def test_frontend_collapses_technical_identifiers_into_details() -> None:
