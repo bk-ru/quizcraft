@@ -112,7 +112,8 @@ def test_frontend_index_exposes_russian_result_view_shell() -> None:
     assert '<html lang="ru">' in content
     assert '<meta charset="utf-8"' in content.lower()
     assert "QuizCraft" in content
-    assert "Генерация квизов" in content
+    assert "<title>QuizCraft</title>" in content
+    assert "QuizCraft · Генерация квизов" not in content
     assert "Загрузить документ" in content
     assert "Параметры генерации" in content
     assert "Сгенерировать квиз" in content
@@ -120,6 +121,22 @@ def test_frontend_index_exposes_russian_result_view_shell() -> None:
     assert "Квиз появится здесь после успешной генерации." in content
     assert 'id="generation-result"' in content
     assert 'id="quiz-title"' in content
+
+
+def test_frontend_index_exposes_supported_question_type_labels() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert "Типы вопросов: *" in content
+    assert 'id="quiz-type"' in content
+    assert '<option value="single_choice" selected>Множественный Выбор</option>' in content
+    for value, label in (
+        ("true_false", "Истина /Ложь"),
+        ("fill_blank", "Заполните пробел"),
+        ("short_answer", "Краткий Ответ"),
+        ("matching", "Соответствие"),
+    ):
+        assert f'<option value="{value}" disabled>{label}</option>' in content
+    assert "Сейчас сервер принимает только «Множественный Выбор»" in content
 
 
 def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
@@ -356,9 +373,38 @@ def test_frontend_marks_lm_studio_unavailable_as_critical() -> None:
     assert "http://127.0.0.1:1234" in app_content, (
         "LM Studio instruction must point the user to the default provider URL"
     )
-    assert 'setStatus("provider", "Недоступен · запустите LM Studio", "bad")' in app_content, (
+    assert 'setStatus("provider", "Недоступен · запустите LM Studio", "bad", LM_STUDIO_UNAVAILABLE_INSTRUCTION)' in app_content, (
         "provider topbar must surface the critical Russian marker on unavailable status"
     )
+
+
+def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert 'data-status-label="Сервер"' in index_content
+    assert 'data-status-label="LM Studio"' in index_content
+    assert 'title="Сервер · Проверка…"' in index_content
+    assert 'title="LM Studio · Проверка…"' in index_content
+    assert 'id="retry-backend-button"' in index_content
+    assert 'id="retry-provider-button"' in index_content
+    assert "Проверить сервер" in index_content
+    assert "Проверить LM Studio" in index_content
+
+    assert "BACKEND_CHECK_FAILED_INSTRUCTION" in app_content
+    assert "PROVIDER_CHECK_FAILED_INSTRUCTION" in app_content
+    assert "PROVIDER_CHECK_BLOCKED_INSTRUCTION" in app_content
+    assert 'container.setAttribute("title", title)' in app_content
+    assert 'container.setAttribute("aria-label", title)' in app_content
+    assert "function setRetryButtonBusy" in app_content
+    assert "function checkBackendConnection" in app_content
+    assert "function checkProviderConnection" in app_content
+    assert 'retryBackendButton?.addEventListener("click"' in app_content
+    assert 'retryProviderButton?.addEventListener("click"' in app_content
+
+    assert ".status-retry" in layout_content
+    assert ".topbar-status-group" in layout_content
 
 
 def test_frontend_collapses_technical_identifiers_into_details() -> None:
@@ -430,7 +476,7 @@ def test_frontend_app_translates_422_validation_errors_to_russian() -> None:
         "Количество вопросов",
         "Язык квиза",
         "Сложность",
-        "Формат квиза",
+        "Типы вопросов",
     ):
         assert russian_label in content, f"missing Russian label: {russian_label}"
 
