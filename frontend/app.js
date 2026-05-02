@@ -52,6 +52,8 @@ const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
 const dropzoneRemoveButton = document.getElementById("dropzone-remove");
 const modelSelect = document.getElementById("generation-model");
 const profileSelect = document.getElementById("generation-profile");
+const retryBackendButton = document.getElementById("retry-backend-button");
+const retryProviderButton = document.getElementById("retry-provider-button");
 
 const editorState = {
   loadedQuiz: null,
@@ -84,6 +86,16 @@ const statusMap = {
 
 const LM_STUDIO_UNAVAILABLE_INSTRUCTION =
   "LM Studio недоступен. Запустите приложение LM Studio, загрузите модель и убедитесь, что сервер слушает http://127.0.0.1:1234.";
+const BACKEND_AVAILABLE_INSTRUCTION =
+  "Backend отвечает. Если генерация не запускается, проверьте LM Studio и выбранную модель.";
+const BACKEND_CHECK_FAILED_INSTRUCTION =
+  "Backend недоступен. Запустите сервер командой .\\run-backend.ps1 из корня проекта и проверьте, что порт 8000 свободен.";
+const PROVIDER_AVAILABLE_INSTRUCTION =
+  "LM Studio отвечает через backend. Если генерация падает, проверьте загруженную модель и поддержку structured output.";
+const PROVIDER_CHECK_FAILED_INSTRUCTION =
+  "LM Studio не удалось проверить через backend. Убедитесь, что backend запущен, LM Studio открыт, модель загружена, а server mode включен.";
+const PROVIDER_CHECK_BLOCKED_INSTRUCTION =
+  "LM Studio проверяется через backend. Сначала восстановите подключение к серверу.";
 
 function setTextContent(id, value) {
   const element = document.getElementById(id);
@@ -92,19 +104,34 @@ function setTextContent(id, value) {
   }
 }
 
-function setStatus(surface, text, tone) {
+function setStatus(surface, text, tone, description) {
   const container = document.querySelector(`[data-status-surface="${surface}"]`);
   const target = document.getElementById(`${surface}-status-text`);
   if (target) {
     target.textContent = text;
   }
   if (container) {
+    const label = container.dataset.statusLabel || surface;
+    const title = description ? `${label} · ${text}. ${description}` : `${label} · ${text}`;
+    container.setAttribute("title", title);
+    container.setAttribute("aria-label", title);
     if (tone) {
       container.dataset.statusTone = tone;
     } else {
       delete container.dataset.statusTone;
     }
   }
+}
+
+function setRetryButtonBusy(buttonElement, busy, busyText) {
+  if (!buttonElement) {
+    return;
+  }
+  if (!buttonElement.dataset.idleLabel) {
+    buttonElement.dataset.idleLabel = buttonElement.textContent.trim();
+  }
+  buttonElement.disabled = Boolean(busy);
+  buttonElement.textContent = busy ? busyText : buttonElement.dataset.idleLabel;
 }
 
 function setToneMessage(element, text, tone) {
@@ -273,21 +300,52 @@ async function bootstrapShell() {
   quizEditor.clearQuizEditor();
   setEditorStatus("Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.", null);
   quizRenderer.setResultState("Квиз появится здесь после успешной генерации.", "idle", "Ожидание результата");
-  generationSettings.loadSettings();
+  const backendHealth = await checkBackendConnection({ loadExports: false, refreshSettings: true });
+  if (!backendHealth) {
+    setStatus("provider", "Проверка не удалась", "bad", PROVIDER_CHECK_BLOCKED_INSTRUCTION);
+    setExportAvailability(editorState.lastGeneratedQuizId);
+    return;
+  }
+  await checkProviderConnection();
+  await loadExportFormats();
+}
 
+async function checkBackendConnection({ loadExports = true, refreshSettings = true } = {}) {
+  setStatus("backend", "Проверка…", null, "Проверяем доступность backend-сервера.");
+  setRetryButtonBusy(retryBackendButton, true, "Проверяем сервер…");
   try {
-    const [backendHealth, providerHealth] = await Promise.all([
-      client.getBackendHealth(),
-      client.getProviderHealth(),
-    ]);
-
+    const backendHealth = await client.getBackendHealth();
     setStatus(
       "backend",
       `Доступен · модель ${backendHealth.default_model}`,
       statusMap[backendHealth.status] ?? "ok",
+      BACKEND_AVAILABLE_INSTRUCTION,
     );
+    setLogMessage("Сервер доступен.", "ok");
+    if (refreshSettings) {
+      await generationSettings.loadSettings();
+    }
+    if (loadExports) {
+      await loadExportFormats();
+    }
+    return backendHealth;
+  } catch (error) {
+    setStatus("backend", "Проверка не удалась", "bad", BACKEND_CHECK_FAILED_INSTRUCTION);
+    setLogMessage(`Не удалось подключиться к серверу: ${describeError(error)}. ${BACKEND_CHECK_FAILED_INSTRUCTION}`, "bad");
+    setExportAvailability(editorState.lastGeneratedQuizId);
+    return null;
+  } finally {
+    setRetryButtonBusy(retryBackendButton, false, "Проверяем сервер…");
+  }
+}
+
+async function checkProviderConnection() {
+  setStatus("provider", "Проверка…", null, "Проверяем подключение к LM Studio через backend.");
+  setRetryButtonBusy(retryProviderButton, true, "Проверяем LM Studio…");
+  try {
+    const providerHealth = await client.getProviderHealth();
     if (providerHealth.status === "unavailable") {
-      setStatus("provider", "Недоступен · запустите LM Studio", "bad");
+      setStatus("provider", "Недоступен · запустите LM Studio", "bad", LM_STUDIO_UNAVAILABLE_INSTRUCTION);
       setLogMessage(LM_STUDIO_UNAVAILABLE_INSTRUCTION, "bad");
       toastController.showToast(LM_STUDIO_UNAVAILABLE_INSTRUCTION, "bad");
     } else {
@@ -295,17 +353,18 @@ async function bootstrapShell() {
         "provider",
         `${providerHealth.status} · ${providerHealth.message}`,
         statusMap[providerHealth.status] ?? "warn",
+        PROVIDER_AVAILABLE_INSTRUCTION,
       );
-      setLogMessage("Подключение к сервисам генерации проверено.", "ok");
+      setLogMessage("Подключение к LM Studio проверено.", "ok");
     }
+    return providerHealth;
   } catch (error) {
-    setStatus("backend", "Проверка не удалась", "bad");
-    setStatus("provider", "Проверка не удалась", "bad");
-    setLogMessage(`Не удалось проверить подключение: ${describeError(error)}`, "bad");
-    setExportAvailability(editorState.lastGeneratedQuizId);
-    return;
+    setStatus("provider", "Проверка не удалась", "bad", PROVIDER_CHECK_FAILED_INSTRUCTION);
+    setLogMessage(`Не удалось проверить LM Studio: ${describeError(error)}. ${PROVIDER_CHECK_FAILED_INSTRUCTION}`, "bad");
+    return null;
+  } finally {
+    setRetryButtonBusy(retryProviderButton, false, "Проверяем LM Studio…");
   }
-  await loadExportFormats();
 }
 
 async function loadExportFormats() {
@@ -347,6 +406,12 @@ function openEditorForCurrentQuiz() {
 
 themeController.applyTheme(themeController.resolveStoredTheme());
 themeToggleButton?.addEventListener("click", themeController.cycleTheme);
+retryBackendButton?.addEventListener("click", () => {
+  checkBackendConnection();
+});
+retryProviderButton?.addEventListener("click", () => {
+  checkProviderConnection();
+});
 
 window.addEventListener("beforeunload", (event) => {
   if (!editorState.isDirty) {
