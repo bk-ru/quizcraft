@@ -1,0 +1,775 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>QuizCraft · Поэтапный прототип</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7fb;
+      --surface: rgba(255, 255, 255, 0.9);
+      --surface-strong: #ffffff;
+      --surface-soft: #eef1ff;
+      --ink: #172033;
+      --muted: #667085;
+      --line: #d9deea;
+      --brand: #6245ff;
+      --brand-dark: #4f35dc;
+      --accent: #16a3b8;
+      --ok: #16803c;
+      --warn: #a85d00;
+      --bad: #b42318;
+      --radius: 24px;
+      --radius-sm: 14px;
+      --shadow: 0 24px 80px rgba(23, 32, 51, 0.14);
+      --shadow-sm: 0 12px 34px rgba(23, 32, 51, 0.09);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(98, 69, 255, 0.2), transparent 34rem),
+        radial-gradient(circle at bottom right, rgba(22, 163, 184, 0.18), transparent 30rem),
+        var(--bg);
+      color: var(--ink);
+    }
+
+    button,
+    input,
+    select,
+    textarea {
+      font: inherit;
+    }
+
+    button {
+      cursor: pointer;
+    }
+
+    .shell {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+      padding: 28px 0 72px;
+    }
+
+    .topbar {
+      position: sticky;
+      top: 16px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(18px);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 850;
+      letter-spacing: -0.02em;
+    }
+
+    .brand-mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    }
+
+    .connection-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .connection-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 12px;
+      border-radius: 999px;
+      background: var(--surface-soft);
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 650;
+    }
+
+    .connection-chip::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 0 4px rgba(98, 69, 255, 0.1);
+    }
+
+    .connection-chip[data-tone="ok"] {
+      color: var(--ok);
+      background: #eaf8ef;
+    }
+
+    .connection-chip[data-tone="warn"] {
+      color: var(--warn);
+      background: #fff5e5;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+      gap: 28px;
+      align-items: end;
+      padding: 42px 0 28px;
+    }
+
+    .hero h1 {
+      margin: 0;
+      max-width: 720px;
+      font-size: clamp(2.2rem, 5vw, 4.7rem);
+      line-height: 0.98;
+      letter-spacing: -0.06em;
+    }
+
+    .hero p {
+      margin: 18px 0 0;
+      max-width: 650px;
+      color: var(--muted);
+      font-size: 1.08rem;
+      line-height: 1.65;
+    }
+
+    .flow-summary {
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .flow-summary strong {
+      font-size: 1.05rem;
+    }
+
+    .flow-summary span {
+      color: var(--muted);
+      line-height: 1.45;
+    }
+
+    .flow-layout {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .step-nav {
+      position: sticky;
+      top: 96px;
+      display: grid;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .step-tab {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 12px;
+      align-items: center;
+      width: 100%;
+      padding: 12px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--muted);
+      text-align: left;
+      transition: 160ms ease;
+    }
+
+    .step-tab:hover,
+    .step-tab[data-active="true"] {
+      border-color: rgba(98, 69, 255, 0.26);
+      background: var(--surface-soft);
+      color: var(--ink);
+    }
+
+    .step-tab[data-complete="true"] .step-index {
+      background: var(--ok);
+      color: #fff;
+    }
+
+    .step-index {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #e8ebf5;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    .step-copy {
+      display: grid;
+      gap: 2px;
+    }
+
+    .step-copy strong {
+      color: inherit;
+    }
+
+    .step-copy span {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    .stage-card {
+      display: none;
+      min-height: 560px;
+      padding: 30px;
+      border: 1px solid var(--line);
+      border-radius: calc(var(--radius) + 4px);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .stage-card[data-active="true"] {
+      display: grid;
+      gap: 24px;
+      animation: stageIn 180ms ease-out;
+    }
+
+    @keyframes stageIn {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .stage-heading {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 20px;
+    }
+
+    .stage-heading h2 {
+      margin: 0;
+      font-size: clamp(1.5rem, 3vw, 2.3rem);
+      letter-spacing: -0.035em;
+    }
+
+    .stage-heading p {
+      margin: 10px 0 0;
+      max-width: 680px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .stage-badge {
+      flex: 0 0 auto;
+      padding: 8px 12px;
+      border-radius: 999px;
+      background: #eef1ff;
+      color: var(--brand);
+      font-weight: 750;
+      font-size: 0.85rem;
+    }
+
+    .stage-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+    }
+
+    .field {
+      display: grid;
+      gap: 8px;
+    }
+
+    .field span {
+      color: var(--muted);
+      font-size: 0.86rem;
+      font-weight: 700;
+    }
+
+    .field input,
+    .field select,
+    .field textarea,
+    .dropzone {
+      width: 100%;
+      min-height: 48px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-strong);
+      color: var(--ink);
+    }
+
+    .field input,
+    .field select,
+    .field textarea {
+      padding: 0 14px;
+    }
+
+    .field textarea {
+      min-height: 120px;
+      padding: 14px;
+      resize: vertical;
+    }
+
+    .dropzone {
+      display: grid;
+      place-items: center;
+      min-height: 280px;
+      padding: 34px;
+      border-style: dashed;
+      text-align: center;
+      color: var(--muted);
+      background: linear-gradient(180deg, #ffffff, #f5f7ff);
+    }
+
+    .dropzone strong {
+      display: block;
+      margin-bottom: 8px;
+      color: var(--ink);
+      font-size: 1.15rem;
+    }
+
+    .info-panel {
+      display: grid;
+      gap: 12px;
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: #fbfcff;
+    }
+
+    .info-panel h3 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .info-panel ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .progress-stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .progress-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 14px;
+      align-items: center;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-strong);
+    }
+
+    .progress-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #c8cede;
+    }
+
+    .progress-item[data-state="done"] .progress-dot {
+      background: var(--ok);
+    }
+
+    .progress-item[data-state="active"] .progress-dot {
+      background: var(--brand);
+      box-shadow: 0 0 0 8px rgba(98, 69, 255, 0.12);
+    }
+
+    .quiz-preview {
+      display: grid;
+      gap: 14px;
+    }
+
+    .question-card {
+      padding: 18px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-sm);
+      background: var(--surface-strong);
+    }
+
+    .question-card h3 {
+      margin: 0 0 12px;
+    }
+
+    .question-card ol {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.7;
+    }
+
+    .actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-top: 4px;
+    }
+
+    .action-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .button {
+      min-height: 46px;
+      padding: 0 18px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: var(--surface-strong);
+      color: var(--ink);
+      font-weight: 750;
+      transition: 160ms ease;
+    }
+
+    .button:hover:not(:disabled) {
+      border-color: var(--brand);
+      color: var(--brand);
+      transform: translateY(-1px);
+    }
+
+    .button-primary {
+      border-color: transparent;
+      background: linear-gradient(135deg, var(--brand), var(--accent));
+      color: #fff;
+      box-shadow: 0 16px 36px rgba(98, 69, 255, 0.28);
+    }
+
+    .button-primary:hover:not(:disabled) {
+      color: #fff;
+      filter: brightness(0.98);
+    }
+
+    .button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .export-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status-note {
+      padding: 14px 16px;
+      border-radius: var(--radius-sm);
+      background: #eefbf3;
+      color: var(--ok);
+      line-height: 1.5;
+      font-weight: 650;
+    }
+
+    @media (max-width: 980px) {
+      .hero,
+      .flow-layout,
+      .stage-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .step-nav {
+        position: static;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 620px) {
+      .shell {
+        width: min(100% - 20px, 1180px);
+      }
+
+      .topbar,
+      .stage-heading,
+      .actions {
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .step-nav {
+        grid-template-columns: 1fr;
+      }
+
+      .stage-card {
+        padding: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span>QuizCraft</span>
+      </div>
+      <div class="connection-strip" aria-label="Состояние подключений">
+        <span class="connection-chip" data-tone="ok">Сервер доступен</span>
+        <span class="connection-chip" data-tone="warn">LM Studio проверяется</span>
+      </div>
+    </header>
+
+    <section class="hero" aria-labelledby="prototype-title">
+      <div>
+        <h1 id="prototype-title">Поэтапная генерация квиза вместо одной длинной страницы</h1>
+        <p>Пример показывает, как можно разделить текущий сценарий на отдельные экраны: пользователь видит только текущий этап, понимает следующий шаг и может вернуться назад без потери контекста.</p>
+      </div>
+      <aside class="flow-summary">
+        <strong>Идея будущей основной разработки</strong>
+        <span>Сохранить текущие возможности, но разнести их по шагам: загрузка документа, параметры, генерация, результат, редактирование и экспорт.</span>
+      </aside>
+    </section>
+
+    <section class="flow-layout" aria-label="Поэтапный прототип">
+      <nav class="step-nav" aria-label="Этапы обработки">
+        <button class="step-tab" type="button" data-step="upload" data-active="true" data-complete="true">
+          <span class="step-index">1</span>
+          <span class="step-copy"><strong>Документ</strong><span>TXT · DOCX · PDF</span></span>
+        </button>
+        <button class="step-tab" type="button" data-step="settings" data-complete="true">
+          <span class="step-index">2</span>
+          <span class="step-copy"><strong>Параметры</strong><span>Типы, язык, режим</span></span>
+        </button>
+        <button class="step-tab" type="button" data-step="generation">
+          <span class="step-index">3</span>
+          <span class="step-copy"><strong>Генерация</strong><span>Direct или RAG</span></span>
+        </button>
+        <button class="step-tab" type="button" data-step="result">
+          <span class="step-index">4</span>
+          <span class="step-copy"><strong>Результат</strong><span>Просмотр квиза</span></span>
+        </button>
+        <button class="step-tab" type="button" data-step="edit">
+          <span class="step-index">5</span>
+          <span class="step-copy"><strong>Правки</strong><span>Сохранение и экспорт</span></span>
+        </button>
+      </nav>
+
+      <div>
+        <section class="stage-card" data-stage="upload" data-active="true" aria-labelledby="upload-title">
+          <div class="stage-heading">
+            <div>
+              <h2 id="upload-title">1. Загрузите документ</h2>
+              <p>На первом экране оставляем только выбор файла и понятную проверку: формат, размер, извлекаемый русский текст.</p>
+            </div>
+            <span class="stage-badge">Первый шаг</span>
+          </div>
+          <div class="stage-grid">
+            <label class="dropzone">
+              <input type="file" hidden>
+              <span><strong>Перетащите файл сюда</strong>TXT, DOCX или PDF до 10 МБ. Кириллица должна сохраниться без искажений.</span>
+            </label>
+            <div class="info-panel">
+              <h3>Что показываем после загрузки</h3>
+              <ul>
+                <li>Имя файла и размер.</li>
+                <li>Статус извлечения текста.</li>
+                <li>Предупреждение для PDF без текстового слоя.</li>
+                <li>Кнопку перехода к параметрам.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="actions">
+            <span></span>
+            <button class="button button-primary" type="button" data-next="settings">Далее: параметры</button>
+          </div>
+        </section>
+
+        <section class="stage-card" data-stage="settings" aria-labelledby="settings-title">
+          <div class="stage-heading">
+            <div>
+              <h2 id="settings-title">2. Настройте квиз</h2>
+              <p>Второй экран собирает только параметры генерации. Пользователь не отвлекается на редактор, экспорт и технические детали результата.</p>
+            </div>
+            <span class="stage-badge">Настройки</span>
+          </div>
+          <div class="stage-grid">
+            <label class="field">
+              <span>Количество вопросов</span>
+              <input type="number" value="5" min="1" max="20">
+            </label>
+            <label class="field">
+              <span>Сложность</span>
+              <select><option>Средняя</option><option>Базовая</option><option>Продвинутая</option></select>
+            </label>
+            <label class="field">
+              <span>Типы вопросов: *</span>
+              <select><option>Множественный Выбор</option><option disabled>Истина /Ложь</option><option disabled>Заполните пробел</option><option disabled>Краткий Ответ</option><option disabled>Соответствие</option></select>
+            </label>
+            <label class="field">
+              <span>Режим генерации</span>
+              <select><option>Прямая с авто-RAG</option><option>RAG по документу</option></select>
+            </label>
+            <label class="field">
+              <span>Язык</span>
+              <select><option>Русский</option><option>English</option></select>
+            </label>
+            <label class="field">
+              <span>Модель</span>
+              <select><option>Авто из настроек backend</option></select>
+            </label>
+          </div>
+          <div class="actions">
+            <button class="button" type="button" data-prev="upload">Назад</button>
+            <button class="button button-primary" type="button" data-next="generation">Запустить генерацию</button>
+          </div>
+        </section>
+
+        <section class="stage-card" data-stage="generation" aria-labelledby="generation-title">
+          <div class="stage-heading">
+            <div>
+              <h2 id="generation-title">3. Отслеживайте обработку</h2>
+              <p>Во время генерации показываем прогресс, таймер, возможность отмены и понятные сообщения, где именно возникла проблема.</p>
+            </div>
+            <span class="stage-badge">В работе</span>
+          </div>
+          <div class="progress-stack">
+            <div class="progress-item" data-state="done"><span class="progress-dot"></span><strong>Загрузка документа</strong><span>Готово</span></div>
+            <div class="progress-item" data-state="done"><span class="progress-dot"></span><strong>Извлечение текста</strong><span>Готово</span></div>
+            <div class="progress-item" data-state="active"><span class="progress-dot"></span><strong>Генерация вопросов</strong><span>00:18</span></div>
+            <div class="progress-item"><span class="progress-dot"></span><strong>Проверка и сохранение</strong><span>Ожидает</span></div>
+          </div>
+          <div class="info-panel">
+            <h3>Поведение ошибок</h3>
+            <ul>
+              <li>Если backend недоступен, показываем действие: запустить <code>.\run-backend.ps1</code>.</li>
+              <li>Если LM Studio недоступен, показываем действие: открыть LM Studio, загрузить модель и включить server mode.</li>
+              <li>Для RAG отдельно показываем статус кеша и повторного использования embeddings.</li>
+            </ul>
+          </div>
+          <div class="actions">
+            <button class="button" type="button" data-prev="settings">Назад к параметрам</button>
+            <div class="action-group">
+              <button class="button" type="button">Отменить</button>
+              <button class="button button-primary" type="button" data-next="result">Показать результат</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="stage-card" data-stage="result" aria-labelledby="result-title">
+          <div class="stage-heading">
+            <div>
+              <h2 id="result-title">4. Проверьте результат</h2>
+              <p>После генерации пользователь попадает на отдельный экран просмотра. Здесь видны вопросы, ответы, режим генерации и кнопка перехода к редактированию.</p>
+            </div>
+            <span class="stage-badge">Квиз готов</span>
+          </div>
+          <div class="status-note">Квиз создан на русском языке. Режим: RAG. Кеш embeddings использован повторно.</div>
+          <div class="quiz-preview">
+            <article class="question-card">
+              <h3>1. Какой город указан в документе как столица России?</h3>
+              <ol><li>Санкт-Петербург</li><li>Москва</li><li>Казань</li><li>Новосибирск</li></ol>
+            </article>
+            <article class="question-card">
+              <h3>2. Какой маркер помогает проверить сохранность кириллицы?</h3>
+              <ol><li>Ёжик_Москва_2026_кириллица</li><li>ASCII_ONLY</li><li>quiz-id</li><li>export-token</li></ol>
+            </article>
+          </div>
+          <div class="actions">
+            <button class="button" type="button" data-prev="generation">Назад к прогрессу</button>
+            <button class="button button-primary" type="button" data-next="edit">Редактировать и экспортировать</button>
+          </div>
+        </section>
+
+        <section class="stage-card" data-stage="edit" aria-labelledby="edit-title">
+          <div class="stage-heading">
+            <div>
+              <h2 id="edit-title">5. Отредактируйте и экспортируйте</h2>
+              <p>Редактор и экспорт отделены от генерации. Пользователь вносит правки, сохраняет квиз и скачивает нужный формат.</p>
+            </div>
+            <span class="stage-badge">Финальный шаг</span>
+          </div>
+          <div class="stage-grid">
+            <label class="field">
+              <span>Текст вопроса</span>
+              <textarea>Какой город указан в документе как столица России?</textarea>
+            </label>
+            <div class="info-panel">
+              <h3>Действия редактора</h3>
+              <ul>
+                <li>Сохранить изменения.</li>
+                <li>Перегенерировать один вопрос.</li>
+                <li>Отменить регенерацию без потери текста.</li>
+                <li>Скачать JSON, DOCX или PPTX.</li>
+              </ul>
+            </div>
+          </div>
+          <div class="export-row">
+            <button class="button" type="button">Сохранить изменения</button>
+            <button class="button" type="button">Скачать JSON</button>
+            <button class="button" type="button">Скачать DOCX</button>
+            <button class="button" type="button">Скачать PPTX</button>
+          </div>
+          <div class="actions">
+            <button class="button" type="button" data-prev="result">Назад к результату</button>
+            <button class="button button-primary" type="button" data-next="upload">Создать новый квиз</button>
+          </div>
+        </section>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const tabs = [...document.querySelectorAll("[data-step]")];
+    const stages = [...document.querySelectorAll("[data-stage]")];
+
+    function activateStage(name) {
+      for (const stage of stages) {
+        stage.dataset.active = String(stage.dataset.stage === name);
+      }
+      for (const tab of tabs) {
+        tab.dataset.active = String(tab.dataset.step === name);
+      }
+    }
+
+    document.addEventListener("click", (event) => {
+      const target = event.target.closest("[data-step], [data-next], [data-prev]");
+      if (!target) {
+        return;
+      }
+      const stageName = target.dataset.step || target.dataset.next || target.dataset.prev;
+      if (stageName) {
+        activateStage(stageName);
+      }
+    });
+  </script>
+</body>
+</html>
