@@ -113,7 +113,7 @@ function setStatus(surface, text, tone, description) {
   if (container) {
     const label = container.dataset.statusLabel || surface;
     const title = description ? `${label} · ${text}. ${description}` : `${label} · ${text}`;
-    container.setAttribute("title", title);
+    container.dataset.statusTooltip = title;
     container.setAttribute("aria-label", title);
     if (tone) {
       container.dataset.statusTone = tone;
