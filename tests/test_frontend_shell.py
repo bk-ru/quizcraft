@@ -287,6 +287,9 @@ def test_frontend_wires_capability_driven_advanced_exports() -> None:
     assert 'id="export-json-button"' in index_content
     assert 'id="export-docx-button"' in index_content
     assert 'id="export-pptx-button"' in index_content
+    assert 'id="export-split-toggle"' in index_content
+    assert 'id="export-split-menu"' in index_content
+    assert 'class="split-button"' in index_content
     assert "Скачать JSON" in index_content
     assert "Скачать DOCX" in index_content
     assert "Скачать PPTX" in index_content
@@ -300,6 +303,8 @@ def test_frontend_wires_capability_driven_advanced_exports() -> None:
     assert "format === \"json\" || editorState.supportedExportFormats.has(format)" in app_content
     assert "exportDocxButton?.addEventListener(\"click\", quizExporter.exportQuizAsDocx)" in app_content
     assert "exportPptxButton?.addEventListener(\"click\", quizExporter.exportQuizAsPptx)" in app_content
+    assert "exportSplitToggle?.addEventListener" in app_content
+    assert "exportSplitMenu" in app_content
 
     assert "createQuizExporter" in download_content
     assert "exportQuizAsDocx" in download_content
@@ -310,6 +315,21 @@ def test_frontend_wires_capability_driven_advanced_exports() -> None:
     assert "Не удалось скачать ${describeExportFormat(format)}" in download_content
     assert "function describeExportFormat" in download_content
     assert "${formatConfig.label}-файл квиза скачан." in download_content
+
+
+def test_frontend_params_advanced_block_and_generation_mode() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+    styles = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+
+    assert 'id="advanced-params"' in content
+    assert 'class="form-advanced"' in content
+    assert "\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e" in content
+    assert 'id="generation-model"' in content
+    assert 'id="generation-profile"' in content
+    assert "\u0410\u0432\u0442\u043e (RAG \u0434\u043b\u044f \u0434\u043b\u0438\u043d\u043d\u044b\u0445 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u043e\u0432)" in content
+    assert "RAG \u2014 \u0432\u0441\u0435\u0433\u0434\u0430" in content
+    assert ".form-advanced" in styles
+    assert ".form-advanced-summary" in styles
 
 
 def test_frontend_editor_wires_single_question_regeneration_action() -> None:
@@ -1298,7 +1318,7 @@ def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
     assert 'name="model_name"' in index_content
     assert 'name="profile_name"' in index_content
     assert "Модель" in index_content
-    assert "Профиль генерации" in index_content
+    assert "Профиль" in index_content
     assert ">Авто<" in index_content, (
         "selectors must default to Russian auto-mode when no override is picked"
     )
@@ -1627,10 +1647,10 @@ def test_frontend_index_exposes_generation_mode_selector() -> None:
     assert '<option value="rag">' in index_content, (
         "rag must be selectable"
     )
-    assert "Прямая (с авто-RAG для длинных документов)" in index_content, (
+    assert "Авто (RAG для длинных документов)" in index_content, (
         "direct option copy must explain the auto-promotion behaviour in Russian"
     )
-    assert "RAG (всегда использовать поиск по документу)" in index_content, (
+    assert "RAG — всегда" in index_content, (
         "rag option copy must explain the explicit retrieval mode in Russian"
     )
 

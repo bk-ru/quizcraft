@@ -54,6 +54,8 @@ const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
 const dropzoneRemoveButton = document.getElementById("dropzone-remove");
 const modelSelect = document.getElementById("generation-model");
 const profileSelect = document.getElementById("generation-profile");
+const exportSplitToggle = document.getElementById("export-split-toggle");
+const exportSplitMenu = document.getElementById("export-split-menu");
 const retryBackendButton = document.getElementById("retry-backend-button");
 const retryProviderButton = document.getElementById("retry-provider-button");
 const preflightStatus = document.getElementById("preflight-status");
@@ -203,6 +205,9 @@ function setExportAvailability(quizId) {
     toggleUnavailableHint(exportButton.button, exportButton.hintId, !(hasQuiz && supported));
   }
   toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !hasQuiz);
+  if (exportSplitToggle) {
+    exportSplitToggle.disabled = !hasQuiz;
+  }
 }
 
 function createGenerationReadinessChecker() {
@@ -498,6 +503,24 @@ generationFlow.attachDropzone();
 exportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
 exportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
 exportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
+exportSplitToggle?.addEventListener("click", () => {
+  const open = exportSplitMenu?.hidden === false;
+  if (exportSplitMenu) {
+    exportSplitMenu.hidden = open;
+  }
+  if (exportSplitToggle) {
+    exportSplitToggle.setAttribute("aria-expanded", String(!open));
+  }
+});
+document.addEventListener("click", (event) => {
+  if (exportSplitMenu?.hidden === false) {
+    const inside = event.target instanceof Element && event.target.closest("#export-split");
+    if (!inside) {
+      exportSplitMenu.hidden = true;
+      exportSplitToggle?.setAttribute("aria-expanded", "false");
+    }
+  }
+});
 editShortcutButton?.addEventListener("click", openEditorForCurrentQuiz);
 cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration);
 dropzoneRemoveButton?.addEventListener("click", (event) => {
