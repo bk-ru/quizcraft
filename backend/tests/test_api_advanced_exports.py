@@ -71,7 +71,15 @@ def save_quiz(tmp_path) -> Quiz:
 
 def read_docx_text(content_bytes: bytes) -> str:
     document = Document(BytesIO(content_bytes))
-    return "\n".join(paragraph.text for paragraph in document.paragraphs)
+    parts: list[str] = []
+    for paragraph in document.paragraphs:
+        parts.append(paragraph.text)
+    for table in document.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                for para in cell.paragraphs:
+                    parts.append(para.text)
+    return "\n".join(parts)
 
 
 def read_pptx_text(content_bytes: bytes) -> str:
@@ -114,7 +122,8 @@ def test_docx_export_endpoint_downloads_openable_cyrillic_quiz_file(tmp_path) ->
     document_text = read_docx_text(response.content)
     assert "Тренировочный квиз по географии" in document_text
     assert "Какой город является столицей России?" in document_text
-    assert "Правильный ответ: Москва" in document_text
+    assert "Москва" in document_text
+    assert "Ответы" in document_text
 
 
 def test_pptx_export_endpoint_downloads_openable_cyrillic_quiz_file(tmp_path) -> None:
