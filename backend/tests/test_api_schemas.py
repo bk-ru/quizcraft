@@ -24,6 +24,36 @@ def test_generation_request_body_accepts_whitelisted_values() -> None:
     assert request.quiz_type == "single_choice"
 
 
+def test_generation_request_body_accepts_multiple_quiz_types() -> None:
+    body = GenerationRequestBody.model_validate(
+        {
+            "question_count": 5,
+            "language": "ru",
+            "difficulty": "medium",
+            "quiz_types": ["single_choice", "true_false", "fill_blank", "short_answer", "matching"],
+            "generation_mode": "direct",
+        }
+    )
+
+    request = body.to_domain()
+
+    assert request.quiz_type == "single_choice,true_false,fill_blank,short_answer,matching"
+    assert request.quiz_types == ("single_choice", "true_false", "fill_blank", "short_answer", "matching")
+
+
+def test_generation_request_body_rejects_empty_quiz_types() -> None:
+    with pytest.raises(ValidationError):
+        GenerationRequestBody.model_validate(
+            {
+                "question_count": 5,
+                "language": "ru",
+                "difficulty": "medium",
+                "quiz_types": [],
+                "generation_mode": "direct",
+            }
+        )
+
+
 def test_generation_request_body_rejects_non_positive_question_count() -> None:
     with pytest.raises(ValidationError):
         GenerationRequestBody.model_validate(

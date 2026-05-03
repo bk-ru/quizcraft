@@ -303,14 +303,36 @@
 
 .step {
   display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 10px;
-  align-items: center;
-  padding: 10px 12px;
   border-radius: var(--radius-md);
   color: var(--muted);
   font-size: 0.9rem;
   transition: background var(--duration-base) var(--easing), color var(--duration-base) var(--easing);
+}
+
+.step-button {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  width: 100%;
+  min-height: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: inherit;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step-button:hover {
+  background: var(--surface-sunken);
+}
+
+.step-button:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
 }
 
 .step .step-index {
@@ -395,6 +417,29 @@
   display: grid;
   gap: 20px;
   margin-top: 28px;
+}
+
+.workflow-stage {
+  min-width: 0;
+}
+
+.workflow-stage[data-active="true"] {
+  animation: stage-in 180ms var(--easing);
+}
+
+.workflow-stage[hidden] {
+  display: none !important;
+}
+
+@keyframes stage-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .workspace-grid {

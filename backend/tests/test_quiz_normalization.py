@@ -101,6 +101,56 @@ def test_normalize_quiz_output_preserves_russian_fields() -> None:
     assert quiz.questions[0].explanation.text == "Потому что Москва — столица России."
 
 
+def test_normalize_quiz_output_preserves_russian_new_question_types() -> None:
+    raw_payload = {
+        "quiz_id": "quiz-ru",
+        "document_id": "doc-ru",
+        "title": "Русский квиз",
+        "version": 1,
+        "last_edited_at": "2026-05-03T09:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-true",
+                "question_type": "true_false",
+                "prompt": "Байкал — самое глубокое озеро России.",
+                "options": [
+                    {"option_id": "true", "text": "Истина"},
+                    {"option_id": "false", "text": "Ложь"},
+                ],
+                "correct_option_index": 0,
+                "explanation": {"text": "Байкал действительно является самым глубоким озером."},
+            },
+            {
+                "question_id": "q-short",
+                "question_type": "short_answer",
+                "prompt": "Как называется столица России?",
+                "correct_answer": "Москва",
+                "explanation": {"text": "Столица России — Москва."},
+            },
+            {
+                "question_id": "q-match",
+                "question_type": "matching",
+                "prompt": "Сопоставьте города и реки.",
+                "matching_pairs": [
+                    {"left": "Санкт-Петербург", "right": "Нева"},
+                    {"left": "Казань", "right": "Казанка"},
+                ],
+                "explanation": None,
+            },
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    assert quiz.questions[0].question_type == "true_false"
+    assert quiz.questions[0].options[0].text == "Истина"
+    assert quiz.questions[1].question_type == "short_answer"
+    assert quiz.questions[1].correct_answer == "Москва"
+    assert quiz.questions[2].question_type == "matching"
+    assert quiz.questions[2].matching_pairs[0].left == "Санкт-Петербург"
+    assert quiz.questions[2].matching_pairs[0].right == "Нева"
+
+
 def test_normalize_quiz_output_uses_russian_default_title_when_missing() -> None:
     raw_payload = {
         "quiz_id": "quiz-ru",

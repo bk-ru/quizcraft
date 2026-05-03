@@ -6,6 +6,7 @@ from typing import Any
 
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.models import Explanation
+from backend.app.domain.models import MatchingPair
 from backend.app.domain.models import Option
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
@@ -15,6 +16,7 @@ DEFAULT_DOCUMENT_ID = "document-generated"
 DEFAULT_QUIZ_TITLE = "Сгенерированный квиз"
 DEFAULT_VERSION = 1
 DEFAULT_LAST_EDITED_AT = "1970-01-01T00:00:00Z"
+DEFAULT_QUESTION_TYPE = "single_choice"
 
 
 def normalize_quiz_output(raw_payload: dict[str, Any]) -> Quiz:
@@ -50,7 +52,8 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
     if not isinstance(raw_payload, dict):
         raise DomainValidationError("question payload must be an object")
 
-    raw_options = raw_payload.get("options")
+    question_type = _normalize_required_string(raw_payload.get("question_type"), default=DEFAULT_QUESTION_TYPE)
+    raw_options = raw_payload.get("options", [])
     if not isinstance(raw_options, list):
         raise DomainValidationError("question options must be a list")
 
@@ -61,9 +64,12 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
     )
     return Question(
         question_id=_normalize_required_string(raw_payload.get("question_id"), default=f"question-{question_index + 1}"),
+        question_type=question_type,
         prompt=_normalize_required_string(raw_payload.get("prompt"), default=""),
         options=options,
         correct_option_index=_normalize_correct_option_index(raw_payload, field_name="correct option"),
+        correct_answer=_normalize_optional_string(raw_payload.get("correct_answer")),
+        matching_pairs=_normalize_matching_pairs(raw_payload.get("matching_pairs", [])),
         explanation=_normalize_explanation(raw_payload.get("explanation")),
     )
 
@@ -101,6 +107,35 @@ def _normalize_explanation(raw_payload: Any) -> Explanation | None:
     raise DomainValidationError("explanation must be null, string, or object")
 
 
+def _normalize_matching_pairs(raw_payload: Any) -> tuple[MatchingPair, ...]:
+    """Normalize matching pair payloads."""
+
+    if raw_payload is None:
+        return ()
+    if not isinstance(raw_payload, list):
+        raise DomainValidationError("matching pairs must be a list")
+    pairs = []
+    for pair_payload in raw_payload:
+        if not isinstance(pair_payload, dict):
+            continue
+        left = _normalize_required_string(pair_payload.get("left"), default="")
+        right = _normalize_required_string(pair_payload.get("right"), default="")
+        if left and right:
+            pairs.append(MatchingPair(left=left, right=right))
+    return tuple(pairs)
+
+
+def _normalize_optional_string(raw_value: Any) -> str | None:
+    """Normalize optional string fields."""
+
+    if raw_value is None:
+        return None
+    if not isinstance(raw_value, str):
+        raise DomainValidationError("expected string field in quiz payload")
+    normalized_value = raw_value.strip()
+    return normalized_value or None
+
+
 def _normalize_required_string(raw_value: Any, default: str) -> str:
     """Normalize a string field with trimming and a default fallback."""
 
@@ -132,9 +167,11 @@ def _normalize_integer(raw_value: Any, default: int, field_name: str) -> int:
     raise DomainValidationError(f"{field_name} must be numeric")
 
 
-def _normalize_correct_option_index(raw_payload: dict[str, Any], field_name: str) -> int:
+def _normalize_correct_option_index(raw_payload: dict[str, Any], field_name: str) -> int | None:
     """Normalize supported answer-index fields into zero-based indexing."""
 
     if "correct_option_number" in raw_payload:
         return _normalize_integer(raw_payload.get("correct_option_number"), default=1, field_name=field_name) - 1
-    return _normalize_integer(raw_payload.get("correct_option_index"), default=0, field_name=field_name)
+    if "correct_option_index" in raw_payload:
+        return _normalize_integer(raw_payload.get("correct_option_index"), default=0, field_name=field_name)
+    return None

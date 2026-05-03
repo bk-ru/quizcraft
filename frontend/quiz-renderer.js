@@ -3,6 +3,13 @@ const GENERATION_MODE_LABELS = Object.freeze({
   direct: "Прямая",
   single_question_regen: "Регенерация одного вопроса",
 });
+const QUESTION_TYPE_LABELS = Object.freeze({
+  single_choice: "Множественный выбор",
+  true_false: "Истина / Ложь",
+  fill_blank: "Заполните пробел",
+  short_answer: "Краткий ответ",
+  matching: "Соответствие",
+});
 
 export function describeGenerationMode(promptVersion) {
   if (typeof promptVersion !== "string" || !promptVersion.trim()) {
@@ -68,7 +75,7 @@ export function createQuizRenderer({
 
     const indexBadge = documentRef.createElement("span");
     indexBadge.className = "question-index";
-    indexBadge.textContent = `Вопрос ${index + 1}`;
+    indexBadge.textContent = `Вопрос ${index + 1} · ${QUESTION_TYPE_LABELS[question.question_type] ?? "Тип не указан"}`;
 
     const prompt = documentRef.createElement("h4");
     prompt.className = "question-prompt";
@@ -77,30 +84,47 @@ export function createQuizRenderer({
     heading.append(indexBadge, prompt);
     item.append(heading);
 
-    const optionList = documentRef.createElement("ol");
-    optionList.className = "option-list";
+    if (question.question_type === "fill_blank" || question.question_type === "short_answer") {
+      const answer = documentRef.createElement("p");
+      answer.className = "question-explanation";
+      answer.textContent = `Ответ: ${question.correct_answer ?? "Не указан"}`;
+      item.append(answer);
+    } else if (question.question_type === "matching") {
+      const pairList = documentRef.createElement("ol");
+      pairList.className = "option-list";
+      for (const pair of question.matching_pairs ?? []) {
+        const pairItem = documentRef.createElement("li");
+        pairItem.className = "option-item";
+        pairItem.textContent = `${pair.left ?? ""} — ${pair.right ?? ""}`;
+        pairList.append(pairItem);
+      }
+      item.append(pairList);
+    } else {
+      const optionList = documentRef.createElement("ol");
+      optionList.className = "option-list";
 
-    for (const [optionIndex, option] of (question.options ?? []).entries()) {
-      const optionItem = documentRef.createElement("li");
-      optionItem.className = "option-item";
+      for (const [optionIndex, option] of (question.options ?? []).entries()) {
+        const optionItem = documentRef.createElement("li");
+        optionItem.className = "option-item";
 
-      const label = documentRef.createElement("span");
-      label.className = "option-label";
-      label.textContent = option.text ?? "";
-      optionItem.append(label);
+        const label = documentRef.createElement("span");
+        label.className = "option-label";
+        label.textContent = option.text ?? "";
+        optionItem.append(label);
 
-      if (optionIndex === question.correct_option_index) {
-        optionItem.dataset.correct = "true";
-        const correctBadge = documentRef.createElement("span");
-        correctBadge.className = "option-badge";
-        correctBadge.textContent = "Верный ответ";
-        optionItem.append(correctBadge);
+        if (optionIndex === question.correct_option_index) {
+          optionItem.dataset.correct = "true";
+          const correctBadge = documentRef.createElement("span");
+          correctBadge.className = "option-badge";
+          correctBadge.textContent = "Верный ответ";
+          optionItem.append(correctBadge);
+        }
+
+        optionList.append(optionItem);
       }
 
-      optionList.append(optionItem);
+      item.append(optionList);
     }
-
-    item.append(optionList);
 
     if (question.explanation?.text) {
       const explanation = documentRef.createElement("p");
@@ -128,7 +152,7 @@ export function createQuizRenderer({
 
     setResultState("Результат готов. Квиз отображён ниже.", "ok", "Результат готов");
     setExportAvailability(generationPayload.quiz_id ?? quiz.quiz_id ?? null);
-    advanceStepper("review");
+    advanceStepper("result");
   }
 
   return { setResultState, clearQuizResult, renderQuizResult };

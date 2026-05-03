@@ -25,17 +25,20 @@ QUIZ_JSON_SCHEMA = {
                 "type": "object",
                 "required": [
                     "question_id",
+                    "question_type",
                     "prompt",
-                    "options",
-                    "correct_option_index",
                     "explanation",
                 ],
                 "properties": {
                     "question_id": {"type": "string"},
+                    "question_type": {
+                        "type": "string",
+                        "enum": ["single_choice", "true_false", "fill_blank", "short_answer", "matching"],
+                    },
                     "prompt": {"type": "string"},
                     "options": {
                         "type": "array",
-                        "minItems": 2,
+                        "minItems": 0,
                         "items": {
                             "type": "object",
                             "required": ["option_id", "text"],
@@ -45,7 +48,29 @@ QUIZ_JSON_SCHEMA = {
                             },
                         },
                     },
-                    "correct_option_index": {"type": "integer", "minimum": 0},
+                    "correct_option_index": {
+                        "oneOf": [
+                            {"type": "null"},
+                            {"type": "integer", "minimum": 0},
+                        ],
+                    },
+                    "correct_answer": {
+                        "oneOf": [
+                            {"type": "null"},
+                            {"type": "string"},
+                        ],
+                    },
+                    "matching_pairs": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "required": ["left", "right"],
+                            "properties": {
+                                "left": {"type": "string"},
+                                "right": {"type": "string"},
+                            },
+                        },
+                    },
                     "explanation": {
                         "oneOf": [
                             {"type": "null"},

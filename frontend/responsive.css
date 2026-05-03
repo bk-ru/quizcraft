@@ -31,6 +31,12 @@
   }
 }
 
+@media (max-width: 620px) {
+  .step-button {
+    padding: 10px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

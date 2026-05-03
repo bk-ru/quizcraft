@@ -47,6 +47,7 @@ def test_json_exporter_builds_deterministic_utf8_quiz_file() -> None:
   "questions": [
     {
       "question_id": "question-1",
+      "question_type": "single_choice",
       "prompt": "Какой город является столицей России?",
       "options": [
         {
@@ -59,6 +60,8 @@ def test_json_exporter_builds_deterministic_utf8_quiz_file() -> None:
         }
       ],
       "correct_option_index": 0,
+      "correct_answer": null,
+      "matching_pairs": [],
       "explanation": {
         "text": "Москва является столицей России."
       }

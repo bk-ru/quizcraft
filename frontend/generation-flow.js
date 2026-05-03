@@ -10,6 +10,7 @@ const mediaTypeByExtension = {
 const SLOW_GENERATION_WARNING_MS = 60000;
 const DEFAULT_GENERATION_MODE = "direct";
 const SUPPORTED_REQUEST_MODES = Object.freeze(["direct", "rag"]);
+const SUPPORTED_QUIZ_TYPES = Object.freeze(["single_choice", "true_false", "fill_blank", "short_answer", "matching"]);
 
 const FILE_SIZE_UNITS = Object.freeze([
   { limit: 1024, unit: "Б", divisor: 1 },
@@ -48,6 +49,7 @@ export function createGenerationFlow({
   dropzoneFileMeta,
   dropzoneRemoveButton,
   setTextContent,
+  setPreflightStatus = null,
   setSubmissionStatus,
   setResultState,
   setLogMessage,
@@ -67,6 +69,7 @@ export function createGenerationFlow({
   showToast,
   saveQuizToHistory,
   refreshGenerationDefaults = null,
+  getGenerationReadiness = null,
 }, windowRef = (typeof window !== "undefined" ? window : null)) {
   let currentAbortController = null;
   let timerIntervalId = null;
@@ -221,24 +224,30 @@ export function createGenerationFlow({
       throw new Error("Количество вопросов должно быть положительным целым числом.");
     }
     const difficulty = String(formData.get("difficulty") ?? "").trim();
-    const quizType = String(formData.get("quiz_type") ?? "").trim();
+    const quizTypes = formData.getAll("quiz_types")
+      .map((value) => String(value).trim())
+      .filter((value) => SUPPORTED_QUIZ_TYPES.includes(value));
     const language = String(formData.get("language") ?? "").trim() || "ru";
     const requestedMode = String(formData.get("generation_mode") ?? "").trim();
     const generationMode = SUPPORTED_REQUEST_MODES.includes(requestedMode)
       ? requestedMode
       : DEFAULT_GENERATION_MODE;
 
-    if (!difficulty || !quizType) {
+    if (!difficulty) {
       throw new Error("Заполните обязательные параметры генерации.");
+    }
+    if (quizTypes.length === 0) {
+      throw new Error("Выберите хотя бы один тип вопросов.");
     }
 
     const payload = {
       question_count: questionCount,
       language,
       difficulty,
-      quiz_type: quizType,
       generation_mode: generationMode,
     };
+    payload.quiz_type = quizTypes[0];
+    payload.quiz_types = quizTypes;
 
     const modelName = String(formData.get("model_name") ?? "").trim();
     if (modelName) {
@@ -262,9 +271,29 @@ export function createGenerationFlow({
   async function submitGeneration(event) {
     event.preventDefault();
 
+    if (typeof getGenerationReadiness === "function") {
+      const readiness = getGenerationReadiness();
+      if (!readiness.ready) {
+        const message = readiness.message || "Генерация сейчас недоступна.";
+        const tone = readiness.tone || "bad";
+        if (typeof setPreflightStatus === "function") {
+          setPreflightStatus(message, tone);
+        }
+        setSubmissionStatus(message, tone);
+        setResultState(message, tone, "Недоступно");
+        setLogMessage(message, tone);
+        showToast(message, tone);
+        return;
+      }
+    }
+
     const file = fileInput?.files?.[0] ?? null;
     if (!(file instanceof File)) {
-      setSubmissionStatus("Загрузите документ перед запуском генерации.", "bad");
+      const message = "Загрузите документ перед запуском генерации.";
+      if (typeof setPreflightStatus === "function") {
+        setPreflightStatus(message, "bad");
+      }
+      setSubmissionStatus(message, "bad");
       setLogMessage("Выберите документ перед запуском генерации.", "bad");
       setResultState("Результат не может быть построен без документа.", "bad", "Нет документа");
       return;
@@ -276,7 +305,11 @@ export function createGenerationFlow({
     try {
       generationBody = buildGenerationPayload();
     } catch (error) {
-      setSubmissionStatus(`Операция не завершена: ${describeError(error)}`, "bad");
+      const message = `Операция не завершена: ${describeError(error)}`;
+      if (typeof setPreflightStatus === "function") {
+        setPreflightStatus(message, "bad");
+      }
+      setSubmissionStatus(message, "bad");
       setResultState(`Результат не получен: ${describeError(error)}`, "bad", "Ошибка");
       setLogMessage(`Проверьте параметры генерации: ${describeError(error)}`, "bad");
       showToast(describeError(error), "bad");
@@ -288,9 +321,12 @@ export function createGenerationFlow({
 
     try {
       clearQuizResult();
+      if (typeof setPreflightStatus === "function") {
+        setPreflightStatus("", null);
+      }
       setBusyState(true);
       setExportAvailability(null);
-      advanceStepper("review");
+      advanceStepper("generation", { focus: true });
       startGenerationProgress();
       startTimer();
       setCancelButtonVisible(true);
@@ -367,7 +403,7 @@ export function createGenerationFlow({
         setResultState("Генерация отменена. Запустите повторно, когда будете готовы.", "warn", "Отменено");
         setLogMessage("Генерация отменена пользователем.", "warn");
         showToast("Генерация отменена.", "warn");
-        advanceStepper("params");
+        advanceStepper("setup", { focus: true });
       } else {
         const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
         const message = isValidationError ? describeValidationError(error) : describeError(error);
@@ -376,7 +412,7 @@ export function createGenerationFlow({
         setLogMessage(`Генерация завершилась ошибкой: ${message}`, "bad");
         showToast(message, "bad");
         if (typeof markStepperFailed === "function") {
-          markStepperFailed("review");
+          markStepperFailed("generation");
         }
       }
     } finally {
@@ -421,7 +457,7 @@ export function createGenerationFlow({
       dataTransfer.items.add(dropped);
       fileInput.files = dataTransfer.files;
       updateSelectedFileSummary();
-      advanceStepper("params");
+      advanceStepper("setup");
       showToast(`Файл «${dropped.name}» готов к загрузке.`, "ok");
     });
   }

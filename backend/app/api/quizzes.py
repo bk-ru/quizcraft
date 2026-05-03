@@ -191,6 +191,7 @@ def _serialize_question(question: Question) -> dict[str, Any]:
 
     return {
         "question_id": question.question_id,
+        "question_type": question.question_type,
         "prompt": question.prompt,
         "options": [
             {
@@ -200,6 +201,11 @@ def _serialize_question(question: Question) -> dict[str, Any]:
             for option in question.options
         ],
         "correct_option_index": question.correct_option_index,
+        "correct_answer": question.correct_answer,
+        "matching_pairs": [
+            {"left": pair.left, "right": pair.right}
+            for pair in question.matching_pairs
+        ],
         "explanation": None if question.explanation is None else {"text": question.explanation.text},
     }
 

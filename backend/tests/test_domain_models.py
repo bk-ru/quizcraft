@@ -5,7 +5,7 @@ import pytest
 from backend.app.core.config import ConfigurationError
 from backend.app.core.modes import GenerationMode, GenerationModeRegistry
 from backend.app.domain.errors import BackendError, DomainValidationError, UnsupportedGenerationModeError
-from backend.app.domain.models import Explanation, GenerationRequest, GenerationResult, Option, Question, Quiz
+from backend.app.domain.models import Explanation, GenerationRequest, GenerationResult, MatchingPair, Option, Question, Quiz
 from backend.app.domain.schema import QUIZ_JSON_SCHEMA
 from backend.app.domain.validation import validate_quiz
 
@@ -54,6 +54,42 @@ def test_domain_models_capture_generation_metadata() -> None:
     assert result.prompt_version == "v1"
 
 
+def test_question_model_roundtrips_russian_non_choice_shapes() -> None:
+    quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Русский квиз",
+        version=1,
+        last_edited_at="2026-05-03T09:00:00Z",
+        questions=(
+            Question(
+                question_id="q-fill",
+                prompt="Столица России — ____.",
+                question_type="fill_blank",
+                correct_answer="Москва",
+                explanation=Explanation(text="Москва — столица России."),
+            ),
+            Question(
+                question_id="q-match",
+                prompt="Сопоставьте города и реки.",
+                question_type="matching",
+                matching_pairs=(
+                    MatchingPair(left="Санкт-Петербург", right="Нева"),
+                    MatchingPair(left="Казань", right="Казанка"),
+                ),
+            ),
+        ),
+    )
+
+    restored = Quiz.from_dict(quiz.to_dict())
+
+    assert restored.questions[0].question_type == "fill_blank"
+    assert restored.questions[0].correct_answer == "Москва"
+    assert restored.questions[1].question_type == "matching"
+    assert restored.questions[1].matching_pairs[0].left == "Санкт-Петербург"
+    assert restored.questions[1].matching_pairs[0].right == "Нева"
+
+
 def test_validate_quiz_accepts_well_formed_quiz() -> None:
     validate_quiz(build_valid_quiz())
 
@@ -100,5 +136,14 @@ def test_quiz_json_schema_exposes_expected_structure() -> None:
     assert QUIZ_JSON_SCHEMA["required"] == ["quiz_id", "document_id", "title", "version", "last_edited_at", "questions"]
     assert QUIZ_JSON_SCHEMA["properties"]["questions"]["type"] == "array"
     question_schema = QUIZ_JSON_SCHEMA["properties"]["questions"]["items"]
+    assert question_schema["properties"]["question_type"]["enum"] == [
+        "single_choice",
+        "true_false",
+        "fill_blank",
+        "short_answer",
+        "matching",
+    ]
     assert question_schema["properties"]["options"]["type"] == "array"
-    assert question_schema["properties"]["correct_option_index"]["type"] == "integer"
+    assert question_schema["properties"]["correct_option_index"]["oneOf"][1]["type"] == "integer"
+    assert question_schema["properties"]["correct_answer"]["oneOf"][1]["type"] == "string"
+    assert question_schema["properties"]["matching_pairs"]["type"] == "array"

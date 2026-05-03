@@ -65,40 +65,48 @@
         <h1 id="shell-title">Создавайте квизы из любого <span class="hero-accent">документа</span> за один клик.</h1>
       </div>
 
-      <ol class="stepper" id="stepper" aria-label="Этапы подготовки квиза">
-        <li class="step" data-step="upload" data-state="active">
-          <span class="step-index"><span class="step-index-number">1</span></span>
-          <span>
-            <span class="step-label">Документ</span>
-            <span class="step-sub">TXT · DOCX · PDF</span>
-          </span>
+      <ol class="stepper" id="stepper" aria-label="Этапы обработки квиза">
+        <li class="step" data-step="setup" data-state="active">
+          <button class="step-button" type="button" data-stage-target="setup">
+            <span class="step-index"><span class="step-index-number">1</span></span>
+            <span>
+              <span class="step-label">Документ и параметры</span>
+              <span class="step-sub">Файл, типы, режим</span>
+            </span>
+          </button>
         </li>
-        <li class="step" data-step="params">
-          <span class="step-index"><span class="step-index-number">2</span></span>
-          <span>
-            <span class="step-label">Параметры</span>
-            <span class="step-sub">Сложность и язык</span>
-          </span>
+        <li class="step" data-step="generation">
+          <button class="step-button" type="button" data-stage-target="generation">
+            <span class="step-index"><span class="step-index-number">2</span></span>
+            <span>
+              <span class="step-label">Генерация</span>
+              <span class="step-sub">Прогресс запроса</span>
+            </span>
+          </button>
         </li>
-        <li class="step" data-step="review">
-          <span class="step-index"><span class="step-index-number">3</span></span>
-          <span>
-            <span class="step-label">Результат</span>
-            <span class="step-sub">Вопросы и ответы</span>
-          </span>
+        <li class="step" data-step="result">
+          <button class="step-button" type="button" data-stage-target="result">
+            <span class="step-index"><span class="step-index-number">3</span></span>
+            <span>
+              <span class="step-label">Результат</span>
+              <span class="step-sub">Вопросы и ответы</span>
+            </span>
+          </button>
         </li>
         <li class="step" data-step="edit">
-          <span class="step-index"><span class="step-index-number">4</span></span>
-          <span>
-            <span class="step-label">Редактирование</span>
-            <span class="step-sub">Правки и JSON</span>
-          </span>
+          <button class="step-button" type="button" data-stage-target="edit">
+            <span class="step-index"><span class="step-index-number">4</span></span>
+            <span>
+              <span class="step-label">Редактирование и экспорт</span>
+              <span class="step-sub">Правки, JSON, DOCX, PPTX</span>
+            </span>
+          </button>
         </li>
       </ol>
     </section>
 
-    <div class="workspace">
-      <form id="generation-form" class="workspace-grid" novalidate>
+    <div class="workspace" data-stage-root data-active-stage="setup">
+      <form id="generation-form" class="workspace-grid workflow-stage" data-workflow-stage="setup" data-active="true" tabindex="-1" novalidate>
         <section class="panel panel-upload panel-form" aria-labelledby="upload-title">
           <div class="panel-heading">
             <div>
@@ -161,17 +169,31 @@
                 <option value="hard">Продвинутая</option>
               </select>
             </label>
-            <label class="field" for="quiz-type">
-              <span class="field-label">Типы вопросов: *</span>
-              <select id="quiz-type" name="quiz_type" required aria-describedby="quiz-type-hint">
-                <option value="single_choice" selected>Множественный Выбор</option>
-                <option value="true_false" disabled>Истина /Ложь</option>
-                <option value="fill_blank" disabled>Заполните пробел</option>
-                <option value="short_answer" disabled>Краткий Ответ</option>
-                <option value="matching" disabled>Соответствие</option>
-              </select>
-              <span id="quiz-type-hint" class="field-hint">Сейчас сервер принимает только «Множественный Выбор»; остальные типы показаны как неподключенные.</span>
-            </label>
+            <fieldset class="field question-type-field" data-question-type-group>
+              <span class="question-type-label">Типы вопросов: <span class="required-marker" aria-hidden="true">*</span></span>
+              <div class="question-type-list">
+                <label class="question-type-option">
+                  <input type="checkbox" name="quiz_types" value="single_choice">
+                  <span>Множественный Выбор</span>
+                </label>
+                <label class="question-type-option">
+                  <input type="checkbox" name="quiz_types" value="true_false">
+                  <span>Истина /Ложь</span>
+                </label>
+                <label class="question-type-option">
+                  <input type="checkbox" name="quiz_types" value="fill_blank">
+                  <span>Заполните пробел</span>
+                </label>
+                <label class="question-type-option">
+                  <input type="checkbox" name="quiz_types" value="short_answer">
+                  <span>Краткий Ответ</span>
+                </label>
+                <label class="question-type-option">
+                  <input type="checkbox" name="quiz_types" value="matching">
+                  <span>Соответствие</span>
+                </label>
+              </div>
+            </fieldset>
             <label class="field" for="language">
               <span class="field-label">Язык квиза</span>
               <select id="language" name="language">
@@ -207,10 +229,11 @@
             </button>
             <p id="submit-hint" class="action-hint">Загрузим документ и подготовим квиз по выбранным параметрам. Горячая клавиша: <kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd>.</p>
           </div>
+          <p id="preflight-status" class="submission-status" aria-live="polite" hidden></p>
         </section>
       </form>
 
-      <section class="panel panel-status" aria-labelledby="operation-title">
+      <section class="panel panel-status workflow-stage" data-workflow-stage="generation" aria-labelledby="operation-title" tabindex="-1" hidden>
         <div class="panel-heading">
           <div>
             <h3 id="operation-title">Состояние запроса</h3>
@@ -288,7 +311,7 @@
         </details>
       </section>
 
-      <section id="generation-result" class="panel panel-result" aria-labelledby="result-title" data-result-tone="idle" tabindex="-1">
+      <section id="generation-result" class="panel panel-result workflow-stage" data-workflow-stage="result" aria-labelledby="result-title" data-result-tone="idle" tabindex="-1" hidden>
         <div class="panel-heading">
           <div>
             <h3 id="result-title">Результат генерации</h3>
@@ -364,7 +387,7 @@
         <ol id="quiz-question-list" class="question-list" aria-live="polite"></ol>
       </section>
 
-      <details id="quiz-editor" class="panel panel-editor editor-disclosure" aria-labelledby="quiz-editor-title">
+      <details id="quiz-editor" class="panel panel-editor editor-disclosure workflow-stage" data-workflow-stage="edit" aria-labelledby="quiz-editor-title" tabindex="-1" hidden>
         <summary class="editor-disclosure-summary">
           <div>
             <h3 id="quiz-editor-title">Редактирование квиза</h3>

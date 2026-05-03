@@ -5,6 +5,7 @@ import pytest
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import GenerationQualityError
 from backend.app.domain.models import Explanation
+from backend.app.domain.models import MatchingPair
 from backend.app.domain.models import Option
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
@@ -115,3 +116,52 @@ def test_generation_quality_checker_accepts_valid_russian_quiz() -> None:
     )
 
     checker.ensure_quality(russian_quiz, expected_question_count=1)
+
+
+def test_validate_quiz_accepts_russian_new_question_types() -> None:
+    quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Русский квиз",
+        version=1,
+        last_edited_at="2026-05-03T09:00:00Z",
+        questions=(
+            Question(
+                question_id="q-fill",
+                prompt="Столица России — ____.",
+                question_type="fill_blank",
+                correct_answer="Москва",
+            ),
+            Question(
+                question_id="q-short",
+                prompt="Назовите столицу России.",
+                question_type="short_answer",
+                correct_answer="Москва",
+            ),
+            Question(
+                question_id="q-match",
+                prompt="Сопоставьте города и реки.",
+                question_type="matching",
+                matching_pairs=(MatchingPair(left="Санкт-Петербург", right="Нева"),),
+            ),
+        ),
+    )
+
+    validate_quiz(quiz)
+
+
+def test_validate_quiz_rejects_blank_short_answer() -> None:
+    quiz = replace(
+        build_valid_quiz(),
+        questions=(
+            Question(
+                question_id="q-short",
+                prompt="Назовите столицу России.",
+                question_type="short_answer",
+                correct_answer=" ",
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="correct answer"):
+        validate_quiz(quiz)
