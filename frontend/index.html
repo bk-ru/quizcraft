@@ -428,34 +428,37 @@
           </form>
           <p class="action-hint">Открыть существующий квиз (последние 10 доступны в подсказках поля)</p>
           <p id="quiz-editor-status" class="editor-status">Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.</p>
-          <dl class="summary-grid editor-summary">
-            <div>
-              <dt>Quiz ID</dt>
-              <dd class="copyable-field">
-                <span id="editor-quiz-id" class="copyable-value">Ещё не загружен</span>
-                <button type="button" class="copy-button" data-copy-for="editor-quiz-id" title="Скопировать Quiz ID редактора" aria-label="Скопировать Quiz ID редактора">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
-                </button>
-              </dd>
-            </div>
-            <div>
-              <dt>Document ID</dt>
-              <dd class="copyable-field">
-                <span id="editor-document-id" class="copyable-value">Ещё не загружен</span>
-                <button type="button" class="copy-button" data-copy-for="editor-document-id" title="Скопировать Document ID редактора" aria-label="Скопировать Document ID редактора">
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
-                </button>
-              </dd>
-            </div>
-            <div>
-              <dt>Версия</dt>
-              <dd id="editor-quiz-version">Ещё не загружен</dd>
-            </div>
-            <div>
-              <dt>Последнее редактирование</dt>
-              <dd id="editor-last-edited">Ещё не загружен</dd>
-            </div>
-          </dl>
+          <details class="inline-details">
+            <summary>Технические детали</summary>
+            <dl class="summary-grid editor-summary">
+              <div>
+                <dt>Quiz ID</dt>
+                <dd class="copyable-field">
+                  <span id="editor-quiz-id" class="copyable-value">Ещё не загружен</span>
+                  <button type="button" class="copy-button" data-copy-for="editor-quiz-id" title="Скопировать Quiz ID редактора" aria-label="Скопировать Quiz ID редактора">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt>Document ID</dt>
+                <dd class="copyable-field">
+                  <span id="editor-document-id" class="copyable-value">Ещё не загружен</span>
+                  <button type="button" class="copy-button" data-copy-for="editor-document-id" title="Скопировать Document ID редактора" aria-label="Скопировать Document ID редактора">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+                  </button>
+                </dd>
+              </div>
+              <div>
+                <dt>Версия</dt>
+                <dd id="editor-quiz-version">Ещё не загружен</dd>
+              </div>
+              <div>
+                <dt>Последнее редактирование</dt>
+                <dd id="editor-last-edited">Ещё не загружен</dd>
+              </div>
+            </dl>
+          </details>
           <div id="quiz-editor-actions" class="form-actions">
             <button id="save-quiz-button" class="primary-action" type="button" disabled aria-describedby="save-quiz-hint">Сохранить изменения</button>
             <span id="save-quiz-hint" class="visually-hidden">Доступно после загрузки квиза и изменения хотя бы одного поля.</span>
