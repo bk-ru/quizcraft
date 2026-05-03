@@ -141,7 +141,7 @@ def test_frontend_index_exposes_supported_question_type_labels() -> None:
     styles = FORMS_CSS.read_text(encoding="utf-8")
     assert "color-scheme: inherit;" in styles
     assert ".question-type-option input" in styles
-    assert "min-height: 16px;" in styles
+    assert "min-height: 15px;" in styles
     assert "padding: 0;" in styles
     assert "border: 0;" in styles
     assert 'name="quiz_types"' in content
