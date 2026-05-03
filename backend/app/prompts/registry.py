@@ -53,7 +53,9 @@ class PromptRegistry:
                 "Set question_type on every question. For single_choice and true_false, use options and correct_option_index. "
                 "For fill_blank and short_answer, use correct_answer. For matching, use matching_pairs with left and right Russian text when language is ru.\n"
                 "Use only the document content.\n"
-                "Document ID: {document_id}\n"
+                "Set title to a short descriptive name for the quiz written in the requested language. "
+                "Do NOT use IDs or technical strings as the title.\n"
+                "Set document_id to: {document_id}\n"
                 "Document text:\n{document_text}"
             ),
             inference_parameters={"temperature": 0.2},
@@ -118,7 +120,9 @@ class PromptRegistry:
                 "Set question_type on every question. For single_choice and true_false, use options and correct_option_index. "
                 "For fill_blank and short_answer, use correct_answer. For matching, use matching_pairs.\n"
                 "Use only the retrieved context.\n"
-                "Document ID: {document_id}\n"
+                "Set title to a short descriptive name for the quiz written in the requested language. "
+                "Do NOT use IDs or technical strings as the title.\n"
+                "Set document_id to: {document_id}\n"
                 "Retrieved context:\n{retrieved_context}"
             ),
             inference_parameters={"temperature": 0.2},
