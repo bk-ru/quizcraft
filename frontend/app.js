@@ -64,6 +64,12 @@ const modelSelect = document.getElementById("generation-model");
 const profileSelect = document.getElementById("generation-profile");
 const exportSplitToggle = document.getElementById("export-split-toggle");
 const exportSplitMenu = document.getElementById("export-split-menu");
+const editorExportJsonButton = document.getElementById("editor-export-json-button");
+const editorExportDocxButton = document.getElementById("editor-export-docx-button");
+const editorExportPptxButton = document.getElementById("editor-export-pptx-button");
+const editorExportSplitToggle = document.getElementById("editor-export-split-toggle");
+const editorExportSplitMenu = document.getElementById("editor-export-split-menu");
+const editorExportActions = document.getElementById("editor-export-actions");
 const retryBackendButton = document.getElementById("retry-backend-button");
 const retryProviderButton = document.getElementById("retry-provider-button");
 const preflightStatus = document.getElementById("preflight-status");
@@ -80,14 +86,20 @@ const exportButtons = Object.freeze({
   json: {
     button: exportJsonButton,
     hintId: "export-json-hint",
+    editorButton: editorExportJsonButton,
+    editorHintId: "editor-export-json-hint",
   },
   docx: {
     button: exportDocxButton,
     hintId: "export-docx-hint",
+    editorButton: editorExportDocxButton,
+    editorHintId: "editor-export-docx-hint",
   },
   pptx: {
     button: exportPptxButton,
     hintId: "export-pptx-hint",
+    editorButton: editorExportPptxButton,
+    editorHintId: "editor-export-pptx-hint",
   },
 });
 
@@ -211,10 +223,17 @@ function setExportAvailability(quizId) {
   for (const [format, exportButton] of Object.entries(exportButtons)) {
     const supported = format === "json" || editorState.supportedExportFormats.has(format);
     toggleUnavailableHint(exportButton.button, exportButton.hintId, !(hasQuiz && supported));
+    toggleUnavailableHint(exportButton.editorButton, exportButton.editorHintId, !(hasQuiz && supported));
   }
   toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !hasQuiz);
   if (exportSplitToggle) {
     exportSplitToggle.disabled = !hasQuiz;
+  }
+  if (editorExportSplitToggle) {
+    editorExportSplitToggle.disabled = !hasQuiz;
+  }
+  if (editorExportActions) {
+    editorExportActions.hidden = !hasQuiz;
   }
 }
 
@@ -532,6 +551,27 @@ document.addEventListener("click", (event) => {
     if (!inside) {
       exportSplitMenu.hidden = true;
       exportSplitToggle?.setAttribute("aria-expanded", "false");
+    }
+  }
+});
+editorExportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
+editorExportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
+editorExportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
+editorExportSplitToggle?.addEventListener("click", () => {
+  const open = editorExportSplitMenu?.hidden === false;
+  if (editorExportSplitMenu) {
+    editorExportSplitMenu.hidden = open;
+  }
+  if (editorExportSplitToggle) {
+    editorExportSplitToggle.setAttribute("aria-expanded", String(!open));
+  }
+});
+document.addEventListener("click", (event) => {
+  if (editorExportSplitMenu?.hidden === false) {
+    const inside = event.target instanceof Element && event.target.closest("#editor-export-split");
+    if (!inside) {
+      editorExportSplitMenu.hidden = true;
+      editorExportSplitToggle?.setAttribute("aria-expanded", "false");
     }
   }
 });
