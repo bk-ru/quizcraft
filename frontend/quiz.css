@@ -270,6 +270,16 @@
   display: none;
 }
 
+.editor-card.is-dirty {
+  border-color: var(--warn, #e07b00);
+  background: color-mix(in srgb, var(--warn, #e07b00) 6%, var(--bg-elev));
+}
+
+.question-revert-action {
+  width: fit-content;
+  color: var(--warn, #e07b00);
+}
+
 .question-regenerate-action {
   width: fit-content;
 }

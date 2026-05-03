@@ -103,13 +103,54 @@ export function createQuizEditor({
     return true;
   }
 
-  function markEditorDirty() {
+  function markEditorDirty(event) {
     if (!editorState.loadedQuiz) {
       return;
     }
     editorState.isDirty = true;
     setEditorSaveState({ disabled: false });
     setEditorStatus("Изменения пока не сохранены.", "warn");
+    const card = event?.target instanceof Element
+      ? event.target.closest(".editor-card")
+      : null;
+    if (card instanceof HTMLElement) {
+      card.classList.add("is-dirty");
+      const revertBtn = card.querySelector('[data-editor-action="revert-question"]');
+      if (revertBtn) {
+        revertBtn.hidden = false;
+      }
+    }
+  }
+
+  function revertQuestionEdits(event) {
+    const action = event?.target instanceof Element
+      ? event.target.closest('[data-editor-action="revert-question"]')
+      : null;
+    if (!(action instanceof HTMLButtonElement)) {
+      return;
+    }
+    event.preventDefault();
+    const card = action.closest(".editor-card");
+    if (!(card instanceof HTMLElement) || !editorState.loadedQuiz) {
+      return;
+    }
+    const questionId = card.dataset.questionId;
+    const questions = Array.isArray(editorState.loadedQuiz.questions)
+      ? editorState.loadedQuiz.questions
+      : [];
+    const original = questions.find((q) => q.question_id === questionId);
+    if (!original) {
+      return;
+    }
+    const index = questions.indexOf(original);
+    const freshCard = buildQuestionEditor(original, index);
+    card.replaceWith(freshCard);
+    const anyDirty = Boolean(quizEditorFields?.querySelector(".editor-card.is-dirty"));
+    if (!anyDirty) {
+      editorState.isDirty = false;
+      setEditorSaveState({ disabled: true });
+      setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
+    }
   }
 
   function setQuizEditorSummary(quiz) {
@@ -209,7 +250,16 @@ export function createQuizEditor({
     regenerationStatus.setAttribute("aria-live", "polite");
     regenerationStatus.hidden = true;
 
-    header.append(badge, note, regenerateButton, cancelRegenerateButton, regenerationStatus);
+    const revertButton = documentRef.createElement("button");
+    revertButton.className = "ghost-action question-revert-action";
+    revertButton.type = "button";
+    revertButton.textContent = "Отменить правки";
+    revertButton.setAttribute("data-editor-action", "revert-question");
+    revertButton.dataset.questionId = article.dataset.questionId;
+    revertButton.setAttribute("aria-label", `Отменить правки вопроса ${index + 1}`);
+    revertButton.hidden = true;
+
+    header.append(badge, note, regenerateButton, cancelRegenerateButton, regenerationStatus, revertButton);
     article.append(header);
 
     const promptField = createEditorField("Текст вопроса", createEditorTextarea(question.prompt ?? "", 3));
@@ -312,6 +362,7 @@ export function createQuizEditor({
     quizEditorFields.replaceChildren(fragment);
     editorState.loadedQuiz = cloneQuizPayload(quiz);
     editorState.isDirty = false;
+    quizEditorFields.querySelectorAll(".editor-card.is-dirty").forEach((c) => c.classList.remove("is-dirty"));
     setEditorSaveState({ disabled: true });
   }
 
@@ -575,6 +626,7 @@ export function createQuizEditor({
     setEditorBusyState,
     setEditorSaveState,
     markEditorDirty,
+    revertQuestionEdits,
     buildQuizUpdatePayload,
     loadQuizForEditing,
     regenerateQuizQuestion,
