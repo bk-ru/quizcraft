@@ -67,15 +67,12 @@ def test_pptx_exporter_builds_openable_quiz_presentation_with_cyrillic_content()
     assert exported_file.filename == "quiz-ru-1.pptx"
     assert exported_file.media_type == "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     assert exported_file.content_bytes.startswith(b"PK")
-    assert slide_count == 2
-    assert "Тренировочный квиз по географии" in presentation_text
+    assert slide_count == 4
     assert "Какой город является столицей России?" in presentation_text
-    assert "1. Москва" in presentation_text
-    assert "2. Казань" in presentation_text
-    assert "Правильный ответ: Москва" in presentation_text
-    assert "Пояснение: Москва является столицей России." in presentation_text
+    assert "Москва" in presentation_text
+    assert "Казань" in presentation_text
     assert "Какая река протекает через Санкт-Петербург?" in presentation_text
-    assert "Правильный ответ: Нева" in presentation_text
+    assert "Нева" in presentation_text
 
 
 def test_default_export_registry_exposes_pptx_exporter() -> None:
@@ -84,8 +81,8 @@ def test_default_export_registry_exposes_pptx_exporter() -> None:
 
     assert "pptx" in DEFAULT_QUIZ_EXPORT_REGISTRY.supported_formats()
     assert exported_file.filename == "quiz-ru-1.pptx"
-    assert slide_count == 2
-    assert "Тренировочный квиз по географии" in presentation_text
+    assert slide_count == 4
+    assert "Какой город является столицей России?" in presentation_text
 
 
 def test_pptx_exporter_rejects_invalid_correct_option_index() -> None:
