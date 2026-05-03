@@ -179,7 +179,7 @@ function setLogMessage(text, tone) {
 }
 
 function setSubmissionStatus(text, tone) {
-  setToneMessage(document.getElementById("submission-status"), text, tone);
+  setToneMessage(document.getElementById("shell-log-message"), text, tone);
 }
 
 function setPreflightStatus(text, tone) {
