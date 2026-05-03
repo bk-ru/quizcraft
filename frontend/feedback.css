@@ -58,6 +58,19 @@
   background: var(--warn);
 }
 
+.timer-eta {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.82em;
+}
+
+.char-count {
+  margin-top: 4px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  min-height: 1.2em;
+}
+
 .generation-cancel {
   color: var(--bad);
 }
