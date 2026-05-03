@@ -373,6 +373,72 @@ fieldset.field {
   color: var(--muted);
   font-size: 0.8rem;
   font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.field-tooltip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1.5px solid var(--muted-2);
+  border-radius: 50%;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: default;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.field-tooltip::before,
+.field-tooltip::after {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 4px);
+  transition: opacity 120ms var(--easing), transform 140ms var(--easing);
+  z-index: 40;
+}
+
+.field-tooltip::before {
+  content: "";
+  bottom: calc(100% - 2px);
+  border: 6px solid transparent;
+  border-top-color: var(--surface-strong);
+  filter: drop-shadow(0 1px 0 var(--line));
+}
+
+.field-tooltip::after {
+  content: attr(data-tooltip);
+  bottom: calc(100% + 8px);
+  width: max-content;
+  max-width: min(280px, 80vw);
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-strong);
+  box-shadow: var(--shadow-md);
+  color: var(--ink);
+  font-size: 0.82rem;
+  font-weight: 400;
+  line-height: 1.45;
+  white-space: normal;
+}
+
+.field-tooltip:hover::before,
+.field-tooltip:hover::after,
+.field-tooltip:focus-visible::before,
+.field-tooltip:focus-visible::after {
+  opacity: 1;
+  transform: translate(-50%, 0);
 }
 
 .field input,
