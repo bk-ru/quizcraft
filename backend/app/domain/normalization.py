@@ -62,6 +62,15 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
         for option_position, option_payload in enumerate(raw_options)
         if (normalized_option := _normalize_option(option_payload, option_position)) is not None
     )
+
+    if question_type in {"single_choice", "true_false"} and not options:
+        has_answer = bool(_normalize_optional_string(raw_payload.get("correct_answer")))
+        has_pairs = bool(raw_payload.get("matching_pairs"))
+        if has_pairs:
+            question_type = "matching"
+        elif has_answer:
+            question_type = "short_answer"
+
     return Question(
         question_id=_normalize_required_string(raw_payload.get("question_id"), default=f"question-{question_index + 1}"),
         question_type=question_type,
