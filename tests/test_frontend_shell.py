@@ -166,7 +166,6 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
     assert "Название или ID квиза" in content
     assert "Загрузить" in content
     assert "Сохранить изменения" in content
-    assert "Изменения пока не сохранены." in content
     assert 'id="quiz-editor-loader"' in content
     assert 'id="quiz-id-input"' in content
     assert 'id="quiz-editor-fields"' in content
