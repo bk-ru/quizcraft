@@ -49,6 +49,7 @@ const VALIDATION_MESSAGE_RULES = [
   [/^quiz must contain at least one question/i, () => "Квиз должен содержать хотя бы один вопрос"],
   [/^question prompt must not be empty/i, () => "Текст вопроса не должен быть пустым"],
   [/^question must have at least two options/i, () => "В вопросе должно быть минимум два варианта"],
+  [/^matching question must have at least four pairs/i, () => "Для вопроса на соответствие нужно минимум четыре пары — недостаточно информации в тексте"],
   [/^option text must not be empty/i, () => "Текст варианта не должен быть пустым"],
   [/^question options must not contain duplicates/i, () => "Варианты ответа не должны повторяться"],
   [/^correct option index is out of range/i, () => "Номер правильного варианта вне диапазона"],

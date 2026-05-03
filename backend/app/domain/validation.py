@@ -48,8 +48,8 @@ def validate_quiz(quiz: Quiz) -> None:
                 raise DomainValidationError("correct answer must not be empty")
 
         if question_type == "matching":
-            if not question.matching_pairs:
-                raise DomainValidationError("matching question must contain at least one pair")
+            if len(question.matching_pairs) < 4:
+                raise DomainValidationError("matching question must have at least four pairs")
             for pair in question.matching_pairs:
                 if not pair.left.strip() or not pair.right.strip():
                     raise DomainValidationError("matching pair values must not be empty")
