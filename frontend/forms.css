@@ -14,15 +14,17 @@
 }
 
 .doc-file-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
+  gap: 5px;
+  padding: 3px 8px 3px 6px;
+  border: 1px solid var(--brand);
+  border-radius: var(--radius-pill);
   background: var(--brand-soft);
   color: var(--brand);
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 500;
-  border-bottom: 1px solid var(--line);
+  margin-left: auto;
 }
 
 .doc-file-pill-name {
@@ -43,22 +45,22 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 18px;
-  height: 18px;
-  margin-left: auto;
+  width: 16px;
+  height: 16px;
+  margin-left: 2px;
   padding: 0;
   border: 0;
   border-radius: 50%;
   background: transparent;
   color: inherit;
+  font-size: 0.7rem;
   cursor: pointer;
   opacity: 0.7;
-  transition: opacity var(--duration-fast) var(--easing), background var(--duration-fast) var(--easing);
+  transition: opacity var(--duration-fast) var(--easing);
 }
 
 .doc-file-remove:hover {
   opacity: 1;
-  background: color-mix(in oklab, currentColor 15%, transparent);
 }
 
 .doc-textarea {
@@ -86,17 +88,40 @@
 .doc-toolbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 6px 10px;
   border-top: 1px solid var(--line);
   background: var(--surface-sunken);
+  flex-wrap: wrap;
+}
+
+.doc-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing), background var(--duration-fast) var(--easing);
+}
+
+.doc-toolbar-btn:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-soft);
 }
 
 .doc-attach-label {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
+  gap: 5px;
+  padding: 3px 10px;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -111,16 +136,6 @@
   border-color: var(--brand);
   color: var(--brand);
   background: var(--brand-soft);
-}
-
-.doc-attach-label-text {
-  line-height: 1;
-}
-
-.doc-toolbar-hint {
-  color: var(--muted-2);
-  font-size: 0.78rem;
-  margin-left: auto;
 }
 
 .dropzone {
