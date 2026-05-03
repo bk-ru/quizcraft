@@ -65,9 +65,15 @@ class SingleQuestionRegenerationOrchestrator:
             instructions=instructions,
         )
         response = self._provider.generate_structured(provider_request)
+        normalized = self._normalizer(response.content)
         replacement_question = replace(
-            self._normalizer(response.content),
+            normalized,
             question_id=target_question.question_id,
+            correct_option_index=(
+                normalized.correct_option_index
+                if normalized.correct_option_index is not None
+                else target_question.correct_option_index
+            ),
         )
         updated_quiz = replace(
             quiz,
