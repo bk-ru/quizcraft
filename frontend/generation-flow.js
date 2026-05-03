@@ -469,7 +469,8 @@ export function createGenerationFlow({
       setCancelButtonVisible(true);
       setSubmissionStatus("Загружаем документ…", "warn");
       setResultState("Генерируем квиз. Результат появится после завершения генерации.", "warn", "Генерация…");
-      setLogMessage(`Начата загрузка файла ${file.name}.`, "warn");
+      const isPastedText = !fileInput?.files?.[0];
+      setLogMessage(isPastedText ? "Начата загрузка текста." : `Начата загрузка файла ${file.name}.`, "warn");
 
       uploadPayload = await client.uploadDocument({
         filename: file.name,
@@ -482,7 +483,7 @@ export function createGenerationFlow({
       await waitForProgressVisibility();
       advanceGenerationProgress("parse", "generate");
 
-      setTextContent("last-filename", uploadPayload.filename ?? file.name);
+      setTextContent("last-filename", isPastedText ? "Вставленный текст" : (uploadPayload.filename ?? file.name));
       setTextContent("last-document-id", uploadPayload.document_id ?? "Ещё нет");
       setSubmissionStatus("Документ загружен. Запускаем генерацию…", "warn");
       setLogMessage("Документ загружен, запускаем генерацию.", "warn");
