@@ -261,8 +261,13 @@
 }
 
 .editor-card-header {
-  display: grid;
-  gap: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-card-header [hidden] {
+  display: none;
 }
 
 .question-regenerate-action {
