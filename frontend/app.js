@@ -139,15 +139,16 @@ function setStatus(surface, text, tone, description) {
   }
 }
 
-function setRetryButtonBusy(buttonElement, busy, busyText) {
+function setRetryButtonBusy(buttonElement, busy) {
   if (!buttonElement) {
     return;
   }
-  if (!buttonElement.dataset.idleLabel) {
-    buttonElement.dataset.idleLabel = buttonElement.textContent.trim();
-  }
   buttonElement.disabled = Boolean(busy);
-  buttonElement.textContent = busy ? busyText : buttonElement.dataset.idleLabel;
+  if (busy) {
+    buttonElement.dataset.busy = "true";
+  } else {
+    delete buttonElement.dataset.busy;
+  }
 }
 
 function setToneMessage(element, text, tone) {
@@ -359,7 +360,7 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
   generationConnectionState.backend = "checking";
   setPreflightStatus("", null);
   setStatus("backend", "Проверка…", null, "Проверяем доступность backend-сервера.");
-  setRetryButtonBusy(retryBackendButton, true, "Проверяем сервер…");
+  setRetryButtonBusy(retryBackendButton, true);
   try {
     const backendHealth = await client.getBackendHealth();
     generationConnectionState.backend = "ok";
@@ -385,7 +386,7 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
     setExportAvailability(editorState.lastGeneratedQuizId);
     return null;
   } finally {
-    setRetryButtonBusy(retryBackendButton, false, "Проверяем сервер…");
+    setRetryButtonBusy(retryBackendButton, false);
   }
 }
 
@@ -401,7 +402,7 @@ async function checkProviderConnection() {
   generationConnectionState.provider = "checking";
   setPreflightStatus("", null);
   setStatus("provider", "Проверка…", null, "Проверяем подключение к LM Studio через backend.");
-  setRetryButtonBusy(retryProviderButton, true, "Проверяем LM Studio…");
+  setRetryButtonBusy(retryProviderButton, true);
   try {
     const providerHealth = await client.getProviderHealth();
     if (providerHealth.status === "unavailable") {
@@ -427,7 +428,7 @@ async function checkProviderConnection() {
     setLogMessage(`Не удалось проверить LM Studio: ${describeError(error)}. ${PROVIDER_CHECK_FAILED_INSTRUCTION}`, "bad");
     return null;
   } finally {
-    setRetryButtonBusy(retryProviderButton, false, "Проверяем LM Studio…");
+    setRetryButtonBusy(retryProviderButton, false);
   }
 }
 
