@@ -169,7 +169,10 @@ class QuizDocxExporter:
         lefts  = [p.left  for p in pairs]
         rights = [p.right for p in pairs]
         shuffled = rights[:]
-        random.shuffle(shuffled)
+        for _ in range(20):
+            random.shuffle(shuffled)
+            if shuffled != rights:
+                break
 
         tbl = doc.add_table(rows=len(pairs) + 1, cols=2)
         tbl.style = "Table Grid"
