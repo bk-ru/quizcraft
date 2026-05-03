@@ -13,6 +13,10 @@
   box-shadow: var(--focus-ring);
 }
 
+.doc-file-pill[hidden] {
+  display: none;
+}
+
 .doc-file-pill {
   display: inline-flex;
   align-items: center;
