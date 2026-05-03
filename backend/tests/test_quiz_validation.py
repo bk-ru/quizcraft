@@ -142,12 +142,41 @@ def test_validate_quiz_accepts_russian_new_question_types() -> None:
                 question_id="q-match",
                 prompt="Сопоставьте города и реки.",
                 question_type="matching",
-                matching_pairs=(MatchingPair(left="Санкт-Петербург", right="Нева"),),
+                matching_pairs=(
+                    MatchingPair(left="Санкт-Петербург", right="Нева"),
+                    MatchingPair(left="Москва", right="Москва-река"),
+                    MatchingPair(left="Волгоград", right="Волга"),
+                    MatchingPair(left="Нижний Новгород", right="Ока"),
+                ),
             ),
         ),
     )
 
     validate_quiz(quiz)
+
+
+def test_validate_quiz_rejects_matching_with_fewer_than_four_pairs() -> None:
+    quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Квиз",
+        version=1,
+        last_edited_at="2026-05-03T09:00:00Z",
+        questions=(
+            Question(
+                question_id="q-match",
+                prompt="Соотнесите элементы.",
+                question_type="matching",
+                matching_pairs=(
+                    MatchingPair(left="Класс A", right="Твёрдые вещества"),
+                    MatchingPair(left="Класс B", right="Жидкие вещества"),
+                ),
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="at least four pairs"):
+        validate_quiz(quiz)
 
 
 def test_validate_quiz_rejects_blank_short_answer() -> None:
