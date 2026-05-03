@@ -1,3 +1,128 @@
+.doc-input-wrap {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--bg-elev);
+  overflow: hidden;
+  transition: border-color var(--duration-fast) var(--easing), box-shadow var(--duration-fast) var(--easing);
+}
+
+.doc-input-wrap:focus-within {
+  border-color: var(--brand);
+  box-shadow: var(--focus-ring);
+}
+
+.doc-file-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-size: 0.82rem;
+  font-weight: 500;
+  border-bottom: 1px solid var(--line);
+}
+
+.doc-file-pill-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 200px;
+}
+
+.doc-file-pill-meta {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.doc-file-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity var(--duration-fast) var(--easing), background var(--duration-fast) var(--easing);
+}
+
+.doc-file-remove:hover {
+  opacity: 1;
+  background: color-mix(in oklab, currentColor 15%, transparent);
+}
+
+.doc-textarea {
+  width: 100%;
+  min-height: 160px;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  resize: vertical;
+  outline: none;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.doc-textarea::placeholder {
+  color: var(--muted-2);
+}
+
+.doc-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  border-top: 1px solid var(--line);
+  background: var(--surface-sunken);
+}
+
+.doc-attach-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color var(--duration-fast) var(--easing), color var(--duration-fast) var(--easing), background var(--duration-fast) var(--easing);
+}
+
+.doc-attach-label:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.doc-attach-label-text {
+  line-height: 1;
+}
+
+.doc-toolbar-hint {
+  color: var(--muted-2);
+  font-size: 0.78rem;
+  margin-left: auto;
+}
+
 .dropzone {
   position: relative;
   display: grid;

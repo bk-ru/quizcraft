@@ -117,7 +117,7 @@ def test_frontend_index_exposes_russian_result_view_shell() -> None:
     assert "QuizCraft" in content
     assert "<title>QuizCraft</title>" in content
     assert "QuizCraft · Генерация квизов" not in content
-    assert "Загрузить документ" in content
+    assert "Текстовое содержание" in content
     assert "Параметры генерации" in content
     assert "Сгенерировать квиз" in content
     assert "Результат генерации" in content
@@ -484,7 +484,7 @@ def test_frontend_generation_flow_blocks_submit_when_services_are_unavailable() 
     assert "const readiness = getGenerationReadiness()" in generation_content
     submit_index = generation_content.find("async function submitGeneration")
     readiness_index = generation_content.find("const readiness = getGenerationReadiness()", submit_index)
-    file_index = generation_content.find("const file = fileInput?.files?.[0]", submit_index)
+    file_index = generation_content.find("const file = resolveInputFile()", submit_index)
     upload_index = generation_content.find("uploadPayload = await client.uploadDocument")
     assert readiness_index != -1 and file_index != -1 and upload_index != -1
     assert readiness_index < file_index < upload_index, (
@@ -730,7 +730,7 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
         client_js = urlopen(f"{base_url}/api/client.js").read().decode("utf-8")
         css = urlopen(f"{base_url}/feedback.css").read().decode("utf-8")
 
-    assert "Загрузить документ" in html
+    assert "Текстовое содержание" in html
     assert "Параметры генерации" in html
     assert "Сгенерировать квиз" in html
     assert "Результат генерации" in html
@@ -978,27 +978,25 @@ def test_frontend_dropzone_surface_exposes_filled_preview_affordance() -> None:
     generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
 
-    assert 'data-state="empty"' in index_content
-    assert 'class="dropzone-empty"' in index_content
-    assert 'class="dropzone-filled"' in index_content
-    assert 'id="dropzone-file-name"' in index_content
-    assert 'id="dropzone-file-meta"' in index_content
-    assert 'id="dropzone-remove"' in index_content, (
-        "dropzone preview must expose a remove-file affordance"
+    assert 'id="doc-input-wrap"' in index_content
+    assert 'id="doc-text-input"' in index_content
+    assert 'id="doc-file-pill"' in index_content
+    assert 'id="doc-file-remove"' in index_content, (
+        "doc input must expose a remove-file affordance"
     )
-    assert "Убрать" in index_content
+    assert 'id="document-file"' in index_content
+    assert "Прикрепить файл" in index_content
 
-    assert '.dropzone[data-state="filled"]' in forms_css
-    assert ".dropzone-remove" in forms_css
-    assert ".dropzone-file-name" in forms_css
+    assert ".doc-input-wrap" in forms_css
+    assert ".doc-file-pill" in forms_css
+    assert ".doc-file-remove" in forms_css
 
     assert "function formatFileSize" in generation_content
-    assert "function applyDropzoneFilled" in generation_content
+    assert "function resolveInputFile" in generation_content
     assert "function removeSelectedFile" in generation_content
-    assert 'dropzone.dataset.state = "filled"' in generation_content
-    assert 'dropzone.dataset.state = "empty"' in generation_content
+    assert "function updateDocInputSummary" in generation_content
     assert "removeSelectedFile" in app_content
-    assert "dropzoneRemoveButton?.addEventListener" in app_content
+    assert "docFileRemoveButton?.addEventListener" in app_content
 
 
 def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:

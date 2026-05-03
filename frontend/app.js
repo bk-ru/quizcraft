@@ -43,6 +43,12 @@ const editShortcutButton = document.getElementById("edit-quiz-shortcut");
 const themeToggleButton = document.getElementById("theme-toggle");
 const themeToggleLabel = document.getElementById("theme-toggle-label");
 const dropzone = document.getElementById("dropzone");
+const docInputWrap = document.getElementById("doc-input-wrap");
+const docTextInput = document.getElementById("doc-text-input");
+const docFilePill = document.getElementById("doc-file-pill");
+const docFilePillName = document.getElementById("doc-file-pill-name");
+const docFilePillMeta = document.getElementById("doc-file-pill-meta");
+const docFileRemoveButton = document.getElementById("doc-file-remove");
 const toastRegion = document.getElementById("toast-region");
 const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
@@ -292,6 +298,12 @@ const generationFlow = createGenerationFlow({
   client,
   form,
   fileInput,
+  docTextInput,
+  docFilePill,
+  docFilePillName,
+  docFilePillMeta,
+  docFileRemoveButton,
+  docInputWrap,
   submitButton,
   dropzone,
   quizIdInput,
@@ -346,7 +358,7 @@ const copyButtons = createCopyButtonController({
 copyButtons.register();
 
 async function bootstrapShell() {
-  generationFlow.updateSelectedFileSummary();
+  generationFlow.updateDocInputSummary();
   quizRenderer.clearQuizResult();
   quizEditor.clearQuizEditor();
   setEditorStatus("Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.", null);
@@ -529,11 +541,21 @@ dropzoneRemoveButton?.addEventListener("click", (event) => {
   generationFlow.removeSelectedFile();
 });
 
+docFileRemoveButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  event.stopPropagation();
+  generationFlow.removeSelectedFile();
+});
+
 fileInput?.addEventListener("change", () => {
-  generationFlow.updateSelectedFileSummary();
+  generationFlow.updateDocInputSummary();
   if (fileInput.files?.[0]) {
     progressController.advanceStepper("setup");
   }
+});
+
+docTextInput?.addEventListener("input", () => {
+  generationFlow.updateDocInputSummary();
 });
 form?.addEventListener("submit", generationFlow.submitGeneration);
 quizEditorLoader?.addEventListener("submit", quizEditor.loadQuizForEditing);
