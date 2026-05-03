@@ -40,6 +40,12 @@ export function createGenerationFlow({
   client,
   form,
   fileInput,
+  docTextInput,
+  docFilePill,
+  docFilePillName,
+  docFilePillMeta,
+  docFileRemoveButton,
+  docInputWrap,
   submitButton,
   dropzone,
   quizIdInput,
@@ -197,6 +203,55 @@ export function createGenerationFlow({
     applyDropzoneFilled(file);
   }
 
+  function updateDocInputSummary() {
+    const file = fileInput?.files?.[0] ?? null;
+    const hasFile = file instanceof File;
+    if (docInputWrap) {
+      docInputWrap.dataset.hasFile = String(hasFile);
+    }
+    if (docFilePill) {
+      docFilePill.hidden = !hasFile;
+    }
+    if (hasFile) {
+      if (docFilePillName) {
+        docFilePillName.textContent = file.name;
+      }
+      if (docFilePillMeta) {
+        const sizeLabel = formatFileSize(file.size);
+        const mediaType = resolveMediaType(file);
+        docFilePillMeta.textContent = sizeLabel ? `${sizeLabel} · ${mediaType}` : mediaType;
+      }
+      if (docTextInput) {
+        docTextInput.placeholder = "Файл прикреплён — текст игнорируется";
+      }
+      setTextContent("file-summary", `Файл: ${file.name}`);
+    } else {
+      if (docFilePillName) {
+        docFilePillName.textContent = "";
+      }
+      if (docFilePillMeta) {
+        docFilePillMeta.textContent = "";
+      }
+      if (docTextInput) {
+        docTextInput.placeholder = "Вставьте текст, чтобы создать викторину…";
+      }
+      const hasText = Boolean(docTextInput?.value?.trim());
+      setTextContent("file-summary", hasText ? "Текст готов к генерации." : "Вставьте текст или прикрепите файл.");
+    }
+  }
+
+  function resolveInputFile() {
+    const attached = fileInput?.files?.[0];
+    if (attached instanceof File) {
+      return attached;
+    }
+    const text = docTextInput?.value?.trim() ?? "";
+    if (!text) {
+      return null;
+    }
+    return new File([text], "paste.txt", { type: "text/plain" });
+  }
+
   function removeSelectedFile() {
     if (!fileInput) {
       return;
@@ -209,7 +264,7 @@ export function createGenerationFlow({
     } catch (_error) {
       fileInput.value = "";
     }
-    updateSelectedFileSummary();
+    updateDocInputSummary();
     advanceStepper("upload");
     showToast("Файл удалён из формы.", "warn");
   }
@@ -287,15 +342,15 @@ export function createGenerationFlow({
       }
     }
 
-    const file = fileInput?.files?.[0] ?? null;
-    if (!(file instanceof File)) {
-      const message = "Загрузите документ перед запуском генерации.";
+    const file = resolveInputFile();
+    if (!file) {
+      const message = "Вставьте текст или прикрепите файл перед запуском генерации.";
       if (typeof setPreflightStatus === "function") {
         setPreflightStatus(message, "bad");
       }
       setSubmissionStatus(message, "bad");
-      setLogMessage("Выберите документ перед запуском генерации.", "bad");
-      setResultState("Результат не может быть построен без документа.", "bad", "Нет документа");
+      setLogMessage("Вставьте текст или прикрепите файл.", "bad");
+      setResultState("Результат не может быть построен без документа или текста.", "bad", "Нет документа");
       return;
     }
 
@@ -456,7 +511,7 @@ export function createGenerationFlow({
       const dataTransfer = new DataTransfer();
       dataTransfer.items.add(dropped);
       fileInput.files = dataTransfer.files;
-      updateSelectedFileSummary();
+      updateDocInputSummary();
       advanceStepper("setup");
       showToast(`Файл «${dropped.name}» готов к загрузке.`, "ok");
     });
@@ -468,6 +523,8 @@ export function createGenerationFlow({
     formatFileSummary,
     formatFileSize,
     updateSelectedFileSummary,
+    updateDocInputSummary,
+    resolveInputFile,
     removeSelectedFile,
     buildGenerationPayload,
     updateOperationSummary,
