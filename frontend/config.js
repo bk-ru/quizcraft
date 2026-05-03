@@ -3,7 +3,7 @@ window.QuizCraftConfig = Object.freeze({
   timeouts: Object.freeze({
     health: 5000,
     upload: 30000,
-    generate: 120000,
+    generate: 0,
     quizEditor: 15000,
   }),
 });

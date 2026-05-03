@@ -10,7 +10,7 @@ export class QuizCraftApiError extends Error {
 const DEFAULT_TIMEOUTS = Object.freeze({
   health: 5000,
   upload: 30000,
-  generate: 120000,
+  generate: 0,
   quizEditor: 15000,
 });
 
@@ -136,10 +136,10 @@ export class QuizCraftApiClient {
 
   async _request(path, { method = "GET", headers = {}, body, json, timeoutMs, signal } = {}) {
     const controller = new AbortController();
-    const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0
-      ? timeoutMs
-      : this._timeouts.quizEditor;
-    const timeoutId = window.setTimeout(() => controller.abort(), effectiveTimeout);
+    const effectiveTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 0;
+    const timeoutId = effectiveTimeout > 0
+      ? window.setTimeout(() => controller.abort(), effectiveTimeout)
+      : null;
 
     const externalAbortHandler = () => controller.abort();
     if (signal) {
@@ -184,7 +184,9 @@ export class QuizCraftApiClient {
       }
       throw new QuizCraftApiError(error instanceof Error ? error.message : "Network request failed");
     } finally {
-      window.clearTimeout(timeoutId);
+      if (timeoutId !== null) {
+        window.clearTimeout(timeoutId);
+      }
       if (signal && typeof signal.removeEventListener === "function") {
         signal.removeEventListener("abort", externalAbortHandler);
       }
