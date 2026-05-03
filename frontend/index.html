@@ -204,22 +204,27 @@
             <label class="field" for="generation-mode">
               <span class="field-label">Режим генерации</span>
               <select id="generation-mode" name="generation_mode">
-                <option value="direct" selected>Прямая (с авто-RAG для длинных документов)</option>
-                <option value="rag">RAG (всегда использовать поиск по документу)</option>
+                <option value="direct" selected>Авто (RAG для длинных документов)</option>
+                <option value="rag">RAG — всегда</option>
               </select>
             </label>
-            <label class="field" for="generation-model">
-              <span class="field-label">Модель</span>
-              <select id="generation-model" name="model_name" disabled>
-                <option value="">Авто</option>
-              </select>
-            </label>
-            <label class="field" for="generation-profile">
-              <span class="field-label">Профиль генерации</span>
-              <select id="generation-profile" name="profile_name" disabled>
-                <option value="">Авто</option>
-              </select>
-            </label>
+            <details class="form-advanced" id="advanced-params">
+              <summary class="form-advanced-summary">Дополнительно</summary>
+              <div class="form-grid form-advanced-grid">
+                <label class="field" for="generation-model">
+                  <span class="field-label">Модель</span>
+                  <select id="generation-model" name="model_name" disabled>
+                    <option value="">Авто</option>
+                  </select>
+                </label>
+                <label class="field" for="generation-profile">
+                  <span class="field-label">Профиль</span>
+                  <select id="generation-profile" name="profile_name" disabled>
+                    <option value="">Авто</option>
+                  </select>
+                </label>
+              </div>
+            </details>
           </div>
           <p class="form-hint" data-hint="defaults">После успешной генерации выбранные параметры запоминаются и используются как значения по умолчанию для следующих запусков.</p>
           <div class="form-actions">
@@ -366,21 +371,26 @@
           </dl>
         </details>
         <div class="result-actions">
-          <button id="export-json-button" class="secondary-action" type="button" disabled aria-describedby="export-json-hint">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Скачать JSON
-          </button>
-          <span id="export-json-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
-          <button id="export-docx-button" class="secondary-action" type="button" disabled aria-describedby="export-docx-hint">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Скачать DOCX
-          </button>
-          <span id="export-docx-hint" class="visually-hidden">Доступно после успешной генерации квиза и подтверждения поддержки DOCX сервером.</span>
-          <button id="export-pptx-button" class="secondary-action" type="button" disabled aria-describedby="export-pptx-hint">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-            Скачать PPTX
-          </button>
-          <span id="export-pptx-hint" class="visually-hidden">Доступно после успешной генерации квиза и подтверждения поддержки PPTX сервером.</span>
+          <div class="split-button" id="export-split">
+            <button id="export-json-button" class="secondary-action split-button-main" type="button" disabled aria-describedby="export-json-hint">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Скачать JSON
+            </button>
+            <button class="secondary-action split-button-toggle" type="button" disabled id="export-split-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Другие форматы экспорта" aria-controls="export-split-menu">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </button>
+            <span id="export-json-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
+            <ul class="split-button-menu" id="export-split-menu" role="menu" hidden>
+              <li role="none">
+                <button id="export-docx-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="export-docx-hint">Скачать DOCX</button>
+                <span id="export-docx-hint" class="visually-hidden">Доступно после успешной генерации квиза и подтверждения поддержки DOCX сервером.</span>
+              </li>
+              <li role="none">
+                <button id="export-pptx-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="export-pptx-hint">Скачать PPTX</button>
+                <span id="export-pptx-hint" class="visually-hidden">Доступно после успешной генерации квиза и подтверждения поддержки PPTX сервером.</span>
+              </li>
+            </ul>
+          </div>
           <button id="edit-quiz-shortcut" class="ghost-action" type="button" disabled aria-describedby="edit-shortcut-hint">Редактировать квиз</button>
           <span id="edit-shortcut-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
         </div>
