@@ -1720,3 +1720,27 @@ def test_frontend_quiz_renderer_describes_generation_mode_from_prompt_version() 
     assert "describeGenerationMode" not in app_content, (
         "describeGenerationMode is a renderer concern and should not leak into app.js"
     )
+
+
+def test_frontend_p3_visual_tokens() -> None:
+    tokens = (FRONTEND_DIR / "tokens.css").read_text(encoding="utf-8")
+    layout = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    forms = FORMS_CSS.read_text(encoding="utf-8")
+
+    assert "--radius-xs: 6px" in tokens
+    assert "--radius-sm: 10px" in tokens
+    assert "--radius-md: 14px" in tokens
+    assert "--radius-lg: 20px" in tokens
+
+    assert "0 12px 36px rgba(98, 69, 255, 0.18)" in tokens
+    assert "0 12px 36px rgba(152, 133, 255, 0.24)" in tokens
+
+    assert "--muted: #4a4468" in tokens
+    assert "--muted: #c0bacf" in tokens
+
+    assert "blur(10px)" in layout
+    assert "blur(8px)" in layout
+    assert "font-size: 1.1rem" in layout
+    assert "font-size: 0.88rem" in layout
+
+    assert "font-size: 0.8rem" in forms
