@@ -15,6 +15,8 @@ The user can verify the result by opening `frontend/index.html` through `run-fro
 - [x] (2026-05-02 19:51 MSK) User approved the standalone staged-flow prototype and requested transfer into the main frontend with `Документ` and `Параметры` combined.
 - [x] (2026-05-02 19:53 MSK) Confirmed `main` working tree is clean before implementation planning.
 - [x] (2026-05-02 19:55 MSK) Inspected current `frontend/index.html`, `frontend/app.js`, `frontend/progress.js`, `frontend/generation-flow.js`, and relevant frontend shell tests.
+- [x] (2026-05-03 14:10 MSK) Implemented `frontend/stage-flow.js` with `createStageFlowController` and `normalizeWorkflowStage`, added staged regions and `data-stage-root` wiring to `frontend/index.html`, added staged layout rules and `@keyframes stage-in` to `frontend/layout.css`, wired stage transitions through `frontend/progress.js` and `frontend/app.js`, adjusted `frontend/responsive.css`, and extended `tests/test_frontend_shell.py` for the Russian staged flow.
+- [x] (2026-05-03 14:10 MSK) Ran full pytest suite and `ruff check .`; both green.
 
 ## Surprises & Discoveries
 
@@ -23,6 +25,9 @@ The user can verify the result by opening `frontend/index.html` through `run-fro
 
 - Observation: The current generation form must keep its existing element ids because `frontend/app.js` and `frontend/generation-flow.js` query them directly.
   Evidence: `frontend/app.js` obtains `generation-form`, `document-file`, `submit-button`, `generation-result`, `quiz-editor`, export buttons, and progress ids at module startup.
+
+- Observation: A separate Multiple Question Types batch (`docs/execplans/2026-05-03-multiple-question-types.md`) landed on top of the staged-flow working tree before this plan was finalized, so both batches now share the same frontend files and are delivered together in one combined feature commit.
+  Evidence: The MQT ExecPlan explicitly recorded that `frontend/stage-flow.js` was already untracked and staged-flow frontend files were already modified when MQT started, and the user approved integrating both in one commit.
 
 ## Decision Log
 
@@ -40,7 +45,11 @@ The user can verify the result by opening `frontend/index.html` through `run-fro
 
 ## Outcomes & Retrospective
 
-Pending implementation.
+Implemented. The main QuizCraft frontend now uses a staged workflow with four stages: `setup` (combined document upload plus generation parameters), `generation` (progress and cancellation), `result` (review and exports), and `edit` (editor/save/regeneration). Stage navigation is handled by `createStageFlowController` in `frontend/stage-flow.js`, which understands legacy stage aliases (`upload`/`params` → `setup`, `review` → `result`) so existing `advanceStepper` calls and module hooks keep working. The static frontend remains plain HTML/CSS/JavaScript, no new production dependency was added, all existing DOM ids and backend contracts are preserved, and Russian/Cyrillic UI strings remain intact.
+
+Validation evidence: `python -m pytest -q` passed, `python -m ruff check .` reported `All checks passed!`, `git diff --check` reported only LF→CRLF line-ending warnings.
+
+Integration note: this implementation lands together with the Multiple Question Types feature (see `docs/execplans/2026-05-03-multiple-question-types.md`) because the two WIP batches shared the same frontend files on an already-dirty working tree. The user explicitly approved a single combined feature commit after both ExecPlans were updated in separate doc commits.
 
 ## Context and Orientation
 
