@@ -174,3 +174,56 @@ def test_normalize_quiz_output_uses_russian_default_title_when_missing() -> None
     quiz = normalize_quiz_output(raw_payload)
 
     assert quiz.title == "Сгенерированный квиз"
+
+
+def test_normalize_quiz_output_infers_short_answer_when_single_choice_has_no_options_but_correct_answer() -> None:
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Тест",
+        "version": 1,
+        "last_edited_at": "2026-04-18T12:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "single_choice",
+                "prompt": "Назовите столицу России.",
+                "options": [],
+                "correct_answer": "Москва",
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    assert quiz.questions[0].question_type == "short_answer"
+    assert quiz.questions[0].correct_answer == "Москва"
+    assert quiz.questions[0].options == ()
+
+
+def test_normalize_quiz_output_infers_matching_when_single_choice_has_no_options_but_matching_pairs() -> None:
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Тест",
+        "version": 1,
+        "last_edited_at": "2026-04-18T12:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "single_choice",
+                "prompt": "Установите соответствие.",
+                "options": [],
+                "matching_pairs": [
+                    {"left": "Класс A", "right": "Твёрдые вещества"},
+                    {"left": "Класс B", "right": "Жидкие вещества"},
+                ],
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    assert quiz.questions[0].question_type == "matching"
+    assert len(quiz.questions[0].matching_pairs) == 2
+    assert quiz.questions[0].matching_pairs[0].left == "Класс A"
