@@ -238,3 +238,29 @@ def test_single_question_regeneration_does_not_persist_invalid_replacement(tmp_p
         )
 
     assert quiz_repository.get(original_quiz.quiz_id) == original_quiz
+
+
+def test_single_question_regeneration_falls_back_to_original_correct_option_index_when_model_omits_it(tmp_path) -> None:
+    base_response = build_question_response()
+    content_without_index = {k: v for k, v in base_response.content.items() if k != "correct_option_index"}
+    provider = RecordingProvider([
+        StructuredGenerationResponse(
+            model_name=base_response.model_name,
+            content=content_without_index,
+            raw_response=base_response.raw_response,
+        )
+    ])
+    orchestrator, document_repository, quiz_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_document())
+    original_quiz = quiz_repository.save(build_quiz())
+    original_index = original_quiz.questions[1].correct_option_index
+
+    result = orchestrator.regenerate(
+        quiz_id=original_quiz.quiz_id,
+        question_id="q-2",
+        generation_request=build_generation_request(),
+        instructions=None,
+    )
+
+    assert result.regenerated_question.correct_option_index == original_index
+    assert quiz_repository.get(original_quiz.quiz_id).questions[1].correct_option_index == original_index
