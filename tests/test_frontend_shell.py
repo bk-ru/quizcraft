@@ -416,7 +416,7 @@ def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
     assert 'id="retry-provider-button"' in index_content
     assert 'aria-label="Повторно проверить подключение к серверу"' in index_content
     assert 'aria-label="Повторно проверить подключение к LM Studio"' in index_content
-    assert 'class="status-retry status-retry--icon"' in index_content
+    assert 'class="status-retry-inline"' in index_content
 
     assert "BACKEND_CHECK_FAILED_INSTRUCTION" in app_content
     assert "PROVIDER_CHECK_FAILED_INSTRUCTION" in app_content
@@ -430,7 +430,7 @@ def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
     assert 'retryProviderButton?.addEventListener("click"' in app_content
 
     assert ".status-retry" in layout_content
-    assert ".status-retry--icon" in layout_content
+    assert ".status-retry-inline" in layout_content
     assert ".topbar-status-group" in layout_content
     assert ".topbar-status::after" in layout_content
     assert "content: attr(data-status-tooltip)" in layout_content
