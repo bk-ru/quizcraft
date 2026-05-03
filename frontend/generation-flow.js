@@ -212,6 +212,9 @@ export function createGenerationFlow({
     if (docFilePill) {
       docFilePill.hidden = !hasFile;
     }
+    if (docFileRemoveButton) {
+      docFileRemoveButton.hidden = !hasFile;
+    }
     if (hasFile) {
       if (docFilePillName) {
         docFilePillName.textContent = file.name;
