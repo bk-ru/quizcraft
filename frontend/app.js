@@ -49,6 +49,8 @@ const docFilePill = document.getElementById("doc-file-pill");
 const docFilePillName = document.getElementById("doc-file-pill-name");
 const docFilePillMeta = document.getElementById("doc-file-pill-meta");
 const docFileRemoveButton = document.getElementById("doc-file-remove");
+const docClearButton = document.getElementById("doc-clear-button");
+const docExampleButton = document.getElementById("doc-example-button");
 const toastRegion = document.getElementById("toast-region");
 const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
@@ -557,6 +559,26 @@ fileInput?.addEventListener("change", () => {
 docTextInput?.addEventListener("input", () => {
   generationFlow.updateDocInputSummary();
 });
+
+const DOC_EXAMPLE_TEXT = `Фотосинтез — процесс, при котором растения, водоросли и некоторые бактерии преобразуют световую энергию в химическую. В ходе реакции углекислый газ (CO₂) и вода (H₂O) под действием солнечного света превращаются в глюкозу и кислород. Реакция протекает в хлоропластах, содержащих пигмент хлорофилл, который поглощает красный и синий диапазоны спектра. Выделяемый кислород является побочным продуктом расщепления молекул воды. Фотосинтез лежит в основе почти всех пищевых цепочек на Земле и обеспечивает кислородный состав атмосферы.`;
+
+docClearButton?.addEventListener("click", () => {
+  if (docTextInput) {
+    docTextInput.value = "";
+  }
+  generationFlow.removeSelectedFile();
+  generationFlow.updateDocInputSummary();
+  docTextInput?.focus();
+});
+
+docExampleButton?.addEventListener("click", () => {
+  if (docTextInput) {
+    docTextInput.value = DOC_EXAMPLE_TEXT;
+    docTextInput.dispatchEvent(new Event("input"));
+    docTextInput.focus();
+  }
+});
+
 form?.addEventListener("submit", generationFlow.submitGeneration);
 quizEditorLoader?.addEventListener("submit", quizEditor.loadQuizForEditing);
 quizEditorFields?.addEventListener("input", quizEditor.markEditorDirty);
