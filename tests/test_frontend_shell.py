@@ -162,9 +162,9 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
 
     assert "Редактирование квиза" in content
     assert "Откройте редактор только когда нужно править готовый квиз или загрузить сохранённый." in content
-    assert "Открыть существующий квиз" in content
-    assert "Идентификатор квиза" in content
-    assert "Загрузить квиз" in content
+    assert "выпадающем списке" in content
+    assert "Название или ID квиза" in content
+    assert "Загрузить" in content
     assert "Сохранить изменения" in content
     assert "Изменения пока не сохранены." in content
     assert 'id="quiz-editor-loader"' in content
@@ -735,7 +735,7 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "Сгенерировать квиз" in html
     assert "Результат генерации" in html
     assert "Редактирование квиза" in html
-    assert "Открыть существующий квиз" in html
+    assert "Название или ID квиза" in html
     assert "Сохранить изменения" in html
     assert "backendBaseUrl" in config_js
     assert "createGenerationFlow" in app_js

@@ -411,22 +411,22 @@
         <div class="editor-disclosure-body">
           <form id="quiz-editor-loader" class="editor-loader" novalidate>
             <label class="field" for="quiz-id-input">
-              <span class="field-label">Идентификатор квиза</span>
+              <span class="field-label">Название или ID квиза</span>
               <input
                 id="quiz-id-input"
                 name="quiz_id"
                 type="text"
-                placeholder="Например, quiz-123"
+                placeholder="Выберите из списка или введите ID…"
                 autocomplete="off"
                 list="quiz-history-options"
               >
               <datalist id="quiz-history-options"></datalist>
+              <span class="field-hint">Последние 10 сохранённых квизов доступны в выпадающем списке.</span>
             </label>
             <div class="form-actions">
-              <button id="load-quiz-button" class="secondary-action" type="submit">Загрузить квиз</button>
+              <button id="load-quiz-button" class="secondary-action" type="submit">Загрузить</button>
             </div>
           </form>
-          <p class="action-hint">Открыть существующий квиз (последние 10 доступны в подсказках поля)</p>
           <p id="quiz-editor-status" class="editor-status">Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.</p>
           <details class="inline-details">
             <summary>Технические детали</summary>
