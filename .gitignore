@@ -8,3 +8,5 @@ __pycache__/
 .env
 .env.local
 *.egg-info/
+scratch/
+pytest_final.log
