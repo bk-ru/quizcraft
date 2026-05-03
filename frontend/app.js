@@ -566,8 +566,18 @@ docClearButton?.addEventListener("click", () => {
   if (docTextInput) {
     docTextInput.value = "";
   }
-  generationFlow.removeSelectedFile();
+  if (fileInput) {
+    try {
+      fileInput.value = "";
+      if (typeof DataTransfer === "function") {
+        fileInput.files = new DataTransfer().files;
+      }
+    } catch (_e) {
+      fileInput.value = "";
+    }
+  }
   generationFlow.updateDocInputSummary();
+  toastController.showToast("Текст удалён из формы.", "warn");
   docTextInput?.focus();
 });
 
