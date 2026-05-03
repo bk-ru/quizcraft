@@ -25,6 +25,7 @@ from backend.app.domain.normalization import normalize_quiz_output
 from backend.app.generation.context import assemble_context
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.quality import GenerationQualityChecker
+from backend.app.generation.quality import enrich_generation_error
 from backend.app.generation.rag_cache import RagCacheEntry
 from backend.app.generation.rag_cache import build_document_hash
 from backend.app.generation.rag_cache import build_rag_cache_key
@@ -396,7 +397,7 @@ class RagGenerationOrchestrator:
             )
             return repaired_quiz, current_response, repair_prompt.version
 
-        raise current_error
+        raise enrich_generation_error(current_error, len(document.normalized_text))
 
     def _persist_generation_result(
         self,

@@ -20,6 +20,7 @@ from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.domain.normalization import normalize_quiz_output
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.quality import GenerationQualityChecker
+from backend.app.generation.quality import enrich_generation_error
 from backend.app.generation.request_builder import DirectGenerationRequestBuilder
 from backend.app.generation.safe_logging import summarize_document_payload
 from backend.app.generation.safe_logging import summarize_generation_request
@@ -269,7 +270,7 @@ class DirectGenerationOrchestrator:
             )
             return repaired_quiz, current_response, repair_prompt.version
 
-        raise current_error
+        raise enrich_generation_error(current_error, len(document.normalized_text))
 
     def _run_pipeline_step(
         self,

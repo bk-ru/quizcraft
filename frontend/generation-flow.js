@@ -12,6 +12,21 @@ const DEFAULT_GENERATION_MODE = "direct";
 const SUPPORTED_REQUEST_MODES = Object.freeze(["direct", "rag"]);
 const SUPPORTED_QUIZ_TYPES = Object.freeze(["single_choice", "true_false", "fill_blank", "short_answer", "matching"]);
 
+const DOC_LENGTH_THRESHOLDS = Object.freeze([
+  { maxChars: 300, maxQuestions: 2 },
+  { maxChars: 800, maxQuestions: 5 },
+  { maxChars: 2000, maxQuestions: 10 },
+  { maxChars: 5000, maxQuestions: 15 },
+]);
+
+function getDocLengthAdvice(charCount) {
+  const match = DOC_LENGTH_THRESHOLDS.find((t) => charCount < t.maxChars);
+  if (!match) {
+    return null;
+  }
+  return `Текст короткий (${charCount.toLocaleString("ru-RU")} символов) — рекомендуется не более ${match.maxQuestions} вопросов.`;
+}
+
 const FILE_SIZE_UNITS = Object.freeze([
   { limit: 1024, unit: "Б", divisor: 1 },
   { limit: 1024 * 1024, unit: "КБ", divisor: 1024 },
@@ -55,6 +70,7 @@ export function createGenerationFlow({
   timerEtaElement = null,
   timerEtaValueElement = null,
   charCountElement = null,
+  docLengthHintElement = null,
   genTiming = null,
   dropzoneFileName,
   dropzoneFileMeta,
@@ -235,17 +251,33 @@ export function createGenerationFlow({
   }
 
   function updateCharCount() {
-    if (!charCountElement) {
-      return;
-    }
     const file = fileInput?.files?.[0] ?? null;
-    if (file instanceof File) {
-      charCountElement.textContent = "";
-      return;
+    const isFile = file instanceof File;
+    if (charCountElement) {
+      if (isFile) {
+        charCountElement.textContent = "";
+      } else {
+        const text = docTextInput?.value ?? "";
+        const count = text.length;
+        charCountElement.textContent = count > 0 ? `${count.toLocaleString("ru-RU")} символов` : "";
+      }
     }
-    const text = docTextInput?.value ?? "";
-    const count = text.length;
-    charCountElement.textContent = count > 0 ? `${count.toLocaleString("ru-RU")} символов` : "";
+    if (docLengthHintElement) {
+      if (isFile) {
+        docLengthHintElement.hidden = true;
+        docLengthHintElement.textContent = "";
+      } else {
+        const count = (docTextInput?.value ?? "").length;
+        const advice = count > 0 ? getDocLengthAdvice(count) : null;
+        if (advice) {
+          docLengthHintElement.textContent = advice;
+          docLengthHintElement.hidden = false;
+        } else {
+          docLengthHintElement.hidden = true;
+          docLengthHintElement.textContent = "";
+        }
+      }
+    }
   }
 
   function updateDocInputSummary() {

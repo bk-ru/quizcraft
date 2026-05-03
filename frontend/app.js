@@ -336,6 +336,7 @@ const generationFlow = createGenerationFlow({
   timerEtaElement: document.getElementById("timer-eta"),
   timerEtaValueElement: document.getElementById("timer-eta-value"),
   charCountElement: document.getElementById("char-count"),
+  docLengthHintElement: document.getElementById("doc-length-hint"),
   genTiming,
   dropzoneFileName,
   dropzoneFileMeta,
