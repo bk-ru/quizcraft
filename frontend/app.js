@@ -8,6 +8,7 @@ import { createConfirmModal } from "./modal.js";
 import { createProgressController } from "./progress.js";
 import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
+import { createGenTiming } from "./gen-timing.js";
 import { createQuizRenderer } from "./quiz-renderer.js";
 import { createStageFlowController } from "./stage-flow.js";
 import { createThemeController } from "./theme.js";
@@ -315,6 +316,7 @@ const quizEditor = createQuizEditor({
   confirmAction: confirmModal.confirm,
 });
 
+const genTiming = createGenTiming();
 const generationFlow = createGenerationFlow({
   client,
   form,
@@ -330,6 +332,11 @@ const generationFlow = createGenerationFlow({
   quizIdInput,
   cancelButton: cancelGenerationButton,
   timerElement: generationTimerElement,
+  timerElapsedElement: document.getElementById("timer-elapsed"),
+  timerEtaElement: document.getElementById("timer-eta"),
+  timerEtaValueElement: document.getElementById("timer-eta-value"),
+  charCountElement: document.getElementById("char-count"),
+  genTiming,
   dropzoneFileName,
   dropzoneFileMeta,
   dropzoneRemoveButton,

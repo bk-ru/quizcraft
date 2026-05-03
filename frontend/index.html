@@ -152,6 +152,7 @@
             </div>
           </div>
           <p id="file-summary" class="field-hint visually-hidden" aria-live="polite"></p>
+          <p id="char-count" class="char-count" aria-live="polite" aria-atomic="true"></p>
         </section>
 
         <section class="panel panel-params panel-form" aria-labelledby="parameters-title">
@@ -253,7 +254,7 @@
         <p id="shell-log-message" class="submission-status">Проверяем подключение к сервисам генерации…</p>
         <div id="generation-progress" class="generation-progress" role="status" aria-live="polite" hidden>
           <div class="generation-progress-head">
-            <span id="generation-timer" class="generation-timer" hidden aria-live="polite">00:00</span>
+            <span id="generation-timer" class="generation-timer" hidden aria-live="polite"><span id="timer-elapsed">00:00</span><span id="timer-eta" class="timer-eta" hidden> · ~<span id="timer-eta-value"></span> ост.</span></span>
             <button
               id="cancel-generation-button"
               class="ghost-action generation-cancel"

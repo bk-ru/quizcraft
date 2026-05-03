@@ -51,6 +51,11 @@ export function createGenerationFlow({
   quizIdInput,
   cancelButton,
   timerElement,
+  timerElapsedElement = null,
+  timerEtaElement = null,
+  timerEtaValueElement = null,
+  charCountElement = null,
+  genTiming = null,
   dropzoneFileName,
   dropzoneFileMeta,
   dropzoneRemoveButton,
@@ -80,6 +85,7 @@ export function createGenerationFlow({
   let currentAbortController = null;
   let timerIntervalId = null;
   let timerStartedAt = 0;
+  let currentGenCharCount = 0;
 
   function setBusyState(isBusy) {
     if (!form) {
@@ -108,21 +114,43 @@ export function createGenerationFlow({
       return;
     }
     const elapsed = Date.now() - timerStartedAt;
-    timerElement.textContent = formatElapsed(elapsed);
+    const elapsedLabel = formatElapsed(elapsed);
+    if (timerElapsedElement) {
+      timerElapsedElement.textContent = elapsedLabel;
+    } else {
+      timerElement.textContent = elapsedLabel;
+    }
     if (elapsed >= SLOW_GENERATION_WARNING_MS) {
       timerElement.dataset.tone = "warn";
     } else {
       delete timerElement.dataset.tone;
     }
+    if (timerEtaElement && timerEtaValueElement && genTiming) {
+      const remainingMs = genTiming.estimateRemainingMs(currentGenCharCount, elapsed);
+      if (remainingMs !== null) {
+        timerEtaValueElement.textContent = formatElapsed(remainingMs);
+        timerEtaElement.hidden = false;
+      } else {
+        timerEtaElement.hidden = true;
+      }
+    }
   }
 
-  function startTimer() {
+  function startTimer(charCount = 0) {
     if (!timerElement || !windowRef) {
       return;
     }
+    currentGenCharCount = charCount;
     timerStartedAt = Date.now();
     timerElement.hidden = false;
-    timerElement.textContent = "00:00";
+    if (timerElapsedElement) {
+      timerElapsedElement.textContent = "00:00";
+    } else {
+      timerElement.textContent = "00:00";
+    }
+    if (timerEtaElement) {
+      timerEtaElement.hidden = true;
+    }
     delete timerElement.dataset.tone;
     if (timerIntervalId) {
       windowRef.clearInterval(timerIntervalId);
@@ -142,6 +170,9 @@ export function createGenerationFlow({
     if (timerElement) {
       timerElement.hidden = true;
       delete timerElement.dataset.tone;
+    }
+    if (timerEtaElement) {
+      timerEtaElement.hidden = true;
     }
   }
 
@@ -203,9 +234,24 @@ export function createGenerationFlow({
     applyDropzoneFilled(file);
   }
 
+  function updateCharCount() {
+    if (!charCountElement) {
+      return;
+    }
+    const file = fileInput?.files?.[0] ?? null;
+    if (file instanceof File) {
+      charCountElement.textContent = "";
+      return;
+    }
+    const text = docTextInput?.value ?? "";
+    const count = text.length;
+    charCountElement.textContent = count > 0 ? `${count.toLocaleString("ru-RU")} символов` : "";
+  }
+
   function updateDocInputSummary() {
     const file = fileInput?.files?.[0] ?? null;
     const hasFile = file instanceof File;
+    updateCharCount();
     if (docInputWrap) {
       docInputWrap.dataset.hasFile = String(hasFile);
     }
@@ -386,7 +432,8 @@ export function createGenerationFlow({
       setExportAvailability(null);
       advanceStepper("generation", { focus: true });
       startGenerationProgress();
-      startTimer();
+      const inputCharCount = (docTextInput?.value ?? "").length;
+      startTimer(inputCharCount);
       setCancelButtonVisible(true);
       setSubmissionStatus("Загружаем документ…", "warn");
       setResultState("Генерируем квиз. Результат появится после завершения генерации.", "warn", "Генерация…");
@@ -444,6 +491,9 @@ export function createGenerationFlow({
       }
       if (typeof refreshGenerationDefaults === "function") {
         refreshGenerationDefaults();
+      }
+      if (genTiming && currentGenCharCount > 0) {
+        genTiming.record(currentGenCharCount, Date.now() - timerStartedAt);
       }
       if (typeof focusResultView === "function") {
         focusResultView();
