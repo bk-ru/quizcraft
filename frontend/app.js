@@ -634,6 +634,7 @@ quizEditorLoader?.addEventListener("submit", quizEditor.loadQuizForEditing);
 quizEditorFields?.addEventListener("input", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("change", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("click", quizEditor.regenerateQuizQuestion);
+quizEditorFields?.addEventListener("click", quizEditor.revertQuestionEdits);
 saveQuizButton?.addEventListener("click", quizEditor.submitQuizEdits);
 quizEditorFields?.addEventListener("click", (event) => {
   const cancelTarget = event.target instanceof Element
