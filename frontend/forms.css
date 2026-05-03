@@ -279,7 +279,6 @@ fieldset.field {
 
 .question-type-field {
   gap: 8px;
-  color-scheme: light;
 }
 
 .question-type-label {
@@ -320,6 +319,7 @@ fieldset.field {
   border-radius: 0;
   background: transparent;
   accent-color: var(--brand);
+  color-scheme: inherit;
   appearance: auto;
   -webkit-appearance: auto;
   flex: 0 0 auto;
