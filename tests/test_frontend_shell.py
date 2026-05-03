@@ -140,10 +140,10 @@ def test_frontend_index_exposes_supported_question_type_labels() -> None:
     assert "quiz-type-hint" not in content
     styles = FORMS_CSS.read_text(encoding="utf-8")
     assert "color-scheme: inherit;" in styles
-    assert ".question-type-option input" in styles
+    assert ".field input[type=\"checkbox\"]" in styles
     assert "min-height: 15px;" in styles
     assert "padding: 0;" in styles
-    assert "border: 0;" in styles
+    assert "appearance: auto;" in styles
     assert 'name="quiz_types"' in content
     assert 'value="single_choice" checked' not in content
     for value, label in (
