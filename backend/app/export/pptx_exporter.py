@@ -280,7 +280,10 @@ class QuizPptxExporter:
         lefts  = [p.left  for p in pairs]
         rights = [p.right for p in pairs]
         shuffled = rights[:]
-        random.shuffle(shuffled)
+        for _ in range(20):
+            random.shuffle(shuffled)
+            if shuffled != rights:
+                break
 
         col_w   = Inches(5.5)
         row_h   = Inches(0.9)
