@@ -223,9 +223,8 @@ fieldset.field {
 
 .field-label {
   color: var(--muted);
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
 }
 
 .field input,

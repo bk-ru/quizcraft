@@ -17,8 +17,8 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--surface-strong);
-  backdrop-filter: blur(18px) saturate(1.1);
-  -webkit-backdrop-filter: blur(18px) saturate(1.1);
+  backdrop-filter: blur(10px) saturate(1.05);
+  -webkit-backdrop-filter: blur(10px) saturate(1.05);
   box-shadow: var(--shadow-md);
 }
 
@@ -338,8 +338,8 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--shadow-sm);
 }
 
@@ -506,8 +506,8 @@
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--surface);
-  backdrop-filter: blur(18px) saturate(1.05);
-  -webkit-backdrop-filter: blur(18px) saturate(1.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   box-shadow: var(--shadow-sm);
   transition: box-shadow var(--duration-base) var(--easing), transform var(--duration-base) var(--easing), border-color var(--duration-base) var(--easing);
 }
@@ -527,16 +527,16 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 1.3rem;
-  letter-spacing: -0.018em;
+  font-size: 1.1rem;
+  letter-spacing: -0.014em;
   color: var(--ink);
 }
 
 .panel-copy {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   max-width: 40rem;
   color: var(--muted);
-  font-size: 0.95rem;
+  font-size: 0.88rem;
 }
 
 .badge {

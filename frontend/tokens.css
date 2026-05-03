@@ -1,16 +1,16 @@
 :root {
   color-scheme: light dark;
 
-  --radius-xs: 8px;
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 28px;
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
   --radius-pill: 999px;
 
   --shadow-sm: 0 1px 2px rgba(17, 12, 46, 0.05), 0 2px 6px rgba(17, 12, 46, 0.04);
   --shadow-md: 0 6px 14px rgba(17, 12, 46, 0.08), 0 12px 32px rgba(17, 12, 46, 0.06);
   --shadow-lg: 0 24px 64px rgba(17, 12, 46, 0.12);
-  --shadow-glow: 0 20px 60px rgba(98, 69, 255, 0.28);
+  --shadow-glow: 0 12px 36px rgba(98, 69, 255, 0.18);
 
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", "Roboto", "Helvetica Neue", Arial, sans-serif;
   --font-display: "Manrope", "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -29,8 +29,8 @@
 
   --ink: #0f0a28;
   --ink-2: #2a2346;
-  --muted: #5b5675;
-  --muted-2: #8b87a3;
+  --muted: #4a4468;
+  --muted-2: #716d8c;
   --line: rgba(15, 10, 40, 0.08);
   --line-strong: rgba(15, 10, 40, 0.14);
 
@@ -67,8 +67,8 @@
 
     --ink: #f3f1ff;
     --ink-2: #d8d4ef;
-    --muted: #aaa4cc;
-    --muted-2: #7f7a9d;
+    --muted: #c0bacf;
+    --muted-2: #918d9f;
     --line: rgba(255, 255, 255, 0.08);
     --line-strong: rgba(255, 255, 255, 0.16);
 
@@ -90,7 +90,7 @@
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
     --shadow-md: 0 6px 14px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35);
     --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
-    --shadow-glow: 0 20px 60px rgba(152, 133, 255, 0.36);
+    --shadow-glow: 0 12px 36px rgba(152, 133, 255, 0.24);
 
     --focus-ring: 0 0 0 3px rgba(152, 133, 255, 0.45);
   }
@@ -109,8 +109,8 @@
 
   --ink: #f3f1ff;
   --ink-2: #d8d4ef;
-  --muted: #aaa4cc;
-  --muted-2: #7f7a9d;
+  --muted: #c0bacf;
+  --muted-2: #918d9f;
   --line: rgba(255, 255, 255, 0.08);
   --line-strong: rgba(255, 255, 255, 0.16);
 
@@ -132,7 +132,7 @@
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 2px 6px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 6px 14px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.35);
   --shadow-lg: 0 24px 64px rgba(0, 0, 0, 0.55);
-  --shadow-glow: 0 20px 60px rgba(152, 133, 255, 0.36);
+  --shadow-glow: 0 12px 36px rgba(152, 133, 255, 0.24);
 
   --focus-ring: 0 0 0 3px rgba(152, 133, 255, 0.45);
 }
