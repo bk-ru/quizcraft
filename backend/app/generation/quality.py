@@ -2,9 +2,31 @@
 
 from __future__ import annotations
 
+from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import GenerationQualityError
 from backend.app.domain.models import Quiz
 from backend.app.domain.validation import validate_quiz
+
+_DOC_LENGTH_THRESHOLDS: tuple[tuple[int, int], ...] = (
+    (300, 2),
+    (800, 5),
+    (2000, 10),
+    (5000, 15),
+)
+
+
+def enrich_generation_error(error: DomainValidationError, doc_char_count: int) -> DomainValidationError:
+    """Return a new error with a document-length hint appended when the text is short."""
+
+    for max_chars, max_questions in _DOC_LENGTH_THRESHOLDS:
+        if doc_char_count < max_chars:
+            hint = (
+                f" Текст документа слишком короткий ({doc_char_count} символов) — "
+                f"рекомендуется не более {max_questions} вопросов. "
+                f"Попробуйте уменьшить количество вопросов или добавить больше текста."
+            )
+            return type(error)(error.message + hint)
+    return error
 
 
 class GenerationQualityChecker:

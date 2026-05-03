@@ -11,6 +11,7 @@ from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
 from backend.app.domain.validation import validate_quiz
 from backend.app.generation.quality import GenerationQualityChecker
+from backend.app.generation.quality import enrich_generation_error
 
 
 def build_valid_quiz() -> Quiz:
@@ -194,3 +195,28 @@ def test_validate_quiz_rejects_blank_short_answer() -> None:
 
     with pytest.raises(DomainValidationError, match="correct answer"):
         validate_quiz(quiz)
+
+
+def test_enrich_generation_error_adds_hint_for_short_document() -> None:
+    error = DomainValidationError("question must have at least two options")
+    enriched = enrich_generation_error(error, doc_char_count=250)
+
+    assert "250" in enriched.message
+    assert "2" in enriched.message
+    assert "уменьшить количество вопросов" in enriched.message
+
+
+def test_enrich_generation_error_returns_original_for_long_document() -> None:
+    error = DomainValidationError("question must have at least two options")
+    enriched = enrich_generation_error(error, doc_char_count=10000)
+
+    assert enriched.message == error.message
+
+
+def test_enrich_generation_error_handles_cyrillic_document() -> None:
+    error = DomainValidationError("matching question must have at least four pairs")
+    short_russian_text = "Фотосинтез — процесс преобразования света." * 3
+    enriched = enrich_generation_error(error, doc_char_count=len(short_russian_text))
+
+    assert "рекомендуется не более" in enriched.message
+    assert "matching question must have at least four pairs" in enriched.message
