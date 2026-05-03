@@ -357,9 +357,12 @@ export function createQuizEditor({
             ? matchingRightInputs[pairIndex].value
             : baseQuestion.matching_pairs?.[pairIndex]?.right,
         })),
-        explanation: {
-          text: explanationInput instanceof HTMLTextAreaElement ? explanationInput.value : baseQuestion.explanation?.text ?? "",
-        },
+        explanation: (() => {
+          const text = explanationInput instanceof HTMLTextAreaElement
+            ? explanationInput.value.trim()
+            : (baseQuestion.explanation?.text ?? "").trim();
+          return text ? { text } : null;
+        })(),
       };
     });
 

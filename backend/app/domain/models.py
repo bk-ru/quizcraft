@@ -121,7 +121,10 @@ class Quiz:
                         for pair_payload in question_payload.get("matching_pairs", ())
                     ),
                     explanation=None
-                    if question_payload["explanation"] is None
+                    if (
+                        question_payload["explanation"] is None
+                        or not question_payload["explanation"].get("text", "").strip()
+                    )
                     else Explanation(text=question_payload["explanation"]["text"]),
                 )
                 for question_payload in payload["questions"]
