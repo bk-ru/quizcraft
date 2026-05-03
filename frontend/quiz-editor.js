@@ -18,6 +18,7 @@ function defaultConfirmAction() {
 }
 
 const DEFAULT_REGENERATION_LANGUAGE = "ru";
+const CHOICE_QUESTION_TYPES = Object.freeze(["single_choice", "true_false"]);
 
 export function createQuizEditor({
   editorState,
@@ -215,34 +216,52 @@ export function createQuizEditor({
     promptField.querySelector("textarea")?.setAttribute("data-editor-field", "prompt");
     article.append(promptField);
 
-    const optionsGrid = documentRef.createElement("div");
-    optionsGrid.className = "editor-options";
-
     const options = Array.isArray(question.options) ? question.options : [];
-    options.forEach((option, optionIndex) => {
-      const optionField = createEditorField(
-        `Вариант ${optionIndex + 1}`,
-        createEditorInput(option.text ?? ""),
-      );
-      optionField.dataset.optionId = option.option_id ?? `option-${optionIndex + 1}`;
-      optionField.querySelector("input")?.setAttribute("data-editor-field", "option-text");
-      optionField.querySelector("input")?.setAttribute("data-option-id", option.option_id ?? `option-${optionIndex + 1}`);
-      optionsGrid.append(optionField);
-    });
-    article.append(optionsGrid);
+    if (CHOICE_QUESTION_TYPES.includes(question.question_type ?? "single_choice")) {
+      const optionsGrid = documentRef.createElement("div");
+      optionsGrid.className = "editor-options";
 
-    const correctAnswerSelect = documentRef.createElement("select");
-    options.forEach((option, optionIndex) => {
-      const selectOption = documentRef.createElement("option");
-      selectOption.value = String(optionIndex);
-      selectOption.textContent = `Вариант ${optionIndex + 1}: ${option.text ?? ""}`;
-      if (optionIndex === question.correct_option_index) {
-        selectOption.selected = true;
-      }
-      correctAnswerSelect.append(selectOption);
-    });
-    correctAnswerSelect.setAttribute("data-editor-field", "correct-option-index");
-    article.append(createEditorField("Правильный ответ", correctAnswerSelect));
+      options.forEach((option, optionIndex) => {
+        const optionField = createEditorField(
+          `Вариант ${optionIndex + 1}`,
+          createEditorInput(option.text ?? ""),
+        );
+        optionField.dataset.optionId = option.option_id ?? `option-${optionIndex + 1}`;
+        optionField.querySelector("input")?.setAttribute("data-editor-field", "option-text");
+        optionField.querySelector("input")?.setAttribute("data-option-id", option.option_id ?? `option-${optionIndex + 1}`);
+        optionsGrid.append(optionField);
+      });
+      article.append(optionsGrid);
+
+      const correctAnswerSelect = documentRef.createElement("select");
+      options.forEach((option, optionIndex) => {
+        const selectOption = documentRef.createElement("option");
+        selectOption.value = String(optionIndex);
+        selectOption.textContent = `Вариант ${optionIndex + 1}: ${option.text ?? ""}`;
+        if (optionIndex === question.correct_option_index) {
+          selectOption.selected = true;
+        }
+        correctAnswerSelect.append(selectOption);
+      });
+      correctAnswerSelect.setAttribute("data-editor-field", "correct-option-index");
+      article.append(createEditorField("Правильный ответ", correctAnswerSelect));
+    } else if (question.question_type === "matching") {
+      const pairsGrid = documentRef.createElement("div");
+      pairsGrid.className = "editor-options";
+      const pairs = Array.isArray(question.matching_pairs) ? question.matching_pairs : [];
+      pairs.forEach((pair, pairIndex) => {
+        const leftField = createEditorField(`Левая часть ${pairIndex + 1}`, createEditorInput(pair.left ?? ""));
+        leftField.querySelector("input")?.setAttribute("data-editor-field", "matching-left");
+        const rightField = createEditorField(`Правая часть ${pairIndex + 1}`, createEditorInput(pair.right ?? ""));
+        rightField.querySelector("input")?.setAttribute("data-editor-field", "matching-right");
+        pairsGrid.append(leftField, rightField);
+      });
+      article.append(pairsGrid);
+    } else {
+      const correctAnswerField = createEditorField("Правильный ответ", createEditorInput(question.correct_answer ?? ""));
+      correctAnswerField.querySelector("input")?.setAttribute("data-editor-field", "correct-answer");
+      article.append(correctAnswerField);
+    }
 
     const explanationText = question.explanation?.text ?? "";
     const explanationField = createEditorField("Пояснение", createEditorTextarea(explanationText, 4));
@@ -312,8 +331,11 @@ export function createQuizEditor({
       const baseQuestion = quiz.questions?.[questionIndex] ?? {};
       const promptInput = card.querySelector('[data-editor-field="prompt"]');
       const correctAnswerSelect = card.querySelector('[data-editor-field="correct-option-index"]');
+      const correctAnswerInput = card.querySelector('[data-editor-field="correct-answer"]');
       const explanationInput = card.querySelector('[data-editor-field="explanation"]');
       const optionInputs = Array.from(card.querySelectorAll('[data-editor-field="option-text"]'));
+      const matchingLeftInputs = Array.from(card.querySelectorAll('[data-editor-field="matching-left"]'));
+      const matchingRightInputs = Array.from(card.querySelectorAll('[data-editor-field="matching-right"]'));
 
       return {
         ...baseQuestion,
@@ -325,6 +347,16 @@ export function createQuizEditor({
         correct_option_index: correctAnswerSelect instanceof HTMLSelectElement
           ? Number.parseInt(correctAnswerSelect.value, 10)
           : baseQuestion.correct_option_index,
+        correct_answer: correctAnswerInput instanceof HTMLInputElement
+          ? correctAnswerInput.value
+          : baseQuestion.correct_answer,
+        matching_pairs: matchingLeftInputs.map((leftInput, pairIndex) => ({
+          ...(baseQuestion.matching_pairs?.[pairIndex] ?? {}),
+          left: leftInput instanceof HTMLInputElement ? leftInput.value : baseQuestion.matching_pairs?.[pairIndex]?.left,
+          right: matchingRightInputs[pairIndex] instanceof HTMLInputElement
+            ? matchingRightInputs[pairIndex].value
+            : baseQuestion.matching_pairs?.[pairIndex]?.right,
+        })),
         explanation: {
           text: explanationInput instanceof HTMLTextAreaElement ? explanationInput.value : baseQuestion.explanation?.text ?? "",
         },

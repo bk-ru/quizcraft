@@ -35,7 +35,6 @@ class QuizPptxExporter:
         )
 
     def _add_question_slide(self, presentation, quiz_title: str, question: Question, question_index: int) -> None:
-        correct_option = self._resolve_correct_option(question)
         slide = presentation.slides.add_slide(presentation.slide_layouts[6])
         title_box = slide.shapes.add_textbox(Inches(0.5), Inches(0.35), Inches(9), Inches(0.55))
         title_frame = title_box.text_frame
@@ -46,10 +45,18 @@ class QuizPptxExporter:
         body_frame.word_wrap = True
         self._add_body_line(body_frame, f"Вопрос {question_index}", Pt(18))
         self._add_body_line(body_frame, question.prompt, Pt(16))
-        self._add_body_line(body_frame, "Варианты:", Pt(14))
-        for option_index, option in enumerate(question.options, start=1):
-            self._add_body_line(body_frame, f"{option_index}. {option.text}", Pt(14))
-        self._add_body_line(body_frame, f"Правильный ответ: {correct_option.text}", Pt(14))
+        if question.question_type == "matching":
+            self._add_body_line(body_frame, "Пары:", Pt(14))
+            for pair in question.matching_pairs:
+                self._add_body_line(body_frame, f"{pair.left} — {pair.right}", Pt(14))
+        elif question.question_type in {"fill_blank", "short_answer"}:
+            self._add_body_line(body_frame, f"Правильный ответ: {question.correct_answer}", Pt(14))
+        else:
+            correct_option = self._resolve_correct_option(question)
+            self._add_body_line(body_frame, "Варианты:", Pt(14))
+            for option_index, option in enumerate(question.options, start=1):
+                self._add_body_line(body_frame, f"{option_index}. {option.text}", Pt(14))
+            self._add_body_line(body_frame, f"Правильный ответ: {correct_option.text}", Pt(14))
         if question.explanation is not None:
             self._add_body_line(body_frame, f"Пояснение: {question.explanation.text}", Pt(14))
 
@@ -61,7 +68,11 @@ class QuizPptxExporter:
 
     @staticmethod
     def _resolve_correct_option(question: Question) -> Option:
-        if question.correct_option_index < 0 or question.correct_option_index >= len(question.options):
+        if (
+            question.correct_option_index is None
+            or question.correct_option_index < 0
+            or question.correct_option_index >= len(question.options)
+        ):
             raise DomainValidationError(
                 f"question '{question.question_id}' has invalid correct_option_index for PPTX export"
             )

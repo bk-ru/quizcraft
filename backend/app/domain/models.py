@@ -28,14 +28,25 @@ class Option:
 
 
 @dataclass(frozen=True, slots=True)
+class MatchingPair:
+    """One left-to-right pair for matching questions."""
+
+    left: str
+    right: str
+
+
+@dataclass(frozen=True, slots=True)
 class Question:
     """Quiz question with selectable options."""
 
     question_id: str
     prompt: str
-    options: tuple[Option, ...]
-    correct_option_index: int
+    options: tuple[Option, ...] = ()
+    correct_option_index: int | None = None
     explanation: Explanation | None = None
+    question_type: str = "single_choice"
+    correct_answer: str | None = None
+    matching_pairs: tuple[MatchingPair, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,12 +72,18 @@ class Quiz:
             "questions": [
                 {
                     "question_id": question.question_id,
+                    "question_type": question.question_type,
                     "prompt": question.prompt,
                     "options": [
                         {"option_id": option.option_id, "text": option.text}
                         for option in question.options
                     ],
                     "correct_option_index": question.correct_option_index,
+                    "correct_answer": question.correct_answer,
+                    "matching_pairs": [
+                        {"left": pair.left, "right": pair.right}
+                        for pair in question.matching_pairs
+                    ],
                     "explanation": None
                     if question.explanation is None
                     else {"text": question.explanation.text},
@@ -88,6 +105,7 @@ class Quiz:
             questions=tuple(
                 Question(
                     question_id=question_payload["question_id"],
+                    question_type=question_payload.get("question_type", "single_choice"),
                     prompt=question_payload["prompt"],
                     options=tuple(
                         Option(
@@ -96,7 +114,12 @@ class Quiz:
                         )
                         for option_payload in question_payload["options"]
                     ),
-                    correct_option_index=question_payload["correct_option_index"],
+                    correct_option_index=question_payload.get("correct_option_index"),
+                    correct_answer=question_payload.get("correct_answer"),
+                    matching_pairs=tuple(
+                        MatchingPair(left=pair_payload["left"], right=pair_payload["right"])
+                        for pair_payload in question_payload.get("matching_pairs", ())
+                    ),
                     explanation=None
                     if question_payload["explanation"] is None
                     else Explanation(text=question_payload["explanation"]["text"]),
@@ -118,6 +141,17 @@ class GenerationRequest:
     model_name: str | None = None
     profile_name: str | None = None
     inference_parameters: dict[str, Any] = field(default_factory=dict)
+    quiz_types: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Normalize multi-type request metadata while preserving legacy quiz_type."""
+
+        normalized_types = tuple(
+            item.strip()
+            for item in (self.quiz_types or tuple(self.quiz_type.split(",")))
+            if isinstance(item, str) and item.strip()
+        )
+        object.__setattr__(self, "quiz_types", normalized_types or (self.quiz_type,))
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize the generation request into a JSON-compatible dictionary."""
@@ -127,6 +161,7 @@ class GenerationRequest:
             "language": self.language,
             "difficulty": self.difficulty,
             "quiz_type": self.quiz_type,
+            "quiz_types": list(self.quiz_types),
             "generation_mode": self.generation_mode.value,
         }
         if self.model_name is not None:
@@ -150,6 +185,7 @@ class GenerationRequest:
             model_name=payload.get("model_name"),
             profile_name=payload.get("profile_name"),
             inference_parameters=dict(payload.get("inference_parameters", {})),
+            quiz_types=tuple(payload.get("quiz_types", ())),
         )
 
 
@@ -246,6 +282,7 @@ class GenerationSettings:
             model_name=model_name,
             profile_name=profile_name,
             inference_parameters=dict(inference_parameters),
+            quiz_types=tuple(item.strip() for item in self.quiz_type.split(",") if item.strip()),
         )
 
 

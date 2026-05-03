@@ -13,6 +13,7 @@ FRONTEND_DIR = ROOT / "frontend"
 INDEX_HTML = FRONTEND_DIR / "index.html"
 CONFIG_JS = FRONTEND_DIR / "config.js"
 APP_JS = FRONTEND_DIR / "app.js"
+FORMS_CSS = FRONTEND_DIR / "forms.css"
 API_CLIENT_JS = FRONTEND_DIR / "api" / "client.js"
 VALIDATION_ERRORS_JS = FRONTEND_DIR / "validation-errors.js"
 QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
@@ -23,6 +24,7 @@ GENERATION_SETTINGS_JS = FRONTEND_DIR / "generation-settings.js"
 KEYBOARD_JS = FRONTEND_DIR / "keyboard.js"
 COPY_JS = FRONTEND_DIR / "copy.js"
 PROGRESS_JS = FRONTEND_DIR / "progress.js"
+STAGE_FLOW_JS = FRONTEND_DIR / "stage-flow.js"
 THEME_JS = FRONTEND_DIR / "theme.js"
 TOAST_JS = FRONTEND_DIR / "toast.js"
 DOWNLOAD_JS = FRONTEND_DIR / "download.js"
@@ -37,6 +39,7 @@ FRONTEND_JS_MODULES = (
     KEYBOARD_JS,
     COPY_JS,
     PROGRESS_JS,
+    STAGE_FLOW_JS,
     THEME_JS,
     TOAST_JS,
     DOWNLOAD_JS,
@@ -126,17 +129,32 @@ def test_frontend_index_exposes_russian_result_view_shell() -> None:
 def test_frontend_index_exposes_supported_question_type_labels() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "Типы вопросов: *" in content
-    assert 'id="quiz-type"' in content
-    assert '<option value="single_choice" selected>Множественный Выбор</option>' in content
+    assert "Типы вопросов:" in content
+    assert 'data-question-type-group' in content
+    assert 'class="question-type-label"' in content
+    assert 'class="required-marker" aria-hidden="true">*</span>' in content
+    assert 'class="question-type-list"' in content
+    assert 'class="question-type-option"' in content
+    assert "checkbox-grid" not in content
+    assert "checkbox-option" not in content
+    assert "quiz-type-hint" not in content
+    styles = FORMS_CSS.read_text(encoding="utf-8")
+    assert "color-scheme: light;" in styles
+    assert ".question-type-option input" in styles
+    assert "min-height: 16px;" in styles
+    assert "padding: 0;" in styles
+    assert "border: 0;" in styles
+    assert 'name="quiz_types"' in content
+    assert 'value="single_choice" checked' not in content
     for value, label in (
+        ("single_choice", "Множественный Выбор"),
         ("true_false", "Истина /Ложь"),
         ("fill_blank", "Заполните пробел"),
         ("short_answer", "Краткий Ответ"),
         ("matching", "Соответствие"),
     ):
-        assert f'<option value="{value}" disabled>{label}</option>' in content
-    assert "Сейчас сервер принимает только «Множественный Выбор»" in content
+        assert f'value="{value}"' in content
+        assert label in content
 
 
 def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
@@ -154,7 +172,8 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
     assert 'id="quiz-editor-fields"' in content
     assert 'id="quiz-editor-status"' in content
     assert 'id="save-quiz-button"' in content
-    assert '<details id="quiz-editor" class="panel panel-editor editor-disclosure"' in content
+    assert '<details id="quiz-editor" class="panel panel-editor editor-disclosure workflow-stage"' in content
+    assert 'data-workflow-stage="edit"' in content
 
 
 def test_frontend_app_imports_focused_modules() -> None:
@@ -170,12 +189,14 @@ def test_frontend_app_imports_focused_modules() -> None:
         "keyboard.js",
         "copy.js",
         "progress.js",
+        "stage-flow.js",
         "theme.js",
         "toast.js",
         "download.js",
     ):
         assert f'./{module_name}' in content
     assert "createGenerationFlow" in content
+    assert "createStageFlowController" in content
     assert "createQuizEditor" in content
     assert "createQuizRenderer" in content
     assert "createQuizHistory" in content
@@ -358,6 +379,9 @@ def test_frontend_generation_focuses_result_before_explicit_editor_open() -> Non
     assert "editorPanel.open = true" in app_content, (
         "the result edit action must explicitly open the collapsed editor"
     )
+    assert 'stageFlow.activateStage("edit", { focus: true })' in app_content, (
+        "the result edit action must switch to the dedicated edit stage"
+    )
 
 
 def test_frontend_marks_lm_studio_unavailable_as_critical() -> None:
@@ -412,6 +436,42 @@ def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
     assert "transition: opacity 120ms" in layout_content
     assert ".topbar-status:hover::after" in layout_content
     assert ".topbar-status:focus-visible::after" in layout_content
+
+
+def test_frontend_generation_preflight_status_is_visible_on_setup_stage() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="preflight-status"' in index_content, (
+        "setup stage must expose a visible status slot for blocked generation attempts"
+    )
+    assert 'aria-live="polite"' in index_content
+    assert "setPreflightStatus" in generation_content
+    assert "setPreflightStatus" in app_content
+    assert "Генерация недоступна" in app_content
+    assert "backend и LM Studio" in app_content
+    assert "LM Studio недоступен" in app_content
+
+
+def test_frontend_generation_flow_blocks_submit_when_services_are_unavailable() -> None:
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "getGenerationReadiness" in generation_content
+    assert "const readiness = getGenerationReadiness()" in generation_content
+    submit_index = generation_content.find("async function submitGeneration")
+    readiness_index = generation_content.find("const readiness = getGenerationReadiness()", submit_index)
+    file_index = generation_content.find("const file = fileInput?.files?.[0]", submit_index)
+    upload_index = generation_content.find("uploadPayload = await client.uploadDocument")
+    assert readiness_index != -1 and file_index != -1 and upload_index != -1
+    assert readiness_index < file_index < upload_index, (
+        "connection readiness must be checked before file validation and network calls"
+    )
+    assert "if (!readiness.ready)" in generation_content
+    assert "return;" in generation_content[readiness_index:upload_index]
+    assert "createGenerationReadinessChecker" in app_content
+    assert "generationConnectionState" in app_content
 
 
 def test_frontend_collapses_technical_identifiers_into_details() -> None:
@@ -816,22 +876,63 @@ def test_frontend_main_stepper_holds_four_product_phases() -> None:
     assert stepper_block is not None, "main stepper must exist in the index"
     stepper_html = stepper_block.group(0)
     stepper_steps = re.findall(r'data-step="([^"]+)"', stepper_html)
-    assert stepper_steps == ["upload", "params", "review", "edit"], (
-        "main stepper must expose exactly the four product phases"
+    assert stepper_steps == ["setup", "generation", "result", "edit"], (
+        "main stepper must expose the four staged product phases"
     )
     assert 'data-step="generate"' not in stepper_html, (
         "the technical generate stage must not duplicate the product stepper"
     )
-    assert "Результат" in stepper_html, (
-        "the third stepper phase must be labelled Результат, not Просмотр"
+    assert "Документ и параметры" in stepper_html, (
+        "the first stage must combine document upload and generation parameters"
     )
+    assert "Генерация" in stepper_html, (
+        "the second stage must focus on request progress"
+    )
+    assert "Результат" in stepper_html, (
+        "the third stage must be labelled Результат"
+    )
+    assert "Редактирование и экспорт" in stepper_html
 
     assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in layout_css
-    assert 'STEPPER_ORDER = ["upload", "params", "review", "edit"]' in progress_content
+    assert 'STEPPER_ORDER = ["setup", "generation", "result", "edit"]' in progress_content
+    assert 'normalizeWorkflowStage(stageName)' in progress_content
     assert 'advanceStepper("generate")' not in generation_content, (
         "generation flow must drive the product stepper, not the technical generate slot"
     )
-    assert 'advanceStepper("review")' in generation_content
+    assert 'advanceStepper("generation", { focus: true })' in generation_content
+    assert 'advanceStepper("setup", { focus: true })' in generation_content
+
+
+def test_frontend_index_uses_staged_workflow_sections() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    stage_content = STAGE_FLOW_JS.read_text(encoding="utf-8")
+    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert 'data-stage-root data-active-stage="setup"' in index_content
+    assert 'id="generation-form" class="workspace-grid workflow-stage" data-workflow-stage="setup"' in index_content
+    assert 'data-workflow-stage="generation"' in index_content
+    assert 'data-workflow-stage="result"' in index_content
+    assert 'data-workflow-stage="edit"' in index_content
+    assert 'data-stage-target="setup"' in index_content
+    assert 'data-stage-target="generation"' in index_content
+    assert 'data-stage-target="result"' in index_content
+    assert 'data-stage-target="edit"' in index_content
+    assert "panel-upload panel-form" in index_content
+    assert "panel-params panel-form" in index_content
+
+    assert "export function normalizeWorkflowStage" in stage_content
+    assert 'upload: "setup"' in stage_content
+    assert 'params: "setup"' in stage_content
+    assert 'review: "result"' in stage_content
+    assert "createStageFlowController" in stage_content
+    assert "stage.hidden = !isActive" in stage_content
+
+    assert "const stageRoot = document.querySelector" in app_content
+    assert "const stageFlow = createStageFlowController" in app_content
+    assert "progressController.advanceStepper(target.dataset.stageTarget" in app_content
+    assert ".workflow-stage[hidden]" in layout_content
+    assert "@keyframes stage-in" in layout_content
 
 
 def test_frontend_stepper_is_the_single_source_of_truth_for_phases() -> None:
@@ -1167,11 +1268,11 @@ def test_frontend_stepper_exposes_failed_state_on_generation_error() -> None:
     assert "markStepperFailed: progressController.markStepperFailed" in app_content, (
         "the failed-step helper must be wired into the generation flow"
     )
-    assert "markStepperFailed(\"review\")" in generation_content, (
-        "generation flow must mark the review phase as failed on real errors"
+    assert "markStepperFailed(\"generation\")" in generation_content, (
+        "generation flow must mark the generation phase as failed on real errors"
     )
-    assert "advanceStepper(\"params\")" in generation_content, (
-        "user-cancelled generation must roll the stepper back to params, not failed"
+    assert "advanceStepper(\"setup\", { focus: true })" in generation_content, (
+        "user-cancelled generation must roll the stepper back to setup, not failed"
     )
 
     assert ".step[data-state=\"failed\"]" in layout_content, (
@@ -1558,6 +1659,15 @@ def test_frontend_generation_flow_forwards_requested_generation_mode() -> None:
     assert "const generationMode = DEFAULT_GENERATION_MODE;" not in content, (
         "generation_mode must no longer be hardcoded to the default"
     )
+
+
+def test_frontend_generation_flow_forwards_checked_question_types() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert 'formData.getAll("quiz_types")' in content
+    assert "payload.quiz_types = quizTypes" in content
+    assert "payload.quiz_type = quizTypes[0]" in content
+    assert "Выберите хотя бы один тип вопросов." in content
 
 
 def test_frontend_quiz_renderer_describes_generation_mode_from_prompt_version() -> None:

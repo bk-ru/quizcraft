@@ -17,6 +17,10 @@ class QuizType(str, Enum):
     """Allowed quiz-type values for generation requests."""
 
     SINGLE_CHOICE = "single_choice"
+    TRUE_FALSE = "true_false"
+    FILL_BLANK = "fill_blank"
+    SHORT_ANSWER = "short_answer"
+    MATCHING = "matching"
 
 
 class Language(str, Enum):

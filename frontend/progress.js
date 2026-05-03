@@ -1,4 +1,6 @@
-const STEPPER_ORDER = ["upload", "params", "review", "edit"];
+import { normalizeWorkflowStage } from "./stage-flow.js";
+
+const STEPPER_ORDER = ["setup", "generation", "result", "edit"];
 const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "validate"];
 const BACKEND_STEP_TO_PROGRESS_STEP = Object.freeze({
   parse: "parse",
@@ -25,7 +27,7 @@ const PROGRESS_STEP_VISIBILITY_MS = 300;
 const PROGRESS_SUCCESS_AUTOHIDE_MS = 900;
 const PROGRESS_FAILURE_AUTOHIDE_MS = 2400;
 
-export function createProgressController({ stepper, generationProgressPanel }, windowRef = window) {
+export function createProgressController({ stepper, generationProgressPanel, stageFlow }, windowRef = window) {
   function setStepState(step, state) {
     if (!stepper) {
       return;
@@ -47,7 +49,8 @@ export function createProgressController({ stepper, generationProgressPanel }, w
   }
 
   function advanceStepper(stageName, options = {}) {
-    const activeIndex = STEPPER_ORDER.indexOf(stageName);
+    const normalizedStageName = normalizeWorkflowStage(stageName);
+    const activeIndex = STEPPER_ORDER.indexOf(normalizedStageName);
     if (activeIndex < 0 || !stepper) {
       return;
     }
@@ -60,6 +63,9 @@ export function createProgressController({ stepper, generationProgressPanel }, w
       } else {
         setStepState(step, null);
       }
+    }
+    if (stageFlow && typeof stageFlow.activateStage === "function") {
+      stageFlow.activateStage(normalizedStageName, { focus: Boolean(options.focus) });
     }
   }
 

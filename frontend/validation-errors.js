@@ -19,6 +19,7 @@ const VALIDATION_FIELD_EXACT_LABELS = {
   language: "Язык квиза",
   difficulty: "Сложность",
   quiz_type: "Типы вопросов",
+  quiz_types: "Типы вопросов",
   generation_mode: "Режим генерации",
   quiz: "Квиз",
   "quiz.quiz_id": "Идентификатор квиза",

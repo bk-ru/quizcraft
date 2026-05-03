@@ -9,6 +9,7 @@ import { createProgressController } from "./progress.js";
 import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
 import { createQuizRenderer } from "./quiz-renderer.js";
+import { createStageFlowController } from "./stage-flow.js";
 import { createThemeController } from "./theme.js";
 import { createToastController } from "./toast.js";
 import { describeError, describeValidationError } from "./validation-errors.js";
@@ -47,6 +48,7 @@ const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
 const cancelGenerationButton = document.getElementById("cancel-generation-button");
 const generationTimerElement = document.getElementById("generation-timer");
+const stageRoot = document.querySelector("[data-stage-root]");
 const dropzoneFileName = document.getElementById("dropzone-file-name");
 const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
 const dropzoneRemoveButton = document.getElementById("dropzone-remove");
@@ -54,6 +56,7 @@ const modelSelect = document.getElementById("generation-model");
 const profileSelect = document.getElementById("generation-profile");
 const retryBackendButton = document.getElementById("retry-backend-button");
 const retryProviderButton = document.getElementById("retry-provider-button");
+const preflightStatus = document.getElementById("preflight-status");
 
 const editorState = {
   loadedQuiz: null,
@@ -96,6 +99,19 @@ const PROVIDER_CHECK_FAILED_INSTRUCTION =
   "LM Studio не удалось проверить через backend. Убедитесь, что backend запущен, LM Studio открыт, модель загружена, а server mode включен.";
 const PROVIDER_CHECK_BLOCKED_INSTRUCTION =
   "LM Studio проверяется через backend. Сначала восстановите подключение к серверу.";
+const GENERATION_CHECKING_MESSAGE =
+  "Проверка подключений ещё не завершена. Дождитесь статусов сервера и LM Studio или нажмите кнопки проверки повторно.";
+const BACKEND_GENERATION_BLOCKED_MESSAGE =
+  "Backend недоступен. Запустите сервер командой .\\run-backend.ps1 и нажмите «Проверить сервер».";
+const PROVIDER_GENERATION_BLOCKED_MESSAGE =
+  "LM Studio недоступен. Запустите LM Studio, загрузите модель и нажмите «Проверить LM Studio».";
+const SERVICES_GENERATION_BLOCKED_MESSAGE =
+  "Генерация недоступна: backend и LM Studio не подключены. Запустите backend и LM Studio, затем повторите проверку подключений.";
+
+const generationConnectionState = {
+  backend: "checking",
+  provider: "checking",
+};
 
 function setTextContent(id, value) {
   const element = document.getElementById(id);
@@ -155,6 +171,10 @@ function setSubmissionStatus(text, tone) {
   setToneMessage(document.getElementById("submission-status"), text, tone);
 }
 
+function setPreflightStatus(text, tone) {
+  setToneMessage(preflightStatus, text, tone);
+}
+
 function setEditorStatus(text, tone) {
   setToneMessage(document.getElementById("quiz-editor-status"), text, tone);
 }
@@ -184,10 +204,33 @@ function setExportAvailability(quizId) {
   toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !hasQuiz);
 }
 
+function createGenerationReadinessChecker() {
+  return () => {
+    const backendState = generationConnectionState.backend;
+    const providerState = generationConnectionState.provider;
+    const backendReady = backendState === "ok";
+    const providerReady = providerState === "ok";
+    if (backendReady && providerReady) {
+      return { ready: true };
+    }
+    if (backendState === "checking" || providerState === "checking") {
+      return { ready: false, message: GENERATION_CHECKING_MESSAGE, tone: "warn" };
+    }
+    if (!backendReady && !providerReady) {
+      return { ready: false, message: SERVICES_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
+    }
+    if (!backendReady) {
+      return { ready: false, message: BACKEND_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
+    }
+    return { ready: false, message: PROVIDER_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
+  };
+}
+
 const modalRegion = document.getElementById("modal-region");
 const toastController = createToastController(toastRegion);
 const confirmModal = createConfirmModal({ modalRegion });
-const progressController = createProgressController({ stepper, generationProgressPanel });
+const stageFlow = createStageFlowController({ root: stageRoot });
+const progressController = createProgressController({ stepper, generationProgressPanel, stageFlow });
 const themeController = createThemeController({ themeToggleLabel });
 const quizHistory = createQuizHistory({
   datalistElement: document.getElementById("quiz-history-options"),
@@ -252,6 +295,7 @@ const generationFlow = createGenerationFlow({
   dropzoneFileMeta,
   dropzoneRemoveButton,
   setTextContent,
+  setPreflightStatus,
   setSubmissionStatus,
   setResultState: quizRenderer.setResultState,
   setLogMessage,
@@ -271,6 +315,7 @@ const generationFlow = createGenerationFlow({
   showToast: toastController.showToast,
   saveQuizToHistory: quizHistory.saveQuizToHistory,
   refreshGenerationDefaults: generationSettings.refreshAfterGeneration,
+  getGenerationReadiness: createGenerationReadinessChecker(),
 });
 
 const quizExporter = createQuizExporter({
@@ -311,10 +356,13 @@ async function bootstrapShell() {
 }
 
 async function checkBackendConnection({ loadExports = true, refreshSettings = true } = {}) {
+  generationConnectionState.backend = "checking";
+  setPreflightStatus("", null);
   setStatus("backend", "Проверка…", null, "Проверяем доступность backend-сервера.");
   setRetryButtonBusy(retryBackendButton, true, "Проверяем сервер…");
   try {
     const backendHealth = await client.getBackendHealth();
+    generationConnectionState.backend = "ok";
     setStatus(
       "backend",
       `Доступен · модель ${backendHealth.default_model}`,
@@ -330,6 +378,8 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
     }
     return backendHealth;
   } catch (error) {
+    generationConnectionState.backend = "bad";
+    generationConnectionState.provider = "blocked";
     setStatus("backend", "Проверка не удалась", "bad", BACKEND_CHECK_FAILED_INSTRUCTION);
     setLogMessage(`Не удалось подключиться к серверу: ${describeError(error)}. ${BACKEND_CHECK_FAILED_INSTRUCTION}`, "bad");
     setExportAvailability(editorState.lastGeneratedQuizId);
@@ -340,15 +390,28 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
 }
 
 async function checkProviderConnection() {
+  if (generationConnectionState.backend !== "ok") {
+    generationConnectionState.provider = "blocked";
+    setPreflightStatus(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
+    setStatus("provider", "Недоступен · сначала сервер", "bad", PROVIDER_CHECK_BLOCKED_INSTRUCTION);
+    setLogMessage(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
+    toastController.showToast(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
+    return null;
+  }
+  generationConnectionState.provider = "checking";
+  setPreflightStatus("", null);
   setStatus("provider", "Проверка…", null, "Проверяем подключение к LM Studio через backend.");
   setRetryButtonBusy(retryProviderButton, true, "Проверяем LM Studio…");
   try {
     const providerHealth = await client.getProviderHealth();
     if (providerHealth.status === "unavailable") {
+      generationConnectionState.provider = "bad";
       setStatus("provider", "Недоступен · запустите LM Studio", "bad", LM_STUDIO_UNAVAILABLE_INSTRUCTION);
       setLogMessage(LM_STUDIO_UNAVAILABLE_INSTRUCTION, "bad");
       toastController.showToast(LM_STUDIO_UNAVAILABLE_INSTRUCTION, "bad");
     } else {
+      generationConnectionState.provider = "ok";
+      setPreflightStatus("", null);
       setStatus(
         "provider",
         `${providerHealth.status} · ${providerHealth.message}`,
@@ -359,6 +422,7 @@ async function checkProviderConnection() {
     }
     return providerHealth;
   } catch (error) {
+    generationConnectionState.provider = "bad";
     setStatus("provider", "Проверка не удалась", "bad", PROVIDER_CHECK_FAILED_INSTRUCTION);
     setLogMessage(`Не удалось проверить LM Studio: ${describeError(error)}. ${PROVIDER_CHECK_FAILED_INSTRUCTION}`, "bad");
     return null;
@@ -399,7 +463,7 @@ function openEditorForCurrentQuiz() {
     if (editorPanel instanceof HTMLDetailsElement) {
       editorPanel.open = true;
     }
-    editorPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    stageFlow.activateStage("edit", { focus: true });
   }
   quizEditor.loadQuizForEditing({ preventDefault: () => {} });
 }
@@ -411,6 +475,15 @@ retryBackendButton?.addEventListener("click", () => {
 });
 retryProviderButton?.addEventListener("click", () => {
   checkProviderConnection();
+});
+stepper?.addEventListener("click", (event) => {
+  const target = event.target instanceof Element
+    ? event.target.closest("[data-stage-target]")
+    : null;
+  if (!(target instanceof HTMLElement)) {
+    return;
+  }
+  progressController.advanceStepper(target.dataset.stageTarget, { focus: true });
 });
 
 window.addEventListener("beforeunload", (event) => {
@@ -435,7 +508,7 @@ dropzoneRemoveButton?.addEventListener("click", (event) => {
 fileInput?.addEventListener("change", () => {
   generationFlow.updateSelectedFileSummary();
   if (fileInput.files?.[0]) {
-    progressController.advanceStepper("params");
+    progressController.advanceStepper("setup");
   }
 });
 form?.addEventListener("submit", generationFlow.submitGeneration);
@@ -455,4 +528,5 @@ quizEditorFields?.addEventListener("click", (event) => {
   quizEditor.cancelActiveRegeneration();
 });
 
+stageFlow.activateStage("setup");
 bootstrapShell();

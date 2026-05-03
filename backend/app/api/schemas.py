@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import model_validator
 
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.enums import Difficulty
@@ -15,6 +16,7 @@ from backend.app.domain.enums import QuizType
 from backend.app.domain.models import Explanation
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import GenerationSettings
+from backend.app.domain.models import MatchingPair
 from backend.app.domain.models import Option
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
@@ -38,6 +40,7 @@ class GenerationRequestBody(_StrictModel):
     language: Language | None = None
     difficulty: Difficulty | None = None
     quiz_type: QuizType | None = None
+    quiz_types: list[QuizType] | None = Field(default=None, min_length=1)
     generation_mode: GenerationMode | None = None
     model_name: str | None = Field(default=None, min_length=1)
     profile_name: str | None = Field(default=None, min_length=1)
@@ -57,12 +60,21 @@ class GenerationRequestBody(_StrictModel):
             "question_count": self.question_count,
             "language": None if self.language is None else self.language.value,
             "difficulty": None if self.difficulty is None else self.difficulty.value,
-            "quiz_type": None if self.quiz_type is None else self.quiz_type.value,
+            "quiz_type": self._resolved_quiz_type(),
             "generation_mode": None if self.generation_mode is None else self.generation_mode.value,
             "model_name": self.model_name,
             "profile_name": self.profile_name,
         }
         return {key: value for key, value in values.items() if value is not None}
+
+    def _resolved_quiz_type(self) -> str | None:
+        """Return the legacy quiz_type string derived from explicit values."""
+
+        if self.quiz_types:
+            return ",".join(item.value for item in self.quiz_types)
+        if self.quiz_type is not None:
+            return self.quiz_type.value
+        return None
 
     def to_domain(
         self,
@@ -88,6 +100,7 @@ class GenerationSettingsBody(_StrictModel):
     language: Language
     difficulty: Difficulty
     quiz_type: QuizType
+    quiz_types: list[QuizType] | None = Field(default=None, min_length=1)
     generation_mode: GenerationMode
     model_name: str | None = Field(default=None, min_length=1)
     profile_name: str | None = Field(default=None, min_length=1)
@@ -99,7 +112,7 @@ class GenerationSettingsBody(_StrictModel):
             question_count=self.question_count,
             language=self.language.value,
             difficulty=self.difficulty.value,
-            quiz_type=self.quiz_type.value,
+            quiz_type=",".join(item.value for item in self.quiz_types) if self.quiz_types else self.quiz_type.value,
             generation_mode=self.generation_mode,
             model_name=self.model_name,
             profile_name=self.profile_name,
@@ -125,21 +138,52 @@ class OptionPayload(_StrictModel):
         return Option(option_id=self.option_id, text=self.text)
 
 
+class MatchingPairPayload(_StrictModel):
+    """Matching pair payload."""
+
+    left: str = Field(min_length=1)
+    right: str = Field(min_length=1)
+
+    def to_domain(self) -> MatchingPair:
+        return MatchingPair(left=self.left, right=self.right)
+
+
 class QuestionPayload(_StrictModel):
     """Quiz question payload."""
 
     question_id: str = Field(min_length=1)
+    question_type: QuizType = QuizType.SINGLE_CHOICE
     prompt: str = Field(min_length=1)
-    options: list[OptionPayload] = Field(min_length=2)
-    correct_option_index: int = Field(strict=True, ge=0)
+    options: list[OptionPayload] = Field(default_factory=list)
+    correct_option_index: int | None = Field(default=None, strict=True, ge=0)
+    correct_answer: str | None = Field(default=None, min_length=1)
+    matching_pairs: list[MatchingPairPayload] = Field(default_factory=list)
     explanation: ExplanationPayload | None = None
+
+    @model_validator(mode="after")
+    def validate_shape(self) -> "QuestionPayload":
+        """Validate fields required by each question type."""
+
+        if self.question_type in (QuizType.SINGLE_CHOICE, QuizType.TRUE_FALSE):
+            if len(self.options) < 2:
+                raise ValueError("choice questions must contain at least two options")
+            if self.correct_option_index is None:
+                raise ValueError("choice questions must include correct_option_index")
+        if self.question_type in (QuizType.FILL_BLANK, QuizType.SHORT_ANSWER) and not self.correct_answer:
+            raise ValueError("answer questions must include correct_answer")
+        if self.question_type is QuizType.MATCHING and not self.matching_pairs:
+            raise ValueError("matching questions must include matching_pairs")
+        return self
 
     def to_domain(self) -> Question:
         return Question(
             question_id=self.question_id,
+            question_type=self.question_type.value,
             prompt=self.prompt,
             options=tuple(option.to_domain() for option in self.options),
             correct_option_index=self.correct_option_index,
+            correct_answer=self.correct_answer,
+            matching_pairs=tuple(pair.to_domain() for pair in self.matching_pairs),
             explanation=None if self.explanation is None else self.explanation.to_domain(),
         )
 
