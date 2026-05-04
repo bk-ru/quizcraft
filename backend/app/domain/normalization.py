@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from backend.app.domain.errors import DomainValidationError
@@ -17,6 +18,55 @@ DEFAULT_QUIZ_TITLE = "Сгенерированный квиз"
 DEFAULT_VERSION = 1
 DEFAULT_LAST_EDITED_AT = "1970-01-01T00:00:00Z"
 DEFAULT_QUESTION_TYPE = "single_choice"
+GENERIC_QUIZ_TITLE_PATTERN = re.compile(r"^quiz(?:[\s_-]*\d+)?$", re.IGNORECASE)
+
+
+def resolve_readable_quiz_title(
+    current_title: str,
+    document_filename: str,
+    question_count: int,
+) -> str:
+    """Return a readable quiz title, preferring LLM-provided or generating from filename.
+
+    If the LLM provided a meaningful title (not default and not empty), use it.
+    Otherwise, generate a readable title from document filename + question count.
+    """
+
+    normalized_title = current_title.strip() if current_title else ""
+    meaningful = normalized_title and normalized_title != DEFAULT_QUIZ_TITLE and not _is_generic_quiz_title(normalized_title)
+    if meaningful:
+        return normalized_title
+
+    base_name = document_filename
+    if "." in base_name:
+        base_name = base_name.rsplit(".", 1)[0]
+    base_name = base_name.replace("_", " ").replace("-", " ").strip()
+
+    if not base_name:
+        base_name = "Квиз"
+
+    suffix = _resolve_question_count_suffix(question_count)
+    return f"{base_name} — {question_count} {suffix}"
+
+
+def _is_generic_quiz_title(title: str) -> bool:
+    """Return whether a model title is too generic to show to users."""
+
+    return bool(GENERIC_QUIZ_TITLE_PATTERN.fullmatch(title))
+
+
+def _resolve_question_count_suffix(question_count: int) -> str:
+    """Return the correct Russian plural form for a question count."""
+
+    last_two_digits = abs(question_count) % 100
+    if 11 <= last_two_digits <= 14:
+        return "вопросов"
+    last_digit = abs(question_count) % 10
+    if last_digit == 1:
+        return "вопрос"
+    if 2 <= last_digit <= 4:
+        return "вопроса"
+    return "вопросов"
 
 
 def normalize_quiz_output(raw_payload: dict[str, Any]) -> Quiz:
