@@ -9,6 +9,7 @@ from backend.app.domain.models import Explanation
 from backend.app.domain.models import Option
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
+from backend.app.export.csv_exporter import QuizCsvExporter
 from backend.app.export.json_exporter import QuizJsonExporter
 from backend.app.export.registry import DEFAULT_QUIZ_EXPORT_REGISTRY
 from backend.app.export.registry import QuizExportRegistry
@@ -55,6 +56,40 @@ def test_default_export_registry_exposes_json_exporter() -> None:
     assert exported_file.filename == "quiz-ru-1.json"
 
 
+def test_default_export_registry_includes_csv_and_markdown() -> None:
+    """Verify CSV and Markdown formats are registered with Cyrillic preservation."""
+
+    formats = DEFAULT_QUIZ_EXPORT_REGISTRY.supported_formats()
+
+    assert "csv" in formats
+    assert "markdown" in formats
+    assert "md" in formats
+
+    csv_file = DEFAULT_QUIZ_EXPORT_REGISTRY.export(build_quiz(), "csv")
+    assert csv_file.filename == "quiz-ru-1.csv"
+    assert csv_file.media_type == "text/csv; charset=utf-8"
+
+    md_file = DEFAULT_QUIZ_EXPORT_REGISTRY.export(build_quiz(), "markdown")
+    assert md_file.filename == "quiz-ru-1.md"
+    assert md_file.media_type == "text/markdown; charset=utf-8"
+
+    content_md = md_file.content_bytes.decode("utf-8")
+    assert "Тренировочный квиз по географии" in content_md
+    assert "Какой город является столицей России?" in content_md
+
+
+def test_default_registry_resolves_md_alias_to_markdown() -> None:
+    """Verify 'md' is alias for 'markdown' and produces identical output."""
+
+    quiz = build_quiz()
+
+    md_result = DEFAULT_QUIZ_EXPORT_REGISTRY.export(quiz, "markdown")
+    alias_result = DEFAULT_QUIZ_EXPORT_REGISTRY.export(quiz, "md")
+
+    assert md_result.content_bytes == alias_result.content_bytes
+    assert md_result.media_type == alias_result.media_type
+
+
 def test_export_registry_rejects_unsupported_format_explicitly() -> None:
     registry = QuizExportRegistry({"json": QuizJsonExporter()})
 
@@ -73,10 +108,20 @@ def test_export_registry_rejects_invalid_registration() -> None:
     with pytest.raises(DomainValidationError, match="non-empty"):
         QuizExportRegistry({" ": QuizJsonExporter()})
 
+
+def test_export_registry_rejects_duplicate_registration() -> None:
     with pytest.raises(DomainValidationError, match="duplicate"):
         QuizExportRegistry(
             {
                 "json": QuizJsonExporter(),
                 " JSON ": QuizJsonExporter(),
+            }
+        )
+
+    with pytest.raises(DomainValidationError, match="duplicate"):
+        QuizExportRegistry(
+            {
+                "csv": QuizCsvExporter(),
+                "CSV": QuizCsvExporter(),
             }
         )

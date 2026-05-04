@@ -102,8 +102,11 @@ def test_export_formats_endpoint_reports_supported_formats(tmp_path) -> None:
     assert response.json()["request_id"] == response.headers["X-Request-ID"]
     formats = {item["format"]: item["media_type"] for item in response.json()["formats"]}
     assert formats == {
+        "csv": "text/csv; charset=utf-8",
         "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
         "json": "application/json; charset=utf-8",
+        "markdown": "text/markdown; charset=utf-8",
+        "md": "text/markdown; charset=utf-8",
         "pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
     }
 
@@ -150,5 +153,5 @@ def test_advanced_export_endpoint_rejects_unsupported_format(tmp_path) -> None:
 
     assert response.status_code == 400
     assert response.json()["error"]["code"] == "unsupported_export_format"
-    assert "supported formats: docx, json, pptx" in response.json()["error"]["message"]
+    assert "supported formats: csv, docx, json, markdown, md, pptx" in response.json()["error"]["message"]
     assert response.json()["request_id"] == response.headers["X-Request-ID"]

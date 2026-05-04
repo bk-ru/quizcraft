@@ -40,6 +40,8 @@ const quizEditorFields = document.getElementById("quiz-editor-fields");
 const exportJsonButton = document.getElementById("export-json-button");
 const exportDocxButton = document.getElementById("export-docx-button");
 const exportPptxButton = document.getElementById("export-pptx-button");
+const exportMarkdownButton = document.getElementById("export-markdown-button");
+const exportCsvButton = document.getElementById("export-csv-button");
 const editShortcutButton = document.getElementById("edit-quiz-shortcut");
 const themeToggleButton = document.getElementById("theme-toggle");
 const themeToggleLabel = document.getElementById("theme-toggle-label");
@@ -68,6 +70,8 @@ const exportSplitMenu = document.getElementById("export-split-menu");
 const editorExportJsonButton = document.getElementById("editor-export-json-button");
 const editorExportDocxButton = document.getElementById("editor-export-docx-button");
 const editorExportPptxButton = document.getElementById("editor-export-pptx-button");
+const editorExportMarkdownButton = document.getElementById("editor-export-markdown-button");
+const editorExportCsvButton = document.getElementById("editor-export-csv-button");
 const editorExportSplitToggle = document.getElementById("editor-export-split-toggle");
 const editorExportSplitMenu = document.getElementById("editor-export-split-menu");
 const editorExportActions = document.getElementById("editor-export-actions");
@@ -101,6 +105,18 @@ const exportButtons = Object.freeze({
     hintId: "export-pptx-hint",
     editorButton: editorExportPptxButton,
     editorHintId: "editor-export-pptx-hint",
+  },
+  markdown: {
+    button: exportMarkdownButton,
+    hintId: "export-markdown-hint",
+    editorButton: editorExportMarkdownButton,
+    editorHintId: "editor-export-markdown-hint",
+  },
+  csv: {
+    button: exportCsvButton,
+    hintId: "export-csv-hint",
+    editorButton: editorExportCsvButton,
+    editorHintId: "editor-export-csv-hint",
   },
 });
 
@@ -544,6 +560,8 @@ generationFlow.attachDropzone();
 exportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
 exportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
 exportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
+exportMarkdownButton?.addEventListener("click", quizExporter.exportQuizAsMarkdown);
+exportCsvButton?.addEventListener("click", quizExporter.exportQuizAsCsv);
 exportSplitToggle?.addEventListener("click", () => {
   const open = exportSplitMenu?.hidden === false;
   if (exportSplitMenu) {
@@ -565,6 +583,8 @@ document.addEventListener("click", (event) => {
 editorExportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
 editorExportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
 editorExportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
+editorExportMarkdownButton?.addEventListener("click", quizExporter.exportQuizAsMarkdown);
+editorExportCsvButton?.addEventListener("click", quizExporter.exportQuizAsCsv);
 editorExportSplitToggle?.addEventListener("click", () => {
   const open = editorExportSplitMenu?.hidden === false;
   if (editorExportSplitMenu) {

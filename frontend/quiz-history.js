@@ -69,7 +69,7 @@ export function createQuizHistory({
     const options = entries.map((entry) => {
       const option = documentRef.createElement("option");
       option.value = entry.quiz_id;
-      option.label = entry.title
+      option.textContent = entry.title
         ? `${entry.title} — ${entry.quiz_id}`
         : entry.quiz_id;
       return option;
