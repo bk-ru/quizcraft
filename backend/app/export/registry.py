@@ -9,8 +9,10 @@ from backend.app.domain.errors import UnsupportedExportFormatError
 from backend.app.domain.models import Quiz
 from backend.app.export.base import ExportedQuizFile
 from backend.app.export.base import QuizExporter
+from backend.app.export.csv_exporter import QuizCsvExporter
 from backend.app.export.docx_exporter import QuizDocxExporter
 from backend.app.export.json_exporter import QuizJsonExporter
+from backend.app.export.markdown_exporter import QuizMarkdownExporter
 from backend.app.export.pptx_exporter import QuizPptxExporter
 
 
@@ -64,8 +66,11 @@ class QuizExportRegistry:
 
 DEFAULT_QUIZ_EXPORT_REGISTRY = QuizExportRegistry(
     {
+        "csv": QuizCsvExporter(),
         "docx": QuizDocxExporter(),
         "json": QuizJsonExporter(),
+        "markdown": QuizMarkdownExporter(),
+        "md": QuizMarkdownExporter(),
         "pptx": QuizPptxExporter(),
     }
 )

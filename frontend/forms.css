@@ -709,7 +709,7 @@ button {
   list-style: none;
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
-  background: var(--surface);
+  background: var(--surface-strong);
   box-shadow: var(--shadow-md);
 }
 
@@ -736,7 +736,8 @@ button {
 
 .split-button-menu-item:disabled {
   cursor: not-allowed;
-  opacity: 0.55;
+  opacity: 0.75;
+  color: var(--muted);
 }
 
 .summary-grid,

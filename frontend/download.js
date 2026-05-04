@@ -16,6 +16,16 @@ const EXPORT_FORMATS = Object.freeze({
     label: "PPTX",
     accept: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   },
+  markdown: {
+    extension: "md",
+    label: "Markdown",
+    accept: "text/markdown",
+  },
+  csv: {
+    extension: "csv",
+    label: "CSV",
+    accept: "text/csv",
+  },
 });
 
 export function triggerFileDownload(blob, suggestedName, windowRef = window, documentRef = document) {
@@ -80,6 +90,8 @@ export function createQuizExporter({
     exportQuizAsJson: () => exportQuiz("json"),
     exportQuizAsDocx: () => exportQuiz("docx"),
     exportQuizAsPptx: () => exportQuiz("pptx"),
+    exportQuizAsMarkdown: () => exportQuiz("markdown"),
+    exportQuizAsCsv: () => exportQuiz("csv"),
   };
 }
 
