@@ -22,6 +22,7 @@ from backend.app.domain.models import Quiz
 from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.domain.normalization import normalize_quiz_output
+from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.context import assemble_context
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.quality import GenerationQualityChecker
@@ -320,6 +321,12 @@ class RagGenerationOrchestrator:
             summarize_model_payload(response.content),
         )
         quiz = replace(self._normalizer(response.content), document_id=document.document_id)
+        readable_title = resolve_readable_quiz_title(
+            quiz.title,
+            document.filename,
+            len(quiz.questions),
+        )
+        quiz = replace(quiz, title=readable_title)
         self._quality_checker.ensure_quality(quiz, generation_request.question_count)
         return quiz
 
