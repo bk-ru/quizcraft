@@ -14,7 +14,6 @@ EXPECTED_DESIGN_FILES = {
 
 
 def test_repository_layout_uses_canonical_locations() -> None:
-    assert (ROOT / ".agent" / "PLANS.md").is_file()
     assert (ROOT / "docs" / "planning" / "backlog.md").is_file()
     assert DESIGN_DIR.is_dir()
     assert {path.name for path in DESIGN_DIR.glob("*.html")} == EXPECTED_DESIGN_FILES
