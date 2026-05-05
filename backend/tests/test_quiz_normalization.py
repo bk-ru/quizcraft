@@ -286,6 +286,74 @@ def test_resolve_readable_quiz_title_handles_empty_filename() -> None:
     assert result == "Квиз — 3 вопроса"
 
 
+def test_normalize_quiz_recovers_correct_option_index_inlined_as_option() -> None:
+    """Некоторые модели ошибочно кладут correct_option_index как 5-ю псевдо-опцию.
+
+    Паттерн: {"option_id": "correct_option_index", "text": "c"}
+    Ожидание: псевдо-опция отфильтровывается, индекс восстанавливается (c → 2).
+    """
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Тест",
+        "version": 1,
+        "last_edited_at": "2026-01-01T00:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "single_choice",
+                "prompt": "Что является продуктом фотосинтеза?",
+                "options": [
+                    {"option_id": "a", "text": "Углекислый газ"},
+                    {"option_id": "b", "text": "Вода"},
+                    {"option_id": "c", "text": "Глюкоза"},
+                    {"option_id": "d", "text": "Азот"},
+                    {"option_id": "correct_option_index", "text": "c"},
+                ],
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    question = quiz.questions[0]
+    assert len(question.options) == 4
+    option_ids = [o.option_id for o in question.options]
+    assert "correct_option_index" not in option_ids
+    assert question.correct_option_index == 2
+
+
+def test_normalize_quiz_recovers_correct_option_index_inlined_as_letter_a() -> None:
+    """Паттерн с буквой a → индекс 0."""
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Тест",
+        "version": 1,
+        "last_edited_at": "2026-01-01T00:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "single_choice",
+                "prompt": "Столица России?",
+                "options": [
+                    {"option_id": "a", "text": "Москва"},
+                    {"option_id": "b", "text": "Санкт-Петербург"},
+                    {"option_id": "c", "text": "Казань"},
+                    {"option_id": "d", "text": "Новосибирск"},
+                    {"option_id": "correct_option_index", "text": "a"},
+                ],
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    question = quiz.questions[0]
+    assert len(question.options) == 4
+    assert question.correct_option_index == 0
+
+
 def test_resolve_readable_quiz_title_strips_extension() -> None:
     """Удалить расширение из имени файла."""
 

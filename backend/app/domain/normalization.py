@@ -108,6 +108,8 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
     if not isinstance(raw_options, list):
         raise DomainValidationError("question options must be a list")
 
+    inlined_index = _extract_inlined_correct_option_index(raw_options)
+
     options = tuple(
         normalized_option
         for option_position, option_payload in enumerate(raw_options)
@@ -122,12 +124,15 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
         elif has_answer:
             question_type = "short_answer"
 
+    explicit_index = _normalize_correct_option_index(raw_payload, field_name="correct option")
+    resolved_index = explicit_index if explicit_index is not None else inlined_index
+
     return Question(
         question_id=_normalize_required_string(raw_payload.get("question_id"), default=f"question-{question_index + 1}"),
         question_type=question_type,
         prompt=_normalize_required_string(raw_payload.get("prompt"), default=""),
         options=options,
-        correct_option_index=_normalize_correct_option_index(raw_payload, field_name="correct option"),
+        correct_option_index=resolved_index,
         correct_answer=_normalize_optional_string(raw_payload.get("correct_answer")),
         matching_pairs=_normalize_matching_pairs(raw_payload.get("matching_pairs", [])),
         explanation=_normalize_explanation(raw_payload.get("explanation")),
@@ -140,6 +145,9 @@ def _normalize_option(raw_payload: Any, option_index: int) -> Option | None:
     if not isinstance(raw_payload, dict):
         return None
 
+    if raw_payload.get("option_id") == "correct_option_index":
+        return None
+
     text = _normalize_required_string(raw_payload.get("text"), default="")
     if not text:
         return None
@@ -148,6 +156,31 @@ def _normalize_option(raw_payload: Any, option_index: int) -> Option | None:
         option_id=_normalize_required_string(raw_payload.get("option_id"), default=f"option-{option_index + 1}"),
         text=text,
     )
+
+
+def _extract_inlined_correct_option_index(raw_options: list[Any]) -> int | None:
+    """Извлечь correct_option_index если модель ошибочно поместила его в массив options.
+
+    Некоторые модели генерируют структуру вида:
+    {"option_id": "correct_option_index", "text": "c"}
+    вместо поля correct_option_index на уровне вопроса.
+    Эта функция распознаёт такой паттерн и возвращает числовой индекс.
+    """
+
+    option_ids = ["a", "b", "c", "d", "e"]
+    for item in raw_options:
+        if not isinstance(item, dict):
+            continue
+        if item.get("option_id") != "correct_option_index":
+            continue
+        raw_text = (item.get("text") or "").strip().lower()
+        if raw_text in option_ids:
+            return option_ids.index(raw_text)
+        try:
+            return int(raw_text)
+        except ValueError:
+            pass
+    return None
 
 
 def _normalize_explanation(raw_payload: Any) -> Explanation | None:
