@@ -9,7 +9,7 @@ from backend.app.llm.registry import ProviderName
 
 @pytest.fixture(autouse=True)
 def _isolate_env_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """Point the config loader at an empty path so real ``.env`` files never leak into tests."""
+    """Направить загрузчик конфигурации на пустой путь, чтобы реальные файлы ``.env`` не попадали в тесты."""
 
     monkeypatch.setenv("QUIZCRAFT_ENV_FILE", str(tmp_path / "missing.env"))
 
@@ -17,6 +17,7 @@ def _isolate_env_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
 def test_loads_required_and_optional_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
     monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.setenv("LM_STUDIO_EMBEDDING_MODEL", "local-embed")
     monkeypatch.setenv("REQUEST_TIMEOUT", "45")
     monkeypatch.setenv("MAX_FILE_SIZE_MB", "20")
     monkeypatch.setenv("MAX_DOCUMENT_CHARS", "12345")
@@ -27,6 +28,7 @@ def test_loads_required_and_optional_settings(monkeypatch: pytest.MonkeyPatch) -
 
     assert config.lm_studio_base_url == "http://localhost:1234/v1"
     assert config.lm_studio_model == "local-model"
+    assert config.lm_studio_embedding_model == "local-embed"
     assert config.request_timeout == 45
     assert config.max_file_size_mb == 20
     assert config.max_document_chars == 12345
@@ -35,6 +37,7 @@ def test_loads_required_and_optional_settings(monkeypatch: pytest.MonkeyPatch) -
     assert config.providers_enabled == (ProviderName.LM_STUDIO,)
     assert config.default_provider is ProviderName.LM_STUDIO
     assert config.default_model == "local-model"
+    assert config.default_embedding_model == "local-embed"
     assert config.ollama_base_url == "http://localhost:11434"
     assert config.ollama_model == "local-model"
     assert config.ollama_embedding_model == "local-model"
@@ -133,13 +136,24 @@ def test_max_document_chars_defaults_when_env_missing(monkeypatch: pytest.Monkey
     assert config.max_document_chars == 50_000
 
 
-def test_request_timeout_defaults_to_five_minutes_when_env_missing(
+def test_lm_studio_embedding_model_defaults_to_chat_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
+    monkeypatch.setenv("LM_STUDIO_MODEL", "local-model")
+    monkeypatch.delenv("LM_STUDIO_EMBEDDING_MODEL", raising=False)
+
+    config = AppConfig.from_env()
+
+    assert config.lm_studio_embedding_model == "local-model"
+    assert config.default_embedding_model == "local-model"
+
+
+def test_request_timeout_defaults_to_none_when_env_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Ensure local CPU LM Studio installs do not 504 on a fresh install.
+    """Убедиться, что таймаут по умолчанию отключен (None).
 
-    The default matches the `.env.example` value so behaviour is consistent
-    whether or not the developer copied the template.
+    Это предотвращает 504 ошибки для медленных CPU-моделей.
+    Разработчик может явно задать REQUEST_TIMEOUT если нужен таймаут.
     """
 
     monkeypatch.setenv("LM_STUDIO_BASE_URL", "http://localhost:1234/v1")
@@ -148,7 +162,7 @@ def test_request_timeout_defaults_to_five_minutes_when_env_missing(
 
     config = AppConfig.from_env()
 
-    assert config.request_timeout == 300
+    assert config.request_timeout is None
 
 
 def test_max_document_chars_rejects_non_positive_value(monkeypatch: pytest.MonkeyPatch) -> None:

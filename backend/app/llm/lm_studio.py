@@ -1,4 +1,4 @@
-"""LM Studio client for structured chat-completion requests."""
+"""Клиент LM Studio для структурированных chat-completion запросов."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import json
 import logging
 import socket
 from json import JSONDecodeError
+from typing import Any
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.request import Request
@@ -27,25 +28,30 @@ from backend.app.llm.retry import RetryingCaller
 
 logger = logging.getLogger(__name__)
 
+MAX_UPSTREAM_ERROR_BODY_CHARS = 4000
+MAX_LOG_PREVIEW_CHARS = 500
+
 
 class LMStudioClient(LLMProvider):
-    """Structured LM Studio client backed by the OpenAI-compatible chat API."""
+    """Структурированный клиент LM Studio на основе OpenAI-compatible chat API."""
 
     def __init__(
         self,
         base_url: str,
         default_model: str,
-        timeout_seconds: int,
+        timeout_seconds: int | None,
+        default_embedding_model: str | None = None,
         retry_policy: RetryPolicy | None = None,
         retrying_caller: RetryingCaller | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._default_model = default_model
+        self._default_embedding_model = default_embedding_model or default_model
         self._timeout_seconds = timeout_seconds
         self._retrying_caller = retrying_caller or RetryingCaller(retry_policy or RetryPolicy())
 
     def healthcheck(self) -> ProviderHealthStatus:
-        """Check whether the LM Studio OpenAI-compatible API is reachable."""
+        """Проверить доступность OpenAI-compatible API LM Studio."""
 
         request = Request(
             url=f"{self._base_url}/models",
@@ -56,7 +62,11 @@ class LMStudioClient(LLMProvider):
             with urlopen(request, timeout=self._timeout_seconds) as response:
                 raw_response = response.read().decode("utf-8")
         except HTTPError as error:
-            raise self._map_http_error(error) from error
+            raise self._map_http_error(
+                error,
+                path="/models",
+                request_summary={"method": "GET", "payload_keys": []},
+            ) from error
         except URLError as error:
             raise self._map_url_error(error) from error
         except TimeoutError as error:
@@ -83,12 +93,12 @@ class LMStudioClient(LLMProvider):
         )
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
-        """Submit a structured generation request to LM Studio."""
+        """Отправить структурированный запрос генерации в LM Studio."""
 
         return self._retrying_caller.execute(lambda: self._generate_structured_once(request))
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Generate embeddings for one or more texts via the LM Studio embeddings endpoint."""
+        """Сгенерировать embeddings для одного или нескольких текстов через embeddings endpoint LM Studio."""
 
         return self._retrying_caller.execute(lambda: self._embed_once(request))
 
@@ -96,21 +106,21 @@ class LMStudioClient(LLMProvider):
         self,
         request: StructuredGenerationRequest,
     ) -> StructuredGenerationResponse:
-        """Perform one chat-completion request without retry orchestration."""
+        """Выполнить один chat-completion запрос без retry orchestration."""
 
         payload = self._build_payload(request)
         response_payload = self._post_json("/chat/completions", payload)
         return self._extract_structured_response(response_payload)
 
     def _embed_once(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Perform one embeddings request without retry orchestration."""
+        """Выполнить один embeddings запрос без retry orchestration."""
 
         payload = self._build_embeddings_payload(request)
         response_payload = self._post_json("/embeddings", payload)
         return self._extract_embeddings_response(response_payload, expected_count=len(request.texts))
 
     def _build_payload(self, request: StructuredGenerationRequest) -> dict[str, object]:
-        """Build the LM Studio chat-completions payload."""
+        """Сформировать payload chat-completions для LM Studio."""
 
         payload: dict[str, object] = {
             "model": request.model_name or self._default_model,
@@ -131,16 +141,18 @@ class LMStudioClient(LLMProvider):
         return payload
 
     def _build_embeddings_payload(self, request: EmbeddingRequest) -> dict[str, object]:
-        """Build the LM Studio embeddings payload."""
+        """Сформировать payload embeddings для LM Studio."""
 
         return {
-            "model": request.model_name or self._default_model,
+            "model": request.model_name or self._default_embedding_model,
             "input": list(request.texts),
         }
 
     def _post_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
-        """POST a JSON payload to one of the LM Studio OpenAI-compatible endpoints."""
+        """Отправить JSON payload методом POST в один из OpenAI-compatible endpoint'ов LM Studio."""
 
+        request_summary = self._summarize_request_payload(path, payload)
+        logger.info("Sending LM Studio request path=%s payload=%s", path, request_summary)
         request = Request(
             url=f"{self._base_url}{path}",
             data=json.dumps(payload).encode("utf-8"),
@@ -154,28 +166,41 @@ class LMStudioClient(LLMProvider):
             with urlopen(request, timeout=self._timeout_seconds) as response:
                 raw_response = response.read().decode("utf-8")
         except HTTPError as error:
-            raise self._map_http_error(error) from error
+            raise self._map_http_error(error, path=path, request_summary=request_summary) from error
         except URLError as error:
+            logger.warning("LM Studio transport error path=%s error=%s", path, error.reason)
             raise self._map_url_error(error) from error
         except TimeoutError as error:
+            logger.warning("LM Studio request timed out path=%s", path)
             raise LLMTimeoutError("LM Studio request timed out") from error
         except socket.timeout as error:
+            logger.warning("LM Studio request timed out path=%s", path)
             raise LLMTimeoutError("LM Studio request timed out") from error
 
         try:
             parsed_response = json.loads(raw_response)
         except JSONDecodeError as error:
+            logger.warning(
+                "LM Studio returned invalid JSON path=%s raw_response_preview=%s",
+                path,
+                _truncate(raw_response),
+            )
             raise LLMResponseFormatError("LM Studio returned invalid JSON") from error
 
         if not isinstance(parsed_response, dict):
             raise LLMResponseFormatError("LM Studio returned invalid JSON")
+        logger.info(
+            "Received LM Studio response path=%s response=%s",
+            path,
+            self._summarize_response_payload(path, parsed_response, len(raw_response)),
+        )
         return parsed_response
 
     def _extract_structured_response(
         self,
         response_payload: dict[str, object],
     ) -> StructuredGenerationResponse:
-        """Validate and unwrap the structured response content."""
+        """Проверить и извлечь содержимое структурированного ответа."""
 
         model_name = response_payload.get("model")
         if not isinstance(model_name, str) or not model_name:
@@ -219,7 +244,7 @@ class LMStudioClient(LLMProvider):
         response_payload: dict[str, object],
         expected_count: int,
     ) -> EmbeddingResponse:
-        """Validate and unwrap the embeddings response payload."""
+        """Проверить и извлечь payload ответа embeddings."""
 
         model_name = response_payload.get("model")
         if not isinstance(model_name, str) or not model_name:
@@ -242,7 +267,7 @@ class LMStudioClient(LLMProvider):
 
     @staticmethod
     def _sort_embedding_items(data: list[object]) -> list[tuple[float, ...]]:
-        """Convert raw embedding items into ordered tuples of floats."""
+        """Преобразовать raw элементы embedding в упорядоченные tuple из float."""
 
         indexed_vectors: list[tuple[int, tuple[float, ...]]] = []
         for fallback_index, item in enumerate(data):
@@ -263,16 +288,149 @@ class LMStudioClient(LLMProvider):
         indexed_vectors.sort(key=lambda pair: pair[0])
         return [vector for _, vector in indexed_vectors]
 
-    def _map_http_error(self, error: HTTPError):
-        """Convert HTTP status failures into controlled domain errors."""
+    def _map_http_error(
+        self,
+        error: HTTPError,
+        *,
+        path: str,
+        request_summary: dict[str, Any],
+    ):
+        """Преобразовать сбои HTTP-статуса в контролируемые доменные ошибки."""
 
+        upstream_body = _read_http_error_body(error)
+        upstream_body_preview = _truncate(upstream_body, MAX_UPSTREAM_ERROR_BODY_CHARS)
+        logger.warning(
+            "LM Studio HTTP error path=%s status=%s reason=%s request=%s response_body=%s",
+            path,
+            error.code,
+            error.reason,
+            request_summary,
+            upstream_body_preview,
+        )
+        message_suffix = f": {upstream_body_preview}" if upstream_body_preview else ""
         if error.code >= 500:
-            return LLMServerError(error.code, f"LM Studio returned server error {error.code}")
-        return LLMRequestError(error.code, f"LM Studio returned request error {error.code}")
+            return LLMServerError(error.code, f"LM Studio returned server error {error.code}{message_suffix}")
+        return LLMRequestError(error.code, f"LM Studio returned request error {error.code}{message_suffix}")
 
     def _map_url_error(self, error: URLError):
-        """Convert URL transport failures into controlled domain errors."""
+        """Преобразовать транспортные URL-сбои в контролируемые доменные ошибки."""
 
         if isinstance(error.reason, TimeoutError | socket.timeout):
             return LLMTimeoutError("LM Studio request timed out")
         return LLMConnectionError(f"LM Studio request failed: {error.reason}")
+
+    @staticmethod
+    def _summarize_request_payload(path: str, payload: dict[str, object]) -> dict[str, Any]:
+        """Вернуть безопасную сводку исходящего payload без полного prompt/document text."""
+
+        summary: dict[str, Any] = {
+            "model": payload.get("model"),
+            "payload_keys": sorted(payload),
+        }
+        if path == "/chat/completions":
+            messages = payload.get("messages")
+            if isinstance(messages, list):
+                summary["message_count"] = len(messages)
+                summary["message_roles"] = [
+                    item.get("role")
+                    for item in messages
+                    if isinstance(item, dict)
+                ]
+                summary["message_chars"] = [
+                    len(content)
+                    for item in messages
+                    if isinstance(item, dict) and isinstance((content := item.get("content")), str)
+                ]
+                user_messages = [
+                    item.get("content")
+                    for item in messages
+                    if isinstance(item, dict)
+                    and item.get("role") == "user"
+                    and isinstance(item.get("content"), str)
+                ]
+                if user_messages:
+                    summary["user_prompt_preview"] = _truncate(user_messages[-1], MAX_LOG_PREVIEW_CHARS)
+            response_format = payload.get("response_format")
+            if isinstance(response_format, dict):
+                json_schema = response_format.get("json_schema")
+                if isinstance(json_schema, dict):
+                    summary["schema_name"] = json_schema.get("name")
+                    schema = json_schema.get("schema")
+                    if isinstance(schema, dict):
+                        summary["schema_keys"] = sorted(schema)
+            summary["inference_parameter_keys"] = sorted(
+                key
+                for key in payload
+                if key not in {"model", "messages", "response_format"}
+            )
+        elif path == "/embeddings":
+            raw_input = payload.get("input")
+            if isinstance(raw_input, list):
+                summary["input_count"] = len(raw_input)
+                summary["input_chars"] = [
+                    len(item)
+                    for item in raw_input
+                    if isinstance(item, str)
+                ]
+                if raw_input and isinstance(raw_input[0], str):
+                    summary["first_input_preview"] = _truncate(raw_input[0], MAX_LOG_PREVIEW_CHARS)
+        return summary
+
+    @staticmethod
+    def _summarize_response_payload(
+        path: str,
+        payload: dict[str, object],
+        raw_response_chars: int,
+    ) -> dict[str, Any]:
+        """Вернуть безопасную сводку ответа LM Studio."""
+
+        summary: dict[str, Any] = {
+            "model": payload.get("model"),
+            "response_keys": sorted(payload),
+            "raw_response_chars": raw_response_chars,
+        }
+        if path == "/chat/completions":
+            choices = payload.get("choices")
+            if isinstance(choices, list):
+                summary["choice_count"] = len(choices)
+                if choices and isinstance(choices[0], dict):
+                    message = choices[0].get("message")
+                    if isinstance(message, dict):
+                        content = message.get("content")
+                        if isinstance(content, str):
+                            summary["first_content_chars"] = len(content)
+                            summary["first_content_preview"] = _truncate(content, MAX_LOG_PREVIEW_CHARS)
+                        elif isinstance(content, dict):
+                            summary["first_content_keys"] = sorted(content)
+        elif path == "/embeddings":
+            data = payload.get("data")
+            if isinstance(data, list):
+                summary["embedding_count"] = len(data)
+                if data and isinstance(data[0], dict):
+                    embedding = data[0].get("embedding")
+                    if isinstance(embedding, list):
+                        summary["embedding_dimension"] = len(embedding)
+        return summary
+
+
+def _read_http_error_body(error: HTTPError) -> str:
+    """Прочитать тело HTTPError, не ломаясь на бинарном или отсутствующем payload."""
+
+    try:
+        raw_body = error.read()
+    except Exception:
+        return ""
+    if not raw_body:
+        return ""
+    try:
+        return raw_body.decode("utf-8", errors="replace")
+    except AttributeError:
+        return str(raw_body)
+
+
+def _truncate(value: str, max_chars: int = MAX_LOG_PREVIEW_CHARS) -> str:
+    """Обрезать длинные upstream/debug строки до безопасного размера."""
+
+    if len(value) <= max_chars:
+        return value
+    return f"{value[:max_chars]}...<truncated {len(value) - max_chars} chars>"

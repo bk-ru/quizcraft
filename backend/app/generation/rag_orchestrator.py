@@ -1,9 +1,10 @@
-"""Retrieval-augmented generation orchestrator with bounded repair support."""
+"""Orchestrator retrieval-augmented generation с ограниченной поддержкой repair."""
 
 from __future__ import annotations
 
 import json
 import logging
+import time
 from dataclasses import replace
 from typing import Any
 from typing import Callable
@@ -24,9 +25,13 @@ from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.domain.normalization import normalize_quiz_output
 from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.context import assemble_context
+from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
+from backend.app.generation.diagnostics import summarize_structured_generation_request
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.quality import enrich_generation_error
+from backend.app.generation.question_types import render_question_type_policy
+from backend.app.generation.question_types import render_question_type_rules
 from backend.app.generation.rag_cache import RagCacheEntry
 from backend.app.generation.rag_cache import build_document_hash
 from backend.app.generation.rag_cache import build_rag_cache_key
@@ -57,7 +62,7 @@ DEFAULT_RAG_CACHE_EMBEDDING_MODEL_NAME = "__provider_default__"
 
 
 def build_default_rag_query(generation_request: GenerationRequest) -> str:
-    """Produce a deterministic retrieval query string from a generation request."""
+    """Сформировать детерминированную строку retrieval-запроса из запроса генерации."""
 
     return (
         "Создай {count} вопросов на языке {language}, "
@@ -72,7 +77,7 @@ def build_default_rag_query(generation_request: GenerationRequest) -> str:
 
 
 class RagGenerationOrchestrator:
-    """Generate quizzes via retrieval-augmented prompts with bounded repair support."""
+    """Генерировать квизы через retrieval-augmented prompts с ограниченной поддержкой repair."""
 
     def __init__(
         self,
@@ -92,6 +97,7 @@ class RagGenerationOrchestrator:
         embedding_model_name: str | None = None,
         query_builder: Callable[[GenerationRequest], str] = build_default_rag_query,
         rag_cache_repository=None,
+        diagnostic_logger: FileSystemGenerationDiagnosticLogger | None = None,
     ) -> None:
         self._validate_construction_inputs(
             max_document_chars=max_document_chars,
@@ -116,9 +122,12 @@ class RagGenerationOrchestrator:
         self._embedding_model_name = embedding_model_name
         self._query_builder = query_builder
         self._rag_cache_repository = rag_cache_repository
+        self._diagnostic_logger = diagnostic_logger
 
     def generate(self, document_id: str, generation_request: GenerationRequest) -> GenerationResult:
-        """Run the full RAG pipeline for one document and persist the resulting quiz."""
+        """Выполнить полный RAG pipeline для одного документа и сохранить итоговый квиз."""
+        start_time = time.perf_counter()
+        pipeline_mode = "rag"
 
         if generation_request.generation_mode is not GenerationMode.RAG:
             raise UnsupportedGenerationModeError(
@@ -139,36 +148,87 @@ class RagGenerationOrchestrator:
             metadata_builder=summarize_document_payload,
         )
 
-        rag_response, rag_prompt_version, _, _ = self._run_pipeline_step(
-            step=GenerationPipelineStep.GENERATE,
-            document_id=document.document_id,
-            generation_request=generation_request,
-            operation=lambda: self._request_rag_generation(document, generation_request),
-            metadata_builder=lambda result: {
-                "model_name": result[0].model_name,
-                "model_payload": summarize_model_payload(result[0].content),
-                "context_chars": result[2],
-                "retrieved_chunks": result[3],
-            },
-        )
+        try:
+            (
+                rag_response,
+                rag_prompt_version,
+                _,
+                _,
+                provider_request_summary,
+                rag_metadata,
+            ) = self._run_pipeline_step(
+                step=GenerationPipelineStep.GENERATE,
+                document_id=document.document_id,
+                generation_request=generation_request,
+                operation=lambda: self._request_rag_generation(document, generation_request),
+                metadata_builder=lambda result: {
+                    "model_name": result[0].model_name,
+                    "model_payload": summarize_model_payload(result[0].content),
+                    "context_chars": result[2],
+                    "retrieved_chunks": result[3],
+                },
+            )
+        except Exception as error:
+            self._log_diagnostic_runtime_failure(
+                document=document,
+                generation_request=generation_request,
+                stage=GenerationPipelineStep.GENERATE.value,
+                error=error,
+            )
+            raise
 
-        quiz, final_response, prompt_version = self._finalize_generation(
+        quiz, final_response, prompt_version, final_provider_request_summary = self._finalize_generation(
             document=document,
             generation_request=generation_request,
             response=rag_response,
             rag_prompt_version=rag_prompt_version,
+            provider_request_summary=provider_request_summary,
+            rag_metadata=rag_metadata,
         )
-        return self._run_pipeline_step(
-            step=GenerationPipelineStep.PERSIST,
-            document_id=document.document_id,
+        self._log_diagnostic_success(
+            document=document,
             generation_request=generation_request,
-            operation=lambda: self._persist_generation_result(quiz, generation_request, final_response, prompt_version),
-            quiz_id=quiz.quiz_id,
-            metadata_builder=summarize_generation_result,
+            response=final_response,
+            prompt_version=prompt_version,
+            provider_request_summary=final_provider_request_summary,
+            quiz=quiz,
+            rag_metadata=rag_metadata,
         )
+        try:
+            result = self._run_pipeline_step(
+                step=GenerationPipelineStep.PERSIST,
+                document_id=document.document_id,
+                generation_request=generation_request,
+                operation=lambda: self._persist_generation_result(
+                    quiz,
+                    generation_request,
+                    final_response,
+                    prompt_version,
+                ),
+                quiz_id=quiz.quiz_id,
+                metadata_builder=summarize_generation_result,
+            )
+            elapsed_ms = int((time.perf_counter() - start_time) * 1000)
+            logger.info(
+                "Generation timing document_chars=%d mode=%s model=%s elapsed_ms=%d",
+                len(document.normalized_text),
+                pipeline_mode,
+                final_response.model_name,
+                elapsed_ms,
+            )
+            return result
+        except Exception as error:
+            self._log_diagnostic_runtime_failure(
+                document=document,
+                generation_request=generation_request,
+                stage=GenerationPipelineStep.PERSIST.value,
+                error=error,
+                rag_metadata=rag_metadata,
+            )
+            raise
 
     def _load_generation_document(self, document_id: str) -> DocumentRecord:
-        """Load and guard a stored document before generation."""
+        """Загрузить и защитно проверить сохраненный документ перед генерацией."""
 
         document = self._document_repository.get(document_id)
         self._guard_document_length(document)
@@ -182,8 +242,8 @@ class RagGenerationOrchestrator:
         self,
         document: DocumentRecord,
         generation_request: GenerationRequest,
-    ) -> tuple[StructuredGenerationResponse, str, int, int]:
-        """Run chunk -> embed -> retrieve -> assemble -> generate, returning context metrics."""
+    ) -> tuple[StructuredGenerationResponse, str, int, int, dict[str, Any], dict[str, Any]]:
+        """Выполнить chunk -> embed -> retrieve -> assemble -> generate и вернуть метрики контекста."""
 
         chunks = chunk_text(
             document.normalized_text,
@@ -229,6 +289,8 @@ class RagGenerationOrchestrator:
                 language=generation_request.language,
                 difficulty=generation_request.difficulty,
                 quiz_type=generation_request.quiz_type,
+                question_type_policy=render_question_type_policy(generation_request),
+                question_type_rules=render_question_type_rules(generation_request),
             ),
             schema_name=rag_prompt.schema_name,
             schema=rag_prompt.schema,
@@ -239,7 +301,23 @@ class RagGenerationOrchestrator:
             model_name=generation_request.model_name,
         )
         response = self._provider.generate_structured(provider_request)
-        return response, rag_prompt.version, len(context), len(scored)
+        rag_metadata = {
+            "chunk_count": len(chunks),
+            "embedding_model_name": self._cache_embedding_model_name(),
+            "query_chars": len(query_text),
+            "retrieved_chunks": len(scored),
+            "context_chars": len(context),
+            "top_k": self._top_k,
+            "max_context_chars": self._max_context_chars,
+        }
+        return (
+            response,
+            rag_prompt.version,
+            len(context),
+            len(scored),
+            summarize_structured_generation_request(provider_request),
+            rag_metadata,
+        )
 
     def _load_or_embed_chunks(
         self,
@@ -247,7 +325,7 @@ class RagGenerationOrchestrator:
         document: DocumentRecord,
         chunks: tuple[TextChunk, ...],
     ) -> tuple[EmbeddedChunk, ...]:
-        """Load cached chunk embeddings when available, otherwise embed and persist them."""
+        """Загрузить кэшированные chunk embeddings при наличии, иначе создать embeddings и сохранить их."""
 
         if self._rag_cache_repository is None:
             return embed_chunks(
@@ -288,7 +366,7 @@ class RagGenerationOrchestrator:
         return cache_entry.embedded_chunks
 
     def _cache_embedding_model_name(self) -> str:
-        """Return the cache-visible embedding model identifier."""
+        """Вернуть видимый для кэша идентификатор embedding-модели."""
 
         return self._embedding_model_name or DEFAULT_RAG_CACHE_EMBEDDING_MODEL_NAME
 
@@ -298,36 +376,85 @@ class RagGenerationOrchestrator:
         generation_request: GenerationRequest,
         response: StructuredGenerationResponse,
         rag_prompt_version: str,
-    ) -> tuple[Quiz, StructuredGenerationResponse, str]:
-        """Normalize and validate the RAG response, then attempt repair if needed."""
+        provider_request_summary: dict[str, Any],
+        rag_metadata: dict[str, Any],
+    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
+        """Нормализовать и проверить RAG-ответ, затем при необходимости попробовать repair."""
 
         try:
-            quiz = self._normalize_and_validate(document, generation_request, response)
+            quiz = self._normalize_and_validate(
+                document,
+                generation_request,
+                response,
+                prompt_version=rag_prompt_version,
+                provider_request_summary=provider_request_summary,
+                rag_metadata=rag_metadata,
+            )
         except DomainValidationError as error:
-            return self._repair_generation(document, generation_request, response, error)
-        return quiz, response, rag_prompt_version
+            return self._repair_generation(
+                document,
+                generation_request,
+                response,
+                initial_error=error,
+                initial_prompt_version=rag_prompt_version,
+                initial_provider_request_summary=provider_request_summary,
+                rag_metadata=rag_metadata,
+            )
+        return quiz, response, rag_prompt_version, provider_request_summary
 
     def _normalize_and_validate(
         self,
         document: DocumentRecord,
         generation_request: GenerationRequest,
         response: StructuredGenerationResponse,
+        *,
+        prompt_version: str,
+        provider_request_summary: dict[str, Any],
+        rag_metadata: dict[str, Any],
+        repair_attempt: int | None = None,
     ) -> Quiz:
-        """Normalize and validate a structured RAG response."""
+        """Нормализовать и проверить структурированный RAG-ответ."""
 
         logger.info(
             "Received provider response model=%s payload=%s",
             response.model_name,
             summarize_model_payload(response.content),
         )
-        quiz = replace(self._normalizer(response.content), document_id=document.document_id)
+        try:
+            quiz = replace(self._normalizer(response.content), document_id=document.document_id)
+        except DomainValidationError as error:
+            self._log_diagnostic_validation_failure(
+                document=document,
+                generation_request=generation_request,
+                response=response,
+                prompt_version=prompt_version,
+                provider_request_summary=provider_request_summary,
+                error=error,
+                rag_metadata=rag_metadata,
+                repair_attempt=repair_attempt,
+            )
+            raise
         readable_title = resolve_readable_quiz_title(
             quiz.title,
             document.filename,
             len(quiz.questions),
         )
         quiz = replace(quiz, title=readable_title)
-        self._quality_checker.ensure_quality(quiz, generation_request.question_count)
+        try:
+            self._quality_checker.ensure_quality(quiz, generation_request.question_count)
+        except DomainValidationError as error:
+            self._log_diagnostic_validation_failure(
+                document=document,
+                generation_request=generation_request,
+                response=response,
+                prompt_version=prompt_version,
+                provider_request_summary=provider_request_summary,
+                error=error,
+                quiz=quiz,
+                rag_metadata=rag_metadata,
+                repair_attempt=repair_attempt,
+            )
+            raise
         return quiz
 
     def _repair_generation(
@@ -336,12 +463,17 @@ class RagGenerationOrchestrator:
         generation_request: GenerationRequest,
         response: StructuredGenerationResponse,
         initial_error: DomainValidationError,
-    ) -> tuple[Quiz, StructuredGenerationResponse, str]:
-        """Attempt a bounded repair pass for invalid normalized output."""
+        initial_prompt_version: str,
+        initial_provider_request_summary: dict[str, Any],
+        rag_metadata: dict[str, Any],
+    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
+        """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
         repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
         current_error: DomainValidationError = initial_error
         current_response = response
+        current_prompt_version = initial_prompt_version
+        current_provider_request_summary = initial_provider_request_summary
 
         for attempt_index in range(1, self._max_repair_attempts + 1):
             logger.warning(
@@ -362,12 +494,23 @@ class RagGenerationOrchestrator:
                 },
             )
             try:
-                repair_request = self._build_repair_request(repair_prompt, current_response, current_error)
+                repair_request = self._build_repair_request(
+                    repair_prompt,
+                    current_response,
+                    current_error,
+                    generation_request,
+                )
+                current_provider_request_summary = summarize_structured_generation_request(repair_request)
                 current_response = self._provider.generate_structured(repair_request)
+                current_prompt_version = repair_prompt.version
                 repaired_quiz = self._normalize_and_validate(
                     document=document,
                     generation_request=generation_request,
                     response=current_response,
+                    prompt_version=current_prompt_version,
+                    provider_request_summary=current_provider_request_summary,
+                    rag_metadata=rag_metadata,
+                    repair_attempt=attempt_index,
                 )
             except DomainValidationError as error:
                 current_error = error
@@ -402,9 +545,81 @@ class RagGenerationOrchestrator:
                     "model_payload": summarize_model_payload(current_response.content),
                 },
             )
-            return repaired_quiz, current_response, repair_prompt.version
+            return repaired_quiz, current_response, repair_prompt.version, current_provider_request_summary
 
         raise enrich_generation_error(current_error, len(document.normalized_text))
+
+    def _log_diagnostic_success(
+        self,
+        *,
+        document: DocumentRecord,
+        generation_request: GenerationRequest,
+        response: StructuredGenerationResponse,
+        prompt_version: str,
+        provider_request_summary: dict[str, Any],
+        quiz: Quiz,
+        rag_metadata: dict[str, Any],
+    ) -> None:
+        if self._diagnostic_logger is None:
+            return
+        self._diagnostic_logger.log_success(
+            pipeline="rag",
+            document=document,
+            generation_request=generation_request,
+            prompt_version=prompt_version,
+            provider_request=provider_request_summary,
+            response=response,
+            quiz=quiz,
+            rag_metadata=rag_metadata,
+        )
+
+    def _log_diagnostic_validation_failure(
+        self,
+        *,
+        document: DocumentRecord,
+        generation_request: GenerationRequest,
+        response: StructuredGenerationResponse,
+        prompt_version: str,
+        provider_request_summary: dict[str, Any],
+        error: DomainValidationError,
+        rag_metadata: dict[str, Any],
+        quiz: Quiz | None = None,
+        repair_attempt: int | None = None,
+    ) -> None:
+        if self._diagnostic_logger is None:
+            return
+        self._diagnostic_logger.log_validation_failure(
+            pipeline="rag",
+            document=document,
+            generation_request=generation_request,
+            prompt_version=prompt_version,
+            provider_request=provider_request_summary,
+            response=response,
+            error=error,
+            quiz=quiz,
+            rag_metadata=rag_metadata,
+            repair_attempt=repair_attempt,
+        )
+
+    def _log_diagnostic_runtime_failure(
+        self,
+        *,
+        document: DocumentRecord,
+        generation_request: GenerationRequest,
+        stage: str,
+        error: Exception,
+        rag_metadata: dict[str, Any] | None = None,
+    ) -> None:
+        if self._diagnostic_logger is None:
+            return
+        self._diagnostic_logger.log_runtime_failure(
+            pipeline="rag",
+            document=document,
+            generation_request=generation_request,
+            stage=stage,
+            error=error,
+            rag_metadata=rag_metadata,
+        )
 
     def _persist_generation_result(
         self,
@@ -413,7 +628,7 @@ class RagGenerationOrchestrator:
         final_response: StructuredGenerationResponse,
         prompt_version: str,
     ) -> GenerationResult:
-        """Persist the generated quiz and its generation metadata."""
+        """Сохранить сгенерированный квиз и метаданные его генерации."""
 
         persisted_quiz = self._quiz_repository.save(quiz)
         result = GenerationResult(
@@ -427,7 +642,7 @@ class RagGenerationOrchestrator:
         return result
 
     def _guard_document_length(self, document: DocumentRecord) -> None:
-        """Reject documents whose normalized text exceeds the configured limit."""
+        """Отклонить документы, нормализованный текст которых превышает настроенный лимит."""
 
         if self._max_document_chars is None:
             return
@@ -448,7 +663,7 @@ class RagGenerationOrchestrator:
         quiz_id: str | None = None,
         metadata_builder: Callable[[PipelineResult], dict[str, Any]] | None = None,
     ) -> PipelineResult:
-        """Run one rag pipeline step and emit structured status transitions."""
+        """Выполнить один шаг rag pipeline и выпустить структурированные переходы статуса."""
 
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
@@ -491,7 +706,7 @@ class RagGenerationOrchestrator:
         metadata: dict[str, Any] | None = None,
         error: Exception | None = None,
     ) -> None:
-        """Emit one structured rag pipeline step event."""
+        """Выпустить одно структурированное событие шага rag pipeline."""
 
         log_generation_pipeline_event(
             logger,
@@ -511,14 +726,21 @@ class RagGenerationOrchestrator:
         repair_prompt,
         response: StructuredGenerationResponse,
         validation_error: DomainValidationError,
+        generation_request: GenerationRequest,
     ) -> StructuredGenerationRequest:
-        """Build the provider-facing repair request from invalid structured output."""
+        """Сформировать repair-запрос к провайдеру из некорректного структурированного вывода."""
 
         invalid_json = json.dumps(response.content, ensure_ascii=False, indent=2, sort_keys=True)
         return StructuredGenerationRequest(
             system_prompt=repair_prompt.system_template,
             user_prompt=repair_prompt.user_template.format(
                 validation_error=validation_error.message,
+                question_count=generation_request.question_count,
+                language=generation_request.language,
+                difficulty=generation_request.difficulty,
+                quiz_type=generation_request.quiz_type,
+                question_type_policy=render_question_type_policy(generation_request),
+                question_type_rules=render_question_type_rules(generation_request),
                 invalid_json=invalid_json,
             ),
             schema_name=repair_prompt.schema_name,
@@ -536,7 +758,7 @@ class RagGenerationOrchestrator:
         top_k: int,
         max_context_chars: int,
     ) -> None:
-        """Reject invalid orchestrator construction parameters."""
+        """Отклонить некорректные параметры создания orchestrator."""
 
         if max_document_chars is not None and max_document_chars <= 0:
             raise ValueError("max_document_chars must be positive when provided")

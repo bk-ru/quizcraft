@@ -1,4 +1,4 @@
-"""Runtime configuration for the QuizCraft backend."""
+"""Runtime-конфигурация backend QuizCraft."""
 
 from __future__ import annotations
 
@@ -23,11 +23,11 @@ DEFAULT_OLLAMA_BASE_URL = "http://localhost:11434"
 
 
 def load_env_file(path: str | os.PathLike[str], override: bool = False) -> dict[str, str]:
-    """Load KEY=VALUE pairs from a dotenv-style file into the process environment.
+    """Загрузить пары KEY=VALUE из dotenv-style файла в окружение процесса.
 
-    Lines beginning with ``#`` and blank lines are ignored. Values may be optionally
-    wrapped in single or double quotes. Existing environment variables are preserved
-    by default so that real shell values override the file.
+    Строки, начинающиеся с ``#``, и пустые строки игнорируются. Значения могут быть
+    необязательно обернуты в одинарные или двойные кавычки. Существующие переменные
+    окружения по умолчанию сохраняются, чтобы реальные значения shell переопределяли файл.
     """
 
     env_path = Path(path)
@@ -59,7 +59,7 @@ def load_env_file(path: str | os.PathLike[str], override: bool = False) -> dict[
 
 @dataclass(frozen=True, slots=True)
 class GenerationProfile:
-    """Named generation profile with provider-facing parameters."""
+    """Именованный профиль генерации с параметрами для провайдера."""
 
     name: str
     model_name: str | None = None
@@ -67,7 +67,7 @@ class GenerationProfile:
 
 
 def _default_generation_profiles() -> Mapping[str, GenerationProfile]:
-    """Return the built-in generation profile registry."""
+    """Вернуть встроенный registry профилей генерации."""
 
     return MappingProxyType(
         {
@@ -89,10 +89,11 @@ def _default_generation_profiles() -> Mapping[str, GenerationProfile]:
 
 @dataclass(frozen=True, slots=True)
 class AppConfig:
-    """Validated backend configuration loaded from environment variables."""
+    """Валидированная конфигурация backend, загруженная из переменных окружения."""
 
     lm_studio_base_url: str
     lm_studio_model: str
+    lm_studio_embedding_model: str | None = None
     ollama_base_url: str = DEFAULT_OLLAMA_BASE_URL
     ollama_model: str | None = None
     ollama_embedding_model: str | None = None
@@ -100,7 +101,7 @@ class AppConfig:
     external_api_key: str | None = None
     external_api_model: str | None = None
     external_api_embedding_model: str | None = None
-    request_timeout: int = 300
+    request_timeout: int | None = None
     max_file_size_mb: int = 10
     max_document_chars: int = 50_000
     log_level: str = "INFO"
@@ -112,7 +113,7 @@ class AppConfig:
     default_generation_profile: str = DEFAULT_GENERATION_PROFILE_NAME
 
     def __post_init__(self) -> None:
-        """Normalize and validate derived configuration fields."""
+        """Нормализовать и проверить производные поля конфигурации."""
 
         normalized_providers_enabled = self._normalize_providers_enabled(self.providers_enabled)
         if self.default_provider is None:
@@ -126,6 +127,11 @@ class AppConfig:
         normalized_lm_studio_model = self.lm_studio_model.strip()
         if not normalized_lm_studio_model:
             raise ConfigurationError("LM_STUDIO_MODEL must be a non-empty string")
+        normalized_lm_studio_embedding_model = (
+            self.lm_studio_embedding_model or normalized_lm_studio_model
+        ).strip()
+        if not normalized_lm_studio_embedding_model:
+            raise ConfigurationError("LM_STUDIO_EMBEDDING_MODEL must be a non-empty string")
         normalized_ollama_base_url = self.ollama_base_url.strip()
         if not normalized_ollama_base_url:
             raise ConfigurationError("OLLAMA_BASE_URL must be a non-empty string")
@@ -185,6 +191,7 @@ class AppConfig:
                 raise ConfigurationError("generation profile model_name must be listed in LM_STUDIO_ALLOWED_MODELS")
 
         object.__setattr__(self, "lm_studio_model", normalized_lm_studio_model)
+        object.__setattr__(self, "lm_studio_embedding_model", normalized_lm_studio_embedding_model)
         object.__setattr__(self, "ollama_base_url", normalized_ollama_base_url)
         object.__setattr__(self, "ollama_model", normalized_ollama_model)
         object.__setattr__(self, "ollama_embedding_model", normalized_ollama_embedding_model)
@@ -203,7 +210,7 @@ class AppConfig:
 
     @property
     def default_model(self) -> str:
-        """Return the default generation model for the configured active provider."""
+        """Вернуть модель генерации по умолчанию для настроенного активного провайдера."""
 
         if self.default_provider is ProviderName.OLLAMA:
             return self.ollama_model or self.lm_studio_model
@@ -211,9 +218,19 @@ class AppConfig:
             return self.external_api_model or self.lm_studio_model
         return self.lm_studio_model
 
+    @property
+    def default_embedding_model(self) -> str:
+        """Вернуть модель embeddings по умолчанию для активного провайдера."""
+
+        if self.default_provider is ProviderName.OLLAMA:
+            return self.ollama_embedding_model or self.default_model
+        if self.default_provider is ProviderName.EXTERNAL_API:
+            return self.external_api_embedding_model or self.default_model
+        return self.lm_studio_embedding_model or self.default_model
+
     @staticmethod
     def _load_int(env_name: str, default: str) -> int:
-        """Load an integer setting from the environment."""
+        """Загрузить целочисленную настройку из окружения."""
 
         try:
             return int(os.getenv(env_name, default))
@@ -221,8 +238,22 @@ class AppConfig:
             raise ConfigurationError(f"{env_name} must be a valid integer") from error
 
     @staticmethod
+    def _load_optional_int(env_name: str) -> int | None:
+        """Загрузить опциональную целочисленную настройку из окружения.
+
+        Возвращает None если переменная не задана или пустая.
+        """
+        raw_value = os.getenv(env_name)
+        if raw_value is None or raw_value.strip() == "":
+            return None
+        try:
+            return int(raw_value)
+        except ValueError as error:
+            raise ConfigurationError(f"{env_name} must be a valid integer") from error
+
+    @staticmethod
     def _load_allowed_models(default_models: tuple[str, ...]) -> tuple[str, ...]:
-        """Load allowed model names from a comma-separated environment variable."""
+        """Загрузить разрешенные имена моделей из переменной окружения с разделением запятыми."""
 
         raw_value = os.getenv("LM_STUDIO_ALLOWED_MODELS")
         if raw_value is None:
@@ -235,7 +266,7 @@ class AppConfig:
 
     @staticmethod
     def _load_providers_enabled() -> tuple[ProviderName, ...]:
-        """Load enabled provider names from a comma-separated environment variable."""
+        """Загрузить имена включенных провайдеров из переменной окружения с разделением запятыми."""
 
         raw_value = os.getenv("PROVIDERS_ENABLED")
         if raw_value is None:
@@ -248,7 +279,7 @@ class AppConfig:
 
     @staticmethod
     def _load_default_provider() -> ProviderName | None:
-        """Load the default provider name from the environment."""
+        """Загрузить имя провайдера по умолчанию из окружения."""
 
         raw_value = os.getenv("DEFAULT_PROVIDER")
         if raw_value is None:
@@ -262,7 +293,7 @@ class AppConfig:
     def _normalize_providers_enabled(
         providers_enabled: tuple[ProviderName | str, ...],
     ) -> tuple[ProviderName, ...]:
-        """Normalize enabled provider names and reject unsupported values."""
+        """Нормализовать имена включенных провайдеров и отклонить неподдерживаемые значения."""
 
         if not providers_enabled:
             raise ConfigurationError("PROVIDERS_ENABLED must include at least one provider")
@@ -282,7 +313,7 @@ class AppConfig:
 
     @staticmethod
     def _load_generation_profiles() -> Mapping[str, GenerationProfile]:
-        """Load generation profile definitions from JSON configuration."""
+        """Загрузить определения профилей генерации из JSON-конфигурации."""
 
         raw_value = os.getenv("GENERATION_PROFILES")
         if raw_value is None:
@@ -328,7 +359,7 @@ class AppConfig:
     def _normalize_generation_profiles(
         profiles: Mapping[str, GenerationProfile],
     ) -> dict[str, GenerationProfile]:
-        """Normalize profile names and parameter mappings."""
+        """Нормализовать имена профилей и mappings параметров."""
 
         normalized: dict[str, GenerationProfile] = {}
         for raw_name, profile in profiles.items():
@@ -350,12 +381,12 @@ class AppConfig:
 
     @classmethod
     def from_env(cls) -> "AppConfig":
-        """Build configuration from process environment variables.
+        """Сформировать конфигурацию из переменных окружения процесса.
 
-        When ``QUIZCRAFT_ENV_FILE`` points at a readable file its contents are
-        loaded into the process environment before variables are read. Otherwise
-        a ``.env`` file in the current working directory is used when present.
-        Real shell variables always win over file-provided values.
+        Когда ``QUIZCRAFT_ENV_FILE`` указывает на читаемый файл, его содержимое
+        загружается в окружение процесса до чтения переменных. Иначе при наличии
+        используется файл ``.env`` из текущего рабочего каталога. Реальные shell-переменные
+        всегда имеют приоритет над значениями из файла.
         """
 
         env_file_path = os.getenv("QUIZCRAFT_ENV_FILE") or ".env"
@@ -368,6 +399,7 @@ class AppConfig:
         lm_studio_model = os.getenv("LM_STUDIO_MODEL")
         if not lm_studio_model:
             raise ConfigurationError("LM_STUDIO_MODEL is required")
+        lm_studio_embedding_model = os.getenv("LM_STUDIO_EMBEDDING_MODEL", lm_studio_model)
 
         ollama_base_url = os.getenv("OLLAMA_BASE_URL", DEFAULT_OLLAMA_BASE_URL)
         ollama_model = os.getenv("OLLAMA_MODEL", lm_studio_model)
@@ -384,7 +416,7 @@ class AppConfig:
         if ProviderName.EXTERNAL_API in providers_enabled or default_provider is ProviderName.EXTERNAL_API:
             if external_api_model:
                 default_allowed_models.append(external_api_model)
-        request_timeout = cls._load_int("REQUEST_TIMEOUT", "300")
+        request_timeout = cls._load_optional_int("REQUEST_TIMEOUT")
         max_file_size_mb = cls._load_int("MAX_FILE_SIZE_MB", "10")
         max_document_chars = cls._load_int("MAX_DOCUMENT_CHARS", "50000")
         log_level = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -402,6 +434,7 @@ class AppConfig:
         return cls(
             lm_studio_base_url=lm_studio_base_url,
             lm_studio_model=lm_studio_model,
+            lm_studio_embedding_model=lm_studio_embedding_model,
             ollama_base_url=ollama_base_url,
             ollama_model=ollama_model,
             ollama_embedding_model=ollama_embedding_model,

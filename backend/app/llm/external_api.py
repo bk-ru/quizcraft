@@ -1,4 +1,4 @@
-"""External OpenAI-compatible API client for structured chat and embeddings requests."""
+"""Внешний OpenAI-compatible API-клиент для структурированных chat и embeddings запросов."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 
 class ExternalAPIClient(LLMProvider):
-    """External provider backed by the OpenAI-compatible HTTP API contract."""
+    """Внешний провайдер на основе OpenAI-compatible HTTP API-контракта."""
 
     def __init__(
         self,
@@ -37,7 +37,7 @@ class ExternalAPIClient(LLMProvider):
         api_key: str | None,
         default_model: str,
         default_embedding_model: str,
-        timeout_seconds: int,
+        timeout_seconds: int | None,
         retry_policy: RetryPolicy | None = None,
         retrying_caller: RetryingCaller | None = None,
     ) -> None:
@@ -55,7 +55,7 @@ class ExternalAPIClient(LLMProvider):
         self._retrying_caller = retrying_caller or RetryingCaller(retry_policy or RetryPolicy())
 
     def healthcheck(self) -> ProviderHealthStatus:
-        """Check whether the external OpenAI-compatible API is reachable."""
+        """Проверить доступность внешнего OpenAI-compatible API."""
 
         request = Request(
             url=f"{self._base_url}/models",
@@ -92,12 +92,12 @@ class ExternalAPIClient(LLMProvider):
         )
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
-        """Submit a structured generation request to the external API."""
+        """Отправить структурированный запрос генерации во внешний API."""
 
         return self._retrying_caller.execute(lambda: self._generate_structured_once(request))
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Generate embeddings through the external API embeddings endpoint."""
+        """Сгенерировать embeddings через embeddings endpoint внешнего API."""
 
         return self._retrying_caller.execute(lambda: self._embed_once(request))
 
@@ -105,21 +105,21 @@ class ExternalAPIClient(LLMProvider):
         self,
         request: StructuredGenerationRequest,
     ) -> StructuredGenerationResponse:
-        """Perform one chat-completion request without retry orchestration."""
+        """Выполнить один chat-completion запрос без retry orchestration."""
 
         payload = self._build_payload(request)
         response_payload = self._post_json("/chat/completions", payload)
         return self._extract_structured_response(response_payload)
 
     def _embed_once(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Perform one embeddings request without retry orchestration."""
+        """Выполнить один embeddings запрос без retry orchestration."""
 
         payload = self._build_embeddings_payload(request)
         response_payload = self._post_json("/embeddings", payload)
         return self._extract_embeddings_response(response_payload, expected_count=len(request.texts))
 
     def _build_payload(self, request: StructuredGenerationRequest) -> dict[str, object]:
-        """Build the OpenAI-compatible chat-completions payload."""
+        """Сформировать OpenAI-compatible payload chat-completions."""
 
         payload: dict[str, object] = {
             "model": request.model_name or self._default_model,
@@ -140,7 +140,7 @@ class ExternalAPIClient(LLMProvider):
         return payload
 
     def _build_embeddings_payload(self, request: EmbeddingRequest) -> dict[str, object]:
-        """Build the OpenAI-compatible embeddings payload."""
+        """Сформировать OpenAI-compatible payload embeddings."""
 
         return {
             "model": request.model_name or self._default_embedding_model,
@@ -148,7 +148,7 @@ class ExternalAPIClient(LLMProvider):
         }
 
     def _post_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
-        """POST a JSON payload to one of the external OpenAI-compatible endpoints."""
+        """Отправить JSON payload методом POST в один из внешних OpenAI-compatible endpoint'ов."""
 
         request = Request(
             url=f"{self._base_url}{path}",
@@ -178,7 +178,7 @@ class ExternalAPIClient(LLMProvider):
         return parsed_response
 
     def _build_headers(self, extra_headers: dict[str, str] | None = None) -> dict[str, str]:
-        """Build request headers without requiring a committed API key."""
+        """Сформировать headers запроса без необходимости коммитить API key."""
 
         headers = {"Accept": "application/json"}
         if self._api_key is not None:
@@ -191,7 +191,7 @@ class ExternalAPIClient(LLMProvider):
         self,
         response_payload: dict[str, object],
     ) -> StructuredGenerationResponse:
-        """Validate and unwrap the structured response content."""
+        """Проверить и извлечь содержимое структурированного ответа."""
 
         model_name = response_payload.get("model")
         if not isinstance(model_name, str) or not model_name:
@@ -235,7 +235,7 @@ class ExternalAPIClient(LLMProvider):
         response_payload: dict[str, object],
         expected_count: int,
     ) -> EmbeddingResponse:
-        """Validate and unwrap the embeddings response payload."""
+        """Проверить и извлечь payload ответа embeddings."""
 
         model_name = response_payload.get("model")
         if not isinstance(model_name, str) or not model_name:
@@ -257,7 +257,7 @@ class ExternalAPIClient(LLMProvider):
 
     @staticmethod
     def _sort_embedding_items(data: list[object]) -> list[tuple[float, ...]]:
-        """Convert raw embedding items into ordered tuples of floats."""
+        """Преобразовать raw элементы embedding в упорядоченные tuple из float."""
 
         indexed_vectors: list[tuple[int, tuple[float, ...]]] = []
         for fallback_index, item in enumerate(data):
@@ -279,14 +279,14 @@ class ExternalAPIClient(LLMProvider):
         return [vector for _, vector in indexed_vectors]
 
     def _map_http_error(self, error: HTTPError):
-        """Convert HTTP status failures into controlled domain errors."""
+        """Преобразовать сбои HTTP-статуса в контролируемые доменные ошибки."""
 
         if error.code >= 500:
             return LLMServerError(error.code, f"External API returned server error {error.code}")
         return LLMRequestError(error.code, f"External API returned request error {error.code}")
 
     def _map_url_error(self, error: URLError):
-        """Convert URL transport failures into controlled domain errors."""
+        """Преобразовать транспортные URL-сбои в контролируемые доменные ошибки."""
 
         if isinstance(error.reason, (TimeoutError, socket.timeout)):
             return LLMTimeoutError("External API request timed out")

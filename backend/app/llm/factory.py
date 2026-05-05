@@ -1,4 +1,4 @@
-"""Provider registry construction for runtime wiring."""
+"""Создание registry провайдеров для runtime-сборки."""
 
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from backend.app.llm.registry import ProviderRegistry
 
 @dataclass(frozen=True, slots=True)
 class ProviderRuntime:
-    """Runtime provider graph resolved from application configuration."""
+    """Runtime-граф провайдеров, разрешенный из конфигурации приложения."""
 
     registry: ProviderRegistry
     active_provider: LLMProvider
@@ -25,7 +25,7 @@ def build_provider_runtime(
     config: AppConfig,
     provider: LLMProvider | None = None,
 ) -> ProviderRuntime:
-    """Build the provider registry and active provider for the application."""
+    """Сформировать registry провайдеров и активного провайдера для приложения."""
 
     providers: dict[ProviderName, LLMProvider] = {}
     should_register_lm_studio = (
@@ -37,6 +37,7 @@ def build_provider_runtime(
         providers[ProviderName.LM_STUDIO] = provider or LMStudioClient(
             base_url=config.lm_studio_base_url,
             default_model=config.lm_studio_model,
+            default_embedding_model=config.lm_studio_embedding_model or config.lm_studio_model,
             timeout_seconds=config.request_timeout,
         )
     should_register_ollama = (

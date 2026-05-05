@@ -1,4 +1,4 @@
-"""Ollama client for structured chat and embeddings requests."""
+"""Клиент Ollama для структурированных chat и embeddings запросов."""
 
 from __future__ import annotations
 
@@ -29,14 +29,14 @@ logger = logging.getLogger(__name__)
 
 
 class OllamaClient(LLMProvider):
-    """Ollama client backed by the native HTTP API."""
+    """Клиент Ollama на основе native HTTP API."""
 
     def __init__(
         self,
         base_url: str,
         default_model: str,
         default_embedding_model: str,
-        timeout_seconds: int,
+        timeout_seconds: int | None,
         retry_policy: RetryPolicy | None = None,
         retrying_caller: RetryingCaller | None = None,
     ) -> None:
@@ -53,7 +53,7 @@ class OllamaClient(LLMProvider):
         self._retrying_caller = retrying_caller or RetryingCaller(retry_policy or RetryPolicy())
 
     def healthcheck(self) -> ProviderHealthStatus:
-        """Check whether the Ollama API is reachable."""
+        """Проверить доступность Ollama API."""
 
         request = Request(
             url=f"{self._base_url}/api/tags",
@@ -90,12 +90,12 @@ class OllamaClient(LLMProvider):
         )
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
-        """Submit a structured generation request to Ollama."""
+        """Отправить структурированный запрос генерации в Ollama."""
 
         return self._retrying_caller.execute(lambda: self._generate_structured_once(request))
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Generate embeddings for one or more texts via Ollama."""
+        """Сгенерировать embeddings для одного или нескольких текстов через Ollama."""
 
         return self._retrying_caller.execute(lambda: self._embed_once(request))
 
@@ -103,21 +103,21 @@ class OllamaClient(LLMProvider):
         self,
         request: StructuredGenerationRequest,
     ) -> StructuredGenerationResponse:
-        """Perform one Ollama chat request without retry orchestration."""
+        """Выполнить один chat-запрос Ollama без retry orchestration."""
 
         payload = self._build_payload(request)
         response_payload = self._post_json("/api/chat", payload)
         return self._extract_structured_response(response_payload)
 
     def _embed_once(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Perform one Ollama embeddings request without retry orchestration."""
+        """Выполнить один embeddings-запрос Ollama без retry orchestration."""
 
         payload = self._build_embeddings_payload(request)
         response_payload = self._post_json("/api/embed", payload)
         return self._extract_embeddings_response(response_payload, expected_count=len(request.texts))
 
     def _build_payload(self, request: StructuredGenerationRequest) -> dict[str, object]:
-        """Build the Ollama chat payload."""
+        """Сформировать chat payload для Ollama."""
 
         payload: dict[str, object] = {
             "model": request.model_name or self._default_model,
@@ -133,7 +133,7 @@ class OllamaClient(LLMProvider):
         return payload
 
     def _build_embeddings_payload(self, request: EmbeddingRequest) -> dict[str, object]:
-        """Build the Ollama embeddings payload."""
+        """Сформировать embeddings payload для Ollama."""
 
         return {
             "model": request.model_name or self._default_embedding_model,
@@ -141,7 +141,7 @@ class OllamaClient(LLMProvider):
         }
 
     def _post_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
-        """POST a JSON payload to one of the Ollama endpoints."""
+        """Отправить JSON payload методом POST в один из endpoint'ов Ollama."""
 
         request = Request(
             url=f"{self._base_url}{path}",
@@ -177,7 +177,7 @@ class OllamaClient(LLMProvider):
         self,
         response_payload: dict[str, object],
     ) -> StructuredGenerationResponse:
-        """Validate and unwrap the Ollama structured response content."""
+        """Проверить и извлечь содержимое структурированного ответа Ollama."""
 
         model_name = response_payload.get("model")
         if not isinstance(model_name, str) or not model_name:
@@ -213,7 +213,7 @@ class OllamaClient(LLMProvider):
         response_payload: dict[str, object],
         expected_count: int,
     ) -> EmbeddingResponse:
-        """Validate and unwrap the Ollama embeddings response payload."""
+        """Проверить и извлечь payload ответа embeddings от Ollama."""
 
         model_name = response_payload.get("model")
         if not isinstance(model_name, str) or not model_name:
@@ -234,7 +234,7 @@ class OllamaClient(LLMProvider):
 
     @staticmethod
     def _coerce_embedding(embedding: object) -> tuple[float, ...]:
-        """Convert one raw embedding item into a tuple of floats."""
+        """Преобразовать один raw элемент embedding в tuple из float."""
 
         if not isinstance(embedding, list) or not embedding:
             raise LLMResponseFormatError("Ollama returned a malformed embeddings response")
@@ -246,14 +246,14 @@ class OllamaClient(LLMProvider):
         return tuple(vector)
 
     def _map_http_error(self, error: HTTPError):
-        """Convert HTTP status failures into controlled domain errors."""
+        """Преобразовать сбои HTTP-статуса в контролируемые доменные ошибки."""
 
         if error.code >= 500:
             return LLMServerError(error.code, f"Ollama returned server error {error.code}")
         return LLMRequestError(error.code, f"Ollama returned request error {error.code}")
 
     def _map_url_error(self, error: URLError):
-        """Convert URL transport failures into controlled domain errors."""
+        """Преобразовать транспортные URL-сбои в контролируемые доменные ошибки."""
 
         if isinstance(error.reason, (TimeoutError, socket.timeout)):
             return LLMTimeoutError("Ollama request timed out")
