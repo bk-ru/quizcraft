@@ -109,6 +109,8 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
         raise DomainValidationError("question options must be a list")
 
     inlined_index = _extract_inlined_correct_option_index(raw_options)
+    if inlined_index is not None and _has_trailing_duplicate_option(raw_options):
+        raw_options = raw_options[:-1]
 
     options = tuple(
         normalized_option
@@ -166,10 +168,12 @@ def _normalize_option(raw_payload: Any, option_index: int) -> Option | None:
 def _extract_inlined_correct_option_index(raw_options: list[Any]) -> int | None:
     """Извлечь correct_option_index если модель ошибочно поместила его в массив options.
 
-    Некоторые модели генерируют структуру вида:
-    {"option_id": "correct_option_index", "text": "c"}
-    вместо поля correct_option_index на уровне вопроса.
-    Эта функция распознаёт такой паттерн и возвращает числовой индекс.
+    Паттерн 1 — псевдо-опция с ключом correct_option_index:
+      {"option_id": "correct_option_index", "text": "c"}
+
+    Паттерн 2 — дублирующаяся последняя опция:
+      Модель добавляет в конец копию правильного варианта с тем же option_id или текстом.
+      Последняя опция отфильтровывается, а индекс первого вхождения возвращается.
     """
 
     option_ids = ["a", "b", "c", "d", "e"]
@@ -185,7 +189,52 @@ def _extract_inlined_correct_option_index(raw_options: list[Any]) -> int | None:
             return int(raw_text)
         except ValueError:
             pass
+
+    real_options = [
+        item for item in raw_options
+        if isinstance(item, dict) and item.get("option_id") != "correct_option_index"
+    ]
+    if len(real_options) < 2:
+        return None
+    last = real_options[-1]
+    last_text = (last.get("text") or "").strip().casefold()
+    last_id = str(last.get("option_id") or "").strip()
+    for i, option in enumerate(real_options[:-1]):
+        if not isinstance(option, dict):
+            continue
+        option_text = (option.get("text") or "").strip().casefold()
+        option_id = str(option.get("option_id") or "").strip()
+        if last_text and last_text == option_text:
+            return i
+        if last_id and last_id == option_id:
+            return i
     return None
+
+
+def _has_trailing_duplicate_option(raw_options: list[Any]) -> bool:
+    """Проверить что последняя опция является дублём одной из предыдущих.
+
+    Некоторые модели добавляют правильный ответ повторно в конец списка
+    вместо того чтобы задать поле correct_option_index.
+    """
+
+    real_options = [
+        item for item in raw_options
+        if isinstance(item, dict) and item.get("option_id") != "correct_option_index"
+    ]
+    if len(real_options) < 2:
+        return False
+    last = real_options[-1]
+    last_text = (last.get("text") or "").strip().casefold()
+    last_id = str(last.get("option_id") or "").strip()
+    for option in real_options[:-1]:
+        if not isinstance(option, dict):
+            continue
+        if last_text and last_text == (option.get("text") or "").strip().casefold():
+            return True
+        if last_id and last_id == str(option.get("option_id") or "").strip():
+            return True
+    return False
 
 
 def _make_true_false_options() -> tuple[Option, ...]:

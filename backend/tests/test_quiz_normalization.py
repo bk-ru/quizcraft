@@ -286,6 +286,72 @@ def test_resolve_readable_quiz_title_handles_empty_filename() -> None:
     assert result == "Квиз — 3 вопроса"
 
 
+def test_normalize_quiz_recovers_correct_option_index_from_trailing_duplicate() -> None:
+    """Модель дублирует правильный ответ в конец options вместо correct_option_index.
+
+    Паттерн: options[4] == options[0] (дубль по option_id и тексту)
+    Ожидание: дубль отфильтровывается, correct_option_index=0.
+    """
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Фотосинтез",
+        "version": 1,
+        "last_edited_at": "2026-01-01T00:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "single_choice",
+                "prompt": "Что преобразуется в глюкозу и кислород в ходе фотосинтеза?",
+                "options": [
+                    {"option_id": "0", "text": "углекислый газ и вода"},
+                    {"option_id": "1", "text": "световую энергию и хлорофилл"},
+                    {"option_id": "2", "text": "глюкоза и кислород"},
+                    {"option_id": "3", "text": "АТФ и НАДФН"},
+                    {"option_id": "0", "text": "углекислый газ и вода"},
+                ],
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    question = quiz.questions[0]
+    assert len(question.options) == 4
+    assert question.correct_option_index == 0
+
+
+def test_normalize_quiz_recovers_correct_option_index_from_trailing_duplicate_by_text() -> None:
+    """Дубль последней опции по тексту (option_id разные) → correct_option_index=1."""
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Биология",
+        "version": 1,
+        "last_edited_at": "2026-01-01T00:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "single_choice",
+                "prompt": "Где протекает фотосинтез?",
+                "options": [
+                    {"option_id": "0", "text": "митохондрия"},
+                    {"option_id": "1", "text": "хлоропласты"},
+                    {"option_id": "2", "text": "ядро"},
+                    {"option_id": "3", "text": "вакуоль"},
+                    {"option_id": "4", "text": "хлоропласты"},
+                ],
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    question = quiz.questions[0]
+    assert len(question.options) == 4
+    assert question.correct_option_index == 1
+
+
 def test_normalize_quiz_auto_fills_true_false_options_when_absent() -> None:
     """Модель вернула true_false без опций — нормализатор подставляет Да/Нет."""
     raw_payload = {
