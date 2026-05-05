@@ -1,4 +1,4 @@
-"""Text normalization and metadata assembly for ingested documents."""
+"""Нормализация текста и сборка метаданных для ingested документов."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ _EXCESSIVE_BLANK_LINES_PATTERN = re.compile(r"\n{3,}")
 
 
 def normalize_text(raw_text: str) -> str:
-    """Normalize extracted document content into a deterministic canonical form."""
+    """Нормализовать извлеченное содержимое документа в детерминированную каноническую форму."""
 
     normalized_text = raw_text.replace("\r\n", "\n").replace("\r", "\n").replace("\ufeff", "").replace("\t", " ")
     normalized_text = "".join(
@@ -30,7 +30,7 @@ def build_document_metadata(
     normalized_text: str,
     extra_metadata: dict[str, int] | None = None,
 ) -> dict[str, int]:
-    """Build base document metadata for the ingestion flow."""
+    """Сформировать базовые метаданные документа для потока ingestion."""
 
     metadata = {"text_length": len(normalized_text)}
     if extra_metadata:

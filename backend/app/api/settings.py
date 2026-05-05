@@ -1,4 +1,4 @@
-"""Generation settings endpoints for the HTTP API."""
+"""Endpoint'ы настроек генерации для HTTP API."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from backend.app.generation.profiles import GenerationProfileResolver
 
 
 def register_generation_settings_routes(app: FastAPI) -> None:
-    """Register generation settings routes on the FastAPI app."""
+    """Зарегистрировать маршруты настроек генерации в приложении FastAPI."""
 
     @app.get("/generation/settings")
     async def get_generation_settings(request: Request) -> dict[str, Any]:
@@ -53,7 +53,7 @@ def _serialize_generation_settings(
     request_id: str,
     config: AppConfig,
 ) -> dict[str, Any]:
-    """Serialize generation settings for API responses."""
+    """Сериализовать настройки генерации для API-ответов."""
 
     return {
         "settings": None if settings is None else settings.to_dict(),

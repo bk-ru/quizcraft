@@ -1,4 +1,4 @@
-"""Backend bootstrap entry point."""
+"""Точка входа bootstrap backend."""
 
 from __future__ import annotations
 
@@ -35,7 +35,7 @@ def create_app(
     provider=None,
     storage_root: Path | None = None,
 ) -> FastAPI:
-    """Create the HTTP application for the backend."""
+    """Создать HTTP-приложение для backend."""
 
     resolved_config = config or AppConfig.from_env()
     install_correlation_log_record_factory()
@@ -91,11 +91,11 @@ def create_app(
 
 
 def __getattr__(name: str) -> FastAPI:
-    """Provide ``app`` lazily so importing this module without env config stays cheap.
+    """Предоставить ``app`` лениво, чтобы импорт этого модуля без env-конфигурации оставался дешевым.
 
-    Uvicorn imports ``backend.app.main:app`` at startup, which triggers ``create_app``
-    only at that point. Tests that import the module for ``create_app`` still run
-    without requiring a populated environment.
+    Uvicorn импортирует ``backend.app.main:app`` при запуске, что вызывает ``create_app``
+    только в этот момент. Тесты, импортирующие модуль ради ``create_app``, по-прежнему
+    выполняются без необходимости заполненного окружения.
     """
 
     if name == "app":

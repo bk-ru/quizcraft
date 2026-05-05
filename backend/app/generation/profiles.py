@@ -1,4 +1,4 @@
-"""Generation profile and model selection resolution."""
+"""Разрешение профиля генерации и выбора модели."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from backend.app.domain.errors import ModelSelectionError
 
 @dataclass(frozen=True, slots=True)
 class ResolvedGenerationProfile:
-    """Resolved request-time generation profile values."""
+    """Разрешенные request-time значения профиля генерации."""
 
     profile_name: str
     model_name: str | None
@@ -22,7 +22,7 @@ class ResolvedGenerationProfile:
 
 
 class GenerationProfileResolver:
-    """Resolve generation profile and model selections against runtime configuration."""
+    """Разрешить выбор профиля генерации и модели относительно runtime-конфигурации."""
 
     def __init__(self, config: AppConfig) -> None:
         self._config = config
@@ -33,7 +33,7 @@ class GenerationProfileResolver:
         model_name: str | None,
         profile_name: str | None,
     ) -> ResolvedGenerationProfile:
-        """Resolve and validate a request-time model/profile selection."""
+        """Разрешить и проверить request-time выбор модели/профиля."""
 
         resolved_profile_name = profile_name or self._config.default_generation_profile
         profile = self._config.generation_profiles.get(resolved_profile_name)

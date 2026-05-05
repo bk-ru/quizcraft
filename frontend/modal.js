@@ -124,7 +124,7 @@ export function createConfirmModal({
             try {
               restore.focus();
             } catch (_inner) {
-              /* element may have been removed; ignore */
+              /* элемент мог быть удален; игнорировать */
             }
           }
         }

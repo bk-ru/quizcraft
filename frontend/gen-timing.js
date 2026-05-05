@@ -18,7 +18,7 @@ function writeSamples(storage, samples) {
   try {
     storage?.setItem(TIMING_KEY, JSON.stringify(samples));
   } catch (_e) {
-    /* localStorage unavailable — degrade silently */
+    /* Локальное хранилище недоступно; деградируем без ошибки */
   }
 }
 

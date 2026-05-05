@@ -1,1 +1,1 @@
-"""HTTP helpers for the backend API surface."""
+"""HTTP-вспомогательные средства для поверхности backend API."""

@@ -1,4 +1,4 @@
-"""RAG cache key and artifact models."""
+"""Ключ кэша RAG и модели артефактов."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from backend.app.parsing.chunking import TextChunk
 
 
 def build_document_hash(document_text: str) -> str:
-    """Build a stable SHA-256 hash for normalized document text."""
+    """Сформировать стабильный SHA-256 hash для нормализованного текста документа."""
 
     if not isinstance(document_text, str):
         raise DomainValidationError("document text must be a string")
@@ -20,7 +20,7 @@ def build_document_hash(document_text: str) -> str:
 
 
 def _validate_hash(value: str, field_name: str) -> None:
-    """Validate a SHA-256 hex hash field."""
+    """Проверить поле SHA-256 hex hash."""
 
     if not isinstance(value, str) or len(value) != 64:
         raise DomainValidationError(f"{field_name} must be a SHA-256 hex string")
@@ -37,7 +37,7 @@ def build_rag_cache_key(
     chunk_overlap: int,
     embedding_model_name: str,
 ) -> str:
-    """Build the stable cache key for one RAG cache configuration."""
+    """Сформировать стабильный ключ кэша для одной конфигурации RAG cache."""
 
     _validate_hash(document_hash, "document_hash")
     if isinstance(chunk_size, bool) or not isinstance(chunk_size, int) or chunk_size <= 0:
@@ -61,7 +61,7 @@ def build_rag_cache_key(
 
 @dataclass(frozen=True, slots=True)
 class RagCacheEntry:
-    """Persisted RAG chunks, embeddings, and index metadata for one document configuration."""
+    """Сохраненные RAG chunks, embeddings и метаданные index для одной конфигурации документа."""
 
     document_hash: str
     chunk_size: int
@@ -70,7 +70,7 @@ class RagCacheEntry:
     embedded_chunks: tuple[EmbeddedChunk, ...]
 
     def __post_init__(self) -> None:
-        """Validate cache entry invariants."""
+        """Проверить инварианты записи кэша."""
 
         self._validate_hash(self.document_hash, "document_hash")
         if isinstance(self.chunk_size, bool) or not isinstance(self.chunk_size, int) or self.chunk_size <= 0:
@@ -90,7 +90,7 @@ class RagCacheEntry:
 
     @property
     def cache_key(self) -> str:
-        """Return the stable key for this cache artifact."""
+        """Вернуть стабильный ключ для этого артефакта кэша."""
 
         return build_rag_cache_key(
             document_hash=self.document_hash,
@@ -101,7 +101,7 @@ class RagCacheEntry:
 
     @property
     def index_metadata(self) -> dict[str, int]:
-        """Return metadata needed to rebuild an in-memory vector index later."""
+        """Вернуть метаданные, необходимые для последующего восстановления in-memory vector index."""
 
         return {
             "chunk_count": len(self.embedded_chunks),
@@ -109,7 +109,7 @@ class RagCacheEntry:
         }
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize the cache entry into a JSON-compatible dictionary."""
+        """Сериализовать запись кэша в JSON-совместимый словарь."""
 
         return {
             "cache_key": self.cache_key,
@@ -134,7 +134,7 @@ class RagCacheEntry:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "RagCacheEntry":
-        """Deserialize a cache entry from a JSON-compatible dictionary."""
+        """Десериализовать запись кэша из JSON-совместимого словаря."""
 
         try:
             entry = cls(
@@ -168,13 +168,13 @@ class RagCacheEntry:
 
     @staticmethod
     def _validate_hash(value: str, field_name: str) -> None:
-        """Validate a SHA-256 hex hash field."""
+        """Проверить поле SHA-256 hex hash."""
 
         _validate_hash(value, field_name)
 
     @staticmethod
     def _validate_embedded_chunks(embedded_chunks: tuple[EmbeddedChunk, ...]) -> None:
-        """Validate embedded chunks and embedding dimensions."""
+        """Проверить embedded chunks и размерности embeddings."""
 
         expected_dimension: int | None = None
         for index, embedded_chunk in enumerate(embedded_chunks):

@@ -1,4 +1,4 @@
-"""Normalization helpers for raw model output payloads."""
+"""Вспомогательные средства нормализации raw payload'ов вывода модели."""
 
 from __future__ import annotations
 
@@ -26,10 +26,11 @@ def resolve_readable_quiz_title(
     document_filename: str,
     question_count: int,
 ) -> str:
-    """Return a readable quiz title, preferring LLM-provided or generating from filename.
+    """Вернуть читаемый заголовок квиза, предпочитая вариант от LLM или генерируя из имени файла.
 
-    If the LLM provided a meaningful title (not default and not empty), use it.
-    Otherwise, generate a readable title from document filename + question count.
+    Если LLM предоставила осмысленный заголовок, не пустой и не равный значению по умолчанию,
+    использовать его. Иначе сгенерировать читаемый заголовок из имени файла документа
+    и количества вопросов.
     """
 
     normalized_title = current_title.strip() if current_title else ""
@@ -50,13 +51,13 @@ def resolve_readable_quiz_title(
 
 
 def _is_generic_quiz_title(title: str) -> bool:
-    """Return whether a model title is too generic to show to users."""
+    """Вернуть, является ли заголовок модели слишком общим для показа пользователям."""
 
     return bool(GENERIC_QUIZ_TITLE_PATTERN.fullmatch(title))
 
 
 def _resolve_question_count_suffix(question_count: int) -> str:
-    """Return the correct Russian plural form for a question count."""
+    """Вернуть корректную русскую форму множественного числа для количества вопросов."""
 
     last_two_digits = abs(question_count) % 100
     if 11 <= last_two_digits <= 14:
@@ -70,7 +71,7 @@ def _resolve_question_count_suffix(question_count: int) -> str:
 
 
 def normalize_quiz_output(raw_payload: dict[str, Any]) -> Quiz:
-    """Normalize raw model JSON into the canonical quiz structure."""
+    """Нормализовать raw JSON модели в каноническую структуру квиза."""
 
     if not isinstance(raw_payload, dict):
         raise DomainValidationError("quiz payload must be an object")
@@ -91,13 +92,13 @@ def normalize_quiz_output(raw_payload: dict[str, Any]) -> Quiz:
 
 
 def normalize_question_output(raw_payload: dict[str, Any]) -> Question:
-    """Normalize raw model JSON into the canonical question structure."""
+    """Нормализовать raw JSON модели в каноническую структуру вопроса."""
 
     return _normalize_question(raw_payload, 0)
 
 
 def _normalize_question(raw_payload: Any, question_index: int) -> Question:
-    """Normalize one raw question payload."""
+    """Нормализовать один raw payload вопроса."""
 
     if not isinstance(raw_payload, dict):
         raise DomainValidationError("question payload must be an object")
@@ -134,7 +135,7 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
 
 
 def _normalize_option(raw_payload: Any, option_index: int) -> Option | None:
-    """Normalize one raw option payload, filtering empty options out."""
+    """Нормализовать один raw payload варианта, отфильтровывая пустые варианты."""
 
     if not isinstance(raw_payload, dict):
         return None
@@ -150,7 +151,7 @@ def _normalize_option(raw_payload: Any, option_index: int) -> Option | None:
 
 
 def _normalize_explanation(raw_payload: Any) -> Explanation | None:
-    """Normalize the optional explanation payload."""
+    """Нормализовать необязательный payload пояснения."""
 
     if raw_payload is None:
         return None
@@ -167,7 +168,7 @@ def _normalize_explanation(raw_payload: Any) -> Explanation | None:
 
 
 def _normalize_matching_pairs(raw_payload: Any) -> tuple[MatchingPair, ...]:
-    """Normalize matching pair payloads."""
+    """Нормализовать payload'ы пар для сопоставления."""
 
     if raw_payload is None:
         return ()
@@ -185,7 +186,7 @@ def _normalize_matching_pairs(raw_payload: Any) -> tuple[MatchingPair, ...]:
 
 
 def _normalize_optional_string(raw_value: Any) -> str | None:
-    """Normalize optional string fields."""
+    """Нормализовать необязательные строковые поля."""
 
     if raw_value is None:
         return None
@@ -196,7 +197,7 @@ def _normalize_optional_string(raw_value: Any) -> str | None:
 
 
 def _normalize_required_string(raw_value: Any, default: str) -> str:
-    """Normalize a string field with trimming and a default fallback."""
+    """Нормализовать строковое поле с обрезкой пробелов и fallback по умолчанию."""
 
     if raw_value is None:
         return default
@@ -209,7 +210,7 @@ def _normalize_required_string(raw_value: Any, default: str) -> str:
 
 
 def _normalize_integer(raw_value: Any, default: int, field_name: str) -> int:
-    """Normalize integer-like fields from raw payload values."""
+    """Нормализовать целочисленные поля из raw значений payload."""
 
     if raw_value is None:
         return default
@@ -227,7 +228,7 @@ def _normalize_integer(raw_value: Any, default: int, field_name: str) -> int:
 
 
 def _normalize_correct_option_index(raw_payload: dict[str, Any], field_name: str) -> int | None:
-    """Normalize supported answer-index fields into zero-based indexing."""
+    """Нормализовать поддерживаемые поля индекса ответа в нумерацию с нуля."""
 
     if "correct_option_number" in raw_payload:
         return _normalize_integer(raw_payload.get("correct_option_number"), default=1, field_name=field_name) - 1

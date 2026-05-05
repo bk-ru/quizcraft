@@ -1,4 +1,4 @@
-"""Correlation ID helpers for request-scoped logging."""
+"""Вспомогательные средства correlation ID для логирования в области запроса."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ _record_factory_installed = False
 
 
 def install_correlation_log_record_factory() -> None:
-    """Install a log-record factory that attaches the request correlation ID."""
+    """Установить фабрику лог-записей, добавляющую correlation ID запроса."""
 
     global _record_factory_installed
     if _record_factory_installed:
@@ -33,18 +33,18 @@ def install_correlation_log_record_factory() -> None:
 
 
 def bind_correlation_id(value: str) -> Token[str]:
-    """Bind one correlation ID to the current context."""
+    """Привязать один correlation ID к текущему контексту."""
 
     return _correlation_id.set(value)
 
 
 def reset_correlation_id(token: Token[str]) -> None:
-    """Reset the current correlation ID context."""
+    """Сбросить текущий контекст correlation ID."""
 
     _correlation_id.reset(token)
 
 
 def get_correlation_id() -> str:
-    """Return the correlation ID bound to the current context."""
+    """Вернуть correlation ID, привязанный к текущему контексту."""
 
     return _correlation_id.get()

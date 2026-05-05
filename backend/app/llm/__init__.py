@@ -1,4 +1,4 @@
-"""Provider abstractions and clients for LLM integrations."""
+"""Абстракции провайдеров и клиенты для LLM-интеграций."""
 
 from backend.app.llm.external_api import ExternalAPIClient
 from backend.app.llm.lm_studio import LMStudioClient

@@ -1,4 +1,4 @@
-"""PDF parsing support for document ingestion."""
+"""Поддержка парсинга PDF для ingestion документов."""
 
 from __future__ import annotations
 
@@ -15,10 +15,10 @@ logger = logging.getLogger(__name__)
 
 
 class PdfParser:
-    """Extract text and page metadata from validated PDF files."""
+    """Извлечь текст и метаданные страниц из валидированных PDF-файлов."""
 
     def parse(self, validated_file: ValidatedFile) -> str:
-        """Read page-by-page text from a PDF file."""
+        """Прочитать текст PDF-файла постранично."""
 
         reader = self._load_reader(validated_file)
         extracted_pages = []
@@ -35,14 +35,14 @@ class PdfParser:
         return extracted_text
 
     def extract_page_count(self, validated_file: ValidatedFile) -> int:
-        """Return the total page count for a validated PDF file."""
+        """Вернуть общее количество страниц валидированного PDF-файла."""
 
         reader = self._load_reader(validated_file)
         return len(reader.pages)
 
     @staticmethod
     def _load_reader(validated_file: ValidatedFile) -> PdfReader:
-        """Create a PdfReader for the validated file or raise a controlled error."""
+        """Создать PdfReader для валидированного файла или вызвать контролируемую ошибку."""
 
         try:
             return PdfReader(BytesIO(validated_file.content))

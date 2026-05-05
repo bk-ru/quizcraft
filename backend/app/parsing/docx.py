@@ -1,4 +1,4 @@
-"""DOCX parsing support for document ingestion."""
+"""Поддержка парсинга DOCX для ingestion документов."""
 
 from __future__ import annotations
 
@@ -16,10 +16,10 @@ _WORDPROCESSING_NAMESPACE = {"w": "http://schemas.openxmlformats.org/wordprocess
 
 
 class DocxParser:
-    """Extract text from validated DOCX files."""
+    """Извлечь текст из валидированных DOCX-файлов."""
 
     def parse(self, validated_file: ValidatedFile) -> str:
-        """Read paragraph text from a DOCX archive."""
+        """Прочитать текст абзацев из DOCX-архива."""
 
         try:
             with ZipFile(BytesIO(validated_file.content)) as archive:

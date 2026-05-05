@@ -1,4 +1,4 @@
-"""Uploaded-file validation for document ingestion."""
+"""Валидация загруженных файлов для ingestion документов."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class ValidatedFile:
-    """Validated uploaded file accepted by the parsing layer."""
+    """Валидированный загруженный файл, принятый слоем парсинга."""
 
     filename: str
     media_type: str
@@ -22,7 +22,7 @@ class ValidatedFile:
 
 
 class UploadedFileValidator:
-    """Validate uploaded files before parser dispatch."""
+    """Проверить загруженные файлы перед dispatch парсера."""
 
     _supported_media_types = {
         ".txt": {"text/plain"},
@@ -34,7 +34,7 @@ class UploadedFileValidator:
         self._max_file_size_bytes = max_file_size_bytes
 
     def validate(self, filename: str, media_type: str, content: bytes) -> ValidatedFile:
-        """Validate filename, MIME type, size, and content presence."""
+        """Проверить имя файла, MIME type, размер и наличие содержимого."""
 
         extension = Path(filename).suffix.lower()
         normalized_media_type = media_type.split(";", maxsplit=1)[0].strip().lower()

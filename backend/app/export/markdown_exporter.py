@@ -1,11 +1,11 @@
-"""Markdown export for persisted quizzes — human-readable plain text.
+"""Markdown-экспорт сохраненных квизов в человекочитаемый plain text.
 
-Supports all question types:
-- single_choice: enumerated options
-- true_false: simplified boolean
-- fill_blank: inline blank marker
-- short_answer: correct answer shown
-- matching: two-column table
+Поддерживает все типы вопросов:
+- single_choice: нумерованные варианты
+- true_false: упрощенный boolean
+- fill_blank: inline-маркер пропуска
+- short_answer: показан правильный ответ
+- matching: таблица из двух колонок
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from backend.app.export.base import ExportedQuizFile
 
 
 def _escape_md(text: str) -> str:
-    """Escape markdown special characters in text."""
+    """Экранировать специальные символы Markdown в тексте."""
 
     chars = ["\\", "`", "*", "_", "{", "}", "[", "]", "<", ">", "(", ")", "#", "+", "-", ".", "!", "|"]
     for char in chars:
@@ -25,12 +25,12 @@ def _escape_md(text: str) -> str:
 
 
 class QuizMarkdownExporter:
-    """Export persisted quizzes into clean UTF-8 Markdown."""
+    """Экспортировать сохраненные квизы в чистый UTF-8 Markdown."""
 
     media_type = "text/markdown; charset=utf-8"
 
     def export(self, quiz: Quiz) -> ExportedQuizFile:
-        """Render one quiz into a UTF-8 Markdown file."""
+        """Отрендерить один квиз в UTF-8 Markdown-файл."""
 
         lines: list[str] = []
 
@@ -66,7 +66,7 @@ class QuizMarkdownExporter:
         )
 
     def _render_question(self, question: Question, index: int) -> list[str]:
-        """Render one question in markdown format."""
+        """Отрендерить один вопрос в формате Markdown."""
 
         lines: list[str] = []
         qt = question.question_type
@@ -109,7 +109,7 @@ class QuizMarkdownExporter:
         return lines
 
     def _render_answer_line(self, question: Question, index: int) -> str:
-        """Render compact answer line for answer key section."""
+        """Отрендерить компактную строку ответа для раздела ключей ответов."""
 
         qt = question.question_type
 
@@ -135,7 +135,7 @@ class QuizMarkdownExporter:
 
     @staticmethod
     def _type_label(qt: str) -> str:
-        """Return human-readable type label in Russian."""
+        """Вернуть человекочитаемую русскую метку типа."""
 
         labels = {
             "single_choice": "Одиночный выбор",

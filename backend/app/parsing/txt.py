@@ -1,4 +1,4 @@
-"""TXT parsing support for document ingestion."""
+"""Поддержка парсинга TXT для ingestion документов."""
 
 from __future__ import annotations
 
@@ -11,13 +11,13 @@ logger = logging.getLogger(__name__)
 
 
 class TxtParser:
-    """Extract text from validated TXT files."""
+    """Извлечь текст из валидированных TXT-файлов."""
 
     def __init__(self, encodings: tuple[str, ...] = ("utf-8-sig", "utf-8", "cp1251", "koi8-r")) -> None:
         self._encodings = encodings
 
     def parse(self, validated_file: ValidatedFile) -> str:
-        """Decode TXT bytes into raw text using controlled fallback encodings."""
+        """Декодировать TXT bytes в raw text с использованием контролируемых fallback-кодировок."""
 
         for encoding in self._encodings:
             try:
@@ -34,7 +34,7 @@ class TxtParser:
 
     @staticmethod
     def _looks_corrupted(decoded_text: str) -> bool:
-        """Detect obviously broken decoded content."""
+        """Обнаружить явно поврежденное декодированное содержимое."""
 
         if "\x00" in decoded_text:
             return True

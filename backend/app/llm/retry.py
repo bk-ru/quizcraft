@@ -1,4 +1,4 @@
-"""Retry and timeout support for provider calls."""
+"""Поддержка retry и timeout для вызовов провайдера."""
 
 from __future__ import annotations
 
@@ -17,14 +17,14 @@ ResponseT = TypeVar("ResponseT")
 
 @dataclass(frozen=True, slots=True)
 class RetryPolicy:
-    """Configuration for retrying transient provider failures."""
+    """Конфигурация повторов для временных сбоев провайдера."""
 
     max_retries: int = 2
     base_backoff_seconds: float = 0.25
     backoff_multiplier: float = 2.0
 
     def __post_init__(self) -> None:
-        """Reject invalid retry policy values."""
+        """Отклонить некорректные значения retry policy."""
 
         if self.max_retries < 0:
             raise ValueError("max_retries must be zero or greater")
@@ -34,13 +34,13 @@ class RetryPolicy:
             raise ValueError("backoff_multiplier must be at least 1")
 
     def backoff_for_attempt(self, attempt_index: int) -> float:
-        """Return the delay for a retry attempt index."""
+        """Вернуть задержку для индекса retry-попытки."""
 
         return self.base_backoff_seconds * (self.backoff_multiplier ** attempt_index)
 
 
 class RetryingCaller:
-    """Execute provider calls with centralized retry handling."""
+    """Выполнять вызовы провайдера с централизованной обработкой retry."""
 
     def __init__(
         self,
@@ -51,7 +51,7 @@ class RetryingCaller:
         self._sleep = sleep_function
 
     def execute(self, operation: Callable[[], ResponseT]) -> ResponseT:
-        """Run an operation, retrying only transient provider errors."""
+        """Выполнить операцию, повторяя только временные ошибки провайдера."""
 
         attempt_index = 0
         while True:

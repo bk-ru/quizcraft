@@ -1,4 +1,4 @@
-"""Direct-generation endpoint for the HTTP API."""
+"""Endpoint прямой генерации для HTTP API."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from backend.app.generation.profiles import GenerationProfileResolver
 
 
 def register_generation_routes(app: FastAPI) -> None:
-    """Register generation routes on the FastAPI app."""
+    """Зарегистрировать маршруты генерации в приложении FastAPI."""
 
     @app.post("/documents/{document_id}/generate")
     async def generate_quiz(
@@ -44,7 +44,7 @@ def register_generation_routes(app: FastAPI) -> None:
 
 
 def _load_saved_settings(settings_repository) -> GenerationSettings | None:
-    """Load saved generation settings if they exist."""
+    """Загрузить сохраненные настройки генерации, если они существуют."""
 
     try:
         return settings_repository.get()
@@ -53,7 +53,7 @@ def _load_saved_settings(settings_repository) -> GenerationSettings | None:
 
 
 def _serialize_generation_result(result: GenerationResult, request_id: str) -> dict[str, Any]:
-    """Serialize a generation result for API responses."""
+    """Сериализовать результат генерации для API-ответов."""
 
     return {
         "quiz_id": result.quiz.quiz_id,

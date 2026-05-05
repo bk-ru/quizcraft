@@ -57,7 +57,7 @@ def test_default_export_registry_exposes_json_exporter() -> None:
 
 
 def test_default_export_registry_includes_csv_and_markdown() -> None:
-    """Verify CSV and Markdown formats are registered with Cyrillic preservation."""
+    """Проверить регистрацию форматов CSV и Markdown с сохранением кириллицы."""
 
     formats = DEFAULT_QUIZ_EXPORT_REGISTRY.supported_formats()
 
@@ -79,7 +79,7 @@ def test_default_export_registry_includes_csv_and_markdown() -> None:
 
 
 def test_default_registry_resolves_md_alias_to_markdown() -> None:
-    """Verify 'md' is alias for 'markdown' and produces identical output."""
+    """Проверить, что 'md' является alias для 'markdown' и дает идентичный вывод."""
 
     quiz = build_quiz()
 

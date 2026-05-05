@@ -1,4 +1,4 @@
-"""Quality checks for normalized quiz output."""
+"""Проверки качества нормализованного вывода квиза."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ _DOC_LENGTH_THRESHOLDS: tuple[tuple[int, int], ...] = (
 
 
 def enrich_generation_error(error: DomainValidationError, doc_char_count: int) -> DomainValidationError:
-    """Return a new error with a document-length hint appended when the text is short."""
+    """Вернуть новую ошибку с подсказкой о длине документа, когда текст короткий."""
 
     for max_chars, max_questions in _DOC_LENGTH_THRESHOLDS:
         if doc_char_count < max_chars:
@@ -30,10 +30,10 @@ def enrich_generation_error(error: DomainValidationError, doc_char_count: int) -
 
 
 class GenerationQualityChecker:
-    """Validate normalized quiz output against post-generation quality rules."""
+    """Проверить нормализованный вывод квиза по правилам качества после генерации."""
 
     def ensure_quality(self, quiz: Quiz, expected_question_count: int) -> None:
-        """Raise a controlled domain error when the quiz fails quality checks."""
+        """Вызвать контролируемую доменную ошибку, когда квиз не проходит проверки качества."""
 
         validate_quiz(quiz)
         if len(quiz.questions) != expected_question_count:

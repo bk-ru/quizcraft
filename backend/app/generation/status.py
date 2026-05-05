@@ -1,4 +1,4 @@
-"""Generation pipeline status models."""
+"""Модели статуса pipeline генерации."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from typing import Any
 
 
 class GenerationRunStatus(str, Enum):
-    """Controlled generation status transitions."""
+    """Контролируемые переходы статуса генерации."""
 
     QUEUED = "queued"
     RUNNING = "running"
@@ -18,7 +18,7 @@ class GenerationRunStatus(str, Enum):
 
 
 class GenerationPipelineStep(str, Enum):
-    """Controlled generation pipeline steps."""
+    """Контролируемые шаги pipeline генерации."""
 
     PARSE = "parse"
     GENERATE = "generate"
@@ -28,7 +28,7 @@ class GenerationPipelineStep(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class GenerationPipelineEvent:
-    """Structured status event emitted by the generation pipeline."""
+    """Структурированное событие статуса, выпускаемое pipeline генерации."""
 
     status: GenerationRunStatus
     step: GenerationPipelineStep
@@ -40,7 +40,7 @@ class GenerationPipelineEvent:
     error_message: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize the event into a JSON-compatible dictionary."""
+        """Сериализовать событие в JSON-совместимый словарь."""
 
         payload: dict[str, Any] = {
             "status": self.status.value,
@@ -60,7 +60,7 @@ class GenerationPipelineEvent:
         return payload
 
     def to_log_extra(self) -> dict[str, Any]:
-        """Serialize the event into LogRecord extra fields."""
+        """Сериализовать событие в extra-поля LogRecord."""
 
         payload: dict[str, Any] = {
             "generation_status": self.status.value,

@@ -1,6 +1,7 @@
-"""Generation request assembly primitives."""
+"""Примитивы сборки запроса генерации."""
 
 from backend.app.generation.dispatcher import GenerationOrchestratorDispatcher
+from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
 from backend.app.generation.mode_selector import DEFAULT_RAG_THRESHOLD_CHARS
 from backend.app.generation.mode_selector import select_generation_mode
 from backend.app.generation.orchestrator import DirectGenerationOrchestrator
@@ -16,6 +17,7 @@ __all__ = [
     "DEFAULT_RAG_THRESHOLD_CHARS",
     "DirectGenerationOrchestrator",
     "DirectGenerationRequestBuilder",
+    "FileSystemGenerationDiagnosticLogger",
     "GenerationOrchestratorDispatcher",
     "GenerationQualityChecker",
     "RagGenerationOrchestrator",

@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 import socket
 from urllib.error import HTTPError
 
@@ -15,23 +16,23 @@ from backend.app.llm.retry import RetryPolicy
 
 
 class FakeHTTPResponse:
-    """Minimal context-manager response used to stub urllib calls."""
+    """Минимальный ответ context manager, используемый для stub вызовов urllib."""
 
     def __init__(self, payload: bytes | dict[str, object]) -> None:
         self._payload = payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
 
     def read(self) -> bytes:
-        """Return the prepared raw response payload."""
+        """Вернуть подготовленный raw payload ответа."""
 
         return self._payload
 
     def __enter__(self) -> "FakeHTTPResponse":
-        """Return the response for context-manager usage."""
+        """Вернуть ответ для использования context manager."""
 
         return self
 
     def __exit__(self, exc_type, exc, traceback) -> bool:
-        """Propagate exceptions raised inside the context manager."""
+        """Пробросить исключения, вызванные внутри context manager."""
 
         return False
 
@@ -43,6 +44,20 @@ def build_client(max_retries: int = 2) -> LMStudioClient:
         timeout_seconds=7,
         retry_policy=RetryPolicy(
             max_retries=max_retries,
+            base_backoff_seconds=0.0,
+            backoff_multiplier=1.0,
+        ),
+    )
+
+
+def build_client_with_separate_embedding_model() -> LMStudioClient:
+    return LMStudioClient(
+        base_url="http://localhost:1234/v1",
+        default_model="local-chat",
+        default_embedding_model="local-embed",
+        timeout_seconds=7,
+        retry_policy=RetryPolicy(
+            max_retries=0,
             base_backoff_seconds=0.0,
             backoff_multiplier=1.0,
         ),
@@ -84,6 +99,35 @@ def test_embed_posts_input_payload_and_returns_vectors_for_cyrillic_texts(
     assert response.vectors == ((0.1, 0.2, 0.3), (0.4, 0.5, 0.6))
 
 
+def test_embed_logs_safe_request_and_response_summary(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_urlopen(request, timeout):
+        return FakeHTTPResponse(
+            {
+                "model": "local-embed",
+                "data": [
+                    {"embedding": [0.1, 0.2, 0.3], "index": 0},
+                    {"embedding": [0.4, 0.5, 0.6], "index": 1},
+                ],
+            }
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    with caplog.at_level(logging.INFO, logger="backend.app.llm.lm_studio"):
+        build_client().embed(
+            EmbeddingRequest(texts=("Москва — столица России.", "Привет, мир!"))
+        )
+
+    rendered = "\n".join(record.getMessage() for record in caplog.records)
+    assert "Sending LM Studio request path=/embeddings" in rendered
+    assert "input_count" in rendered
+    assert "embedding_dimension" in rendered
+    assert "Москва — столица России." in rendered
+
+
 def test_embed_uses_request_model_when_overriding_default(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -106,6 +150,30 @@ def test_embed_uses_request_model_when_overriding_default(
 
     assert captured["payload"]["model"] == "alt-embed"
     assert response.model_name == "alt-embed"
+
+
+def test_embed_uses_separate_default_embedding_model(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout):
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeHTTPResponse(
+            {
+                "model": "local-embed",
+                "data": [{"embedding": [1.0, 2.0], "index": 0}],
+            }
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    response = build_client_with_separate_embedding_model().embed(
+        EmbeddingRequest(texts=("Р РѕСЃСЃРёСЏ",))
+    )
+
+    assert captured["payload"]["model"] == "local-embed"
+    assert response.model_name == "local-embed"
 
 
 def test_embed_sorts_response_items_by_index(monkeypatch: pytest.MonkeyPatch) -> None:

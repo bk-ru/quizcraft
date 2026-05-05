@@ -26,7 +26,7 @@ from backend.app.storage.rag_cache import FileSystemRagCacheRepository
 
 
 class StubRagProvider:
-    """Deterministic provider stub returning canned embeddings and quiz responses."""
+    """Детерминированный stub провайдера, возвращающий canned embeddings и ответы квиза."""
 
     def __init__(
         self,
@@ -388,6 +388,8 @@ def test_rag_orchestrator_passes_retrieved_context_to_structured_generation_requ
     structured_request = provider.structured_requests[0]
     assert "Москва" in structured_request.user_prompt
     assert "Retrieved context" in structured_request.user_prompt
+    assert "Allowed question type: single_choice" in structured_request.user_prompt
+    assert "Every question MUST use question_type=single_choice" in structured_request.user_prompt
     assert structured_request.schema_name == "quiz_payload"
 
 
@@ -407,6 +409,8 @@ def test_rag_orchestrator_uses_repair_prompt_after_quality_failure(tmp_path) -> 
     assert result.prompt_version == "repair-v1"
     assert len(provider.structured_requests) == 2
     assert "Repair" in provider.structured_requests[1].user_prompt or "repair" in provider.structured_requests[1].user_prompt.lower()
+    assert "Original generation settings" in provider.structured_requests[1].user_prompt
+    assert "Allowed question type: single_choice" in provider.structured_requests[1].user_prompt
 
 
 def test_rag_orchestrator_raises_after_repair_is_exhausted(tmp_path) -> None:

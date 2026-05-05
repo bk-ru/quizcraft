@@ -1,1 +1,1 @@
-"""Domain models and rules for QuizCraft."""
+"""Доменные модели и правила QuizCraft."""

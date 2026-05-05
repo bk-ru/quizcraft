@@ -50,6 +50,10 @@ def test_request_builder_creates_structured_provider_request_for_direct_mode() -
     assert "Language: ru" in provider_request.user_prompt
     assert "Difficulty: medium" in provider_request.user_prompt
     assert "Quiz type: single_choice" in provider_request.user_prompt
+    assert "Allowed question type: single_choice" in provider_request.user_prompt
+    assert "Every question MUST use question_type=single_choice" in provider_request.user_prompt
+    assert "provide exactly four options" in provider_request.user_prompt
+    assert "correct_option_index to the zero-based index" in provider_request.user_prompt
 
 
 def test_request_builder_rejects_unsupported_generation_mode() -> None:

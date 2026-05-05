@@ -1,4 +1,4 @@
-"""HTTP error mapping for controlled backend exceptions."""
+"""Сопоставление HTTP-ошибок для контролируемых исключений backend."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 
 def map_backend_error_to_status_code(error: BackendError) -> int:
-    """Map one domain error into a stable HTTP status code."""
+    """Сопоставить одну доменную ошибку со стабильным HTTP-кодом состояния."""
 
     if isinstance(error, RepositoryNotFoundError):
         return 404
@@ -69,7 +69,7 @@ def map_backend_error_to_status_code(error: BackendError) -> int:
 
 
 async def handle_backend_error(request: Request, error: BackendError) -> JSONResponse:
-    """Convert a controlled backend exception into a JSON HTTP response."""
+    """Преобразовать контролируемое исключение backend в JSON HTTP-ответ."""
 
     request_id = getattr(request.state, "correlation_id", get_correlation_id())
     logger.warning("HTTP backend error code=%s status=%s", error.code, map_backend_error_to_status_code(error))
@@ -89,7 +89,7 @@ async def handle_request_validation_error(
     request: Request,
     error: RequestValidationError,
 ) -> JSONResponse:
-    """Render FastAPI request-validation errors using the backend error envelope."""
+    """Отобразить ошибки валидации запроса FastAPI через envelope ошибок backend."""
 
     request_id = getattr(request.state, "correlation_id", get_correlation_id())
     message = build_validation_error_message(list(error.errors()))

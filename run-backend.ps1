@@ -3,7 +3,7 @@
 param(
     [string]$HostName = "127.0.0.1",
     [int]$Port = 8000,
-    [switch]$NoReload
+    [switch]$Reload
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,7 +27,7 @@ $uvicornArgs = @(
     "--host", $HostName,
     "--port", $Port
 )
-if (-not $NoReload) {
+if ($Reload) {
     $uvicornArgs += "--reload"
 }
 

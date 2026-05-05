@@ -1,1 +1,1 @@
-"""Storage layer for filesystem-backed repositories."""
+"""Слой хранения для filesystem-backed repositories."""

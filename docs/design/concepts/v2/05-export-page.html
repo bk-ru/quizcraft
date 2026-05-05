@@ -26,7 +26,7 @@
       pointer-events: none; z-index: 0;
     }
 
-    /* TOPBAR */
+    /* ВЕРХНЯЯ ПАНЕЛЬ */
     .topbar {
       height: 58px; display: flex; align-items: center; justify-content: space-between;
       padding: 0 2rem; border-bottom: 1px solid var(--border);
@@ -44,21 +44,21 @@
     .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 3px 12px rgba(111,106,248,.3); }
     .btn-primary:hover { background: var(--primary2); }
 
-    /* LAYOUT */
+    /* МАКЕТ */
     .page-content {
       position: relative; z-index: 1;
       max-width: 1000px; margin: 0 auto; width: 100%;
       padding: 2.5rem 2rem; display: flex; flex-direction: column; gap: 2rem;
     }
 
-    /* BREADCRUMB */
+    /* ХЛЕБНЫЕ КРОШКИ */
     .breadcrumb { display: flex; align-items: center; gap: .5rem; font-size: .82rem; color: var(--muted); }
     .breadcrumb a { color: var(--muted); text-decoration: none; transition: color .2s; }
     .breadcrumb a:hover { color: var(--text); }
     .breadcrumb .sep { font-size: .7rem; }
     .breadcrumb .current { color: var(--text); font-weight: 600; }
 
-    /* QUIZ SUMMARY */
+    /* СВОДКА КВИЗА */
     .quiz-summary {
       background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
       padding: 1.75rem; display: flex; align-items: center; gap: 1.5rem;
@@ -79,7 +79,7 @@
     .pill-tf { background: rgba(248,87,166,.1); color: var(--accent); }
     .quiz-summary-right { margin-left: auto; display: flex; gap: .6rem; }
 
-    /* FORMAT CARDS */
+    /* КАРТОЧКИ ФОРМАТОВ */
     .section-header { margin-bottom: 1rem; }
     .section-title { font-size: 1.1rem; font-weight: 800; margin-bottom: .25rem; }
     .section-sub { font-size: .875rem; color: var(--muted); }
@@ -124,7 +124,7 @@
     .format-tags { display: flex; gap: .4rem; flex-wrap: wrap; }
     .ftag { padding: .18rem .55rem; border-radius: 50px; font-size: .68rem; font-weight: 600; background: var(--surface2); color: var(--muted); border: 1px solid var(--border2); }
 
-    /* OPTIONS */
+    /* ПАРАМЕТРЫ */
     .options-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
       padding: 1.5rem; animation: fadeUp .5s ease .3s both;
@@ -148,7 +148,7 @@
     .toggle::after { content: ''; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: #fff; top: 2px; left: 2px; transition: left .25s; }
     .toggle.on::after { left: 20px; }
 
-    /* PREVIEW */
+    /* ПРЕДПРОСМОТР */
     .preview-card {
       background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
       overflow: hidden; animation: fadeUp .5s ease .4s both;
@@ -165,7 +165,7 @@
     .preview-body .ps { color: var(--success); }
     .preview-body .pa { color: var(--accent); }
 
-    /* EXPORT ACTION */
+    /* ДЕЙСТВИЕ ЭКСПОРТА */
     .export-action {
       background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
       padding: 1.5rem; display: flex; align-items: center; justify-content: space-between;
@@ -185,7 +185,7 @@
     .btn-export svg { width: 17px; height: 17px; stroke: #000; fill: none; stroke-width: 2; }
     .btn-export.loading { opacity: .65; cursor: wait; }
 
-    /* TOAST */
+    /* ТОСТ-УВЕДОМЛЕНИЕ */
     .toast {
       position: fixed; bottom: 2rem; right: 2rem; z-index: 200;
       background: var(--surface); border: 1px solid rgba(34,211,160,.3);
@@ -226,7 +226,7 @@
 
 <div class="page-content">
 
-  <!-- BREADCRUMB -->
+  <!-- ХЛЕБНЫЕ КРОШКИ -->
   <div class="breadcrumb">
     <a href="01-homepage.html">Главная</a>
     <span class="sep">/</span>
@@ -235,7 +235,7 @@
     <span class="current">Экспорт</span>
   </div>
 
-  <!-- QUIZ SUMMARY -->
+  <!-- СВОДКА КВИЗА -->
   <div class="quiz-summary">
     <div class="quiz-summary-icon">
       <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
@@ -257,14 +257,14 @@
     </div>
   </div>
 
-  <!-- FORMAT SELECTION -->
+  <!-- ВЫБОР ФОРМАТА -->
   <div>
     <div class="section-header">
       <div class="section-title">Выберите формат</div>
       <div class="section-sub">Нажмите на карточку для выбора; можно выбрать несколько</div>
     </div>
     <div class="format-grid">
-      <!-- DOCX -->
+      <!-- Формат DOCX -->
       <div class="format-card selected" onclick="toggleFormat(this)">
         <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="format-icon ficon-docx"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
@@ -276,7 +276,7 @@
           <span class="ftag">Печать</span>
         </div>
       </div>
-      <!-- PPTX -->
+      <!-- Формат PPTX -->
       <div class="format-card" onclick="toggleFormat(this)">
         <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="format-icon ficon-pptx"><svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg></div>
@@ -288,7 +288,7 @@
           <span class="ftag">Презентация</span>
         </div>
       </div>
-      <!-- TXT -->
+      <!-- Формат TXT -->
       <div class="format-card" onclick="toggleFormat(this)">
         <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="format-icon ficon-txt"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
@@ -299,7 +299,7 @@
           <span class="ftag">Легковесный</span>
         </div>
       </div>
-      <!-- JSON -->
+      <!-- Формат JSON -->
       <div class="format-card" onclick="toggleFormat(this)">
         <div class="check-mark"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
         <div class="format-icon ficon-json"><svg viewBox="0 0 24 24"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg></div>
@@ -314,7 +314,7 @@
     </div>
   </div>
 
-  <!-- OPTIONS -->
+  <!-- ПАРАМЕТРЫ -->
   <div class="options-card">
     <div class="section-header">
       <div class="section-title">Параметры экспорта</div>
@@ -369,7 +369,7 @@
     </div>
   </div>
 
-  <!-- PREVIEW -->
+  <!-- ПРЕДПРОСМОТР -->
   <div class="preview-card">
     <div class="preview-head">
       <span>Предпросмотр (JSON)</span>
@@ -401,7 +401,7 @@
     </div>
   </div>
 
-  <!-- EXPORT ACTION -->
+  <!-- ДЕЙСТВИЕ ЭКСПОРТА -->
   <div class="export-action">
     <div class="export-action-info">
       <h3>Готово к скачиванию</h3>

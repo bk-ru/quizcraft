@@ -1,1 +1,1 @@
-"""Application package for QuizCraft backend."""
+"""Пакет приложения backend для QuizCraft."""

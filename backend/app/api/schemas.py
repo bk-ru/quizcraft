@@ -1,4 +1,4 @@
-"""Pydantic request and response schemas for the HTTP API."""
+"""Pydantic-схемы запросов и ответов для HTTP API."""
 
 from __future__ import annotations
 
@@ -23,13 +23,13 @@ from backend.app.domain.models import Quiz
 
 
 class _StrictModel(BaseModel):
-    """Base model rejecting extra fields and stripping string whitespace."""
+    """Базовая модель, отклоняющая лишние поля и удаляющая пробелы по краям строк."""
 
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
 class GenerationRequestBody(_StrictModel):
-    """Request body for direct quiz generation."""
+    """Тело запроса для прямой генерации квиза."""
 
     question_count: int | None = Field(
         default=None,
@@ -46,7 +46,7 @@ class GenerationRequestBody(_StrictModel):
     profile_name: str | None = Field(default=None, min_length=1)
 
     def to_settings(self, defaults: GenerationSettings | None = None) -> GenerationSettings:
-        """Convert a partial request body into complete generation settings."""
+        """Преобразовать частичное тело запроса в полные настройки генерации."""
 
         overrides = self.to_settings_overrides()
         if defaults is not None:
@@ -54,7 +54,7 @@ class GenerationRequestBody(_StrictModel):
         return GenerationSettings.from_dict(overrides)
 
     def to_settings_overrides(self) -> dict[str, Any]:
-        """Return only explicitly provided settings values."""
+        """Вернуть только явно переданные значения настроек."""
 
         values = {
             "question_count": self.question_count,
@@ -68,7 +68,7 @@ class GenerationRequestBody(_StrictModel):
         return {key: value for key, value in values.items() if value is not None}
 
     def _resolved_quiz_type(self) -> str | None:
-        """Return the legacy quiz_type string derived from explicit values."""
+        """Вернуть legacy-строку quiz_type, полученную из явных значений."""
 
         if self.quiz_types:
             return ",".join(item.value for item in self.quiz_types)
@@ -83,7 +83,7 @@ class GenerationRequestBody(_StrictModel):
         profile_name: str | None = None,
         inference_parameters: dict[str, Any] | None = None,
     ) -> GenerationRequest:
-        """Convert the validated body into a domain generation request."""
+        """Преобразовать валидированное тело в доменный запрос генерации."""
 
         settings = self.to_settings()
         return settings.to_generation_request(
@@ -94,7 +94,7 @@ class GenerationRequestBody(_StrictModel):
 
 
 class GenerationSettingsBody(_StrictModel):
-    """Request body for persisted generation settings."""
+    """Тело запроса для сохраняемых настроек генерации."""
 
     question_count: int = Field(strict=True, gt=0)
     language: Language
@@ -106,7 +106,7 @@ class GenerationSettingsBody(_StrictModel):
     profile_name: str | None = Field(default=None, min_length=1)
 
     def to_settings(self) -> GenerationSettings:
-        """Convert the validated payload into persisted generation settings."""
+        """Преобразовать валидированный payload в сохраняемые настройки генерации."""
 
         return GenerationSettings(
             question_count=self.question_count,
@@ -120,7 +120,7 @@ class GenerationSettingsBody(_StrictModel):
 
 
 class ExplanationPayload(_StrictModel):
-    """Quiz question explanation payload."""
+    """Payload пояснения к вопросу квиза."""
 
     text: str = Field(min_length=1)
 
@@ -129,7 +129,7 @@ class ExplanationPayload(_StrictModel):
 
 
 class OptionPayload(_StrictModel):
-    """Quiz answer option payload."""
+    """Payload варианта ответа квиза."""
 
     option_id: str = Field(min_length=1)
     text: str = Field(min_length=1)
@@ -139,7 +139,7 @@ class OptionPayload(_StrictModel):
 
 
 class MatchingPairPayload(_StrictModel):
-    """Matching pair payload."""
+    """Payload пары для сопоставления."""
 
     left: str = Field(min_length=1)
     right: str = Field(min_length=1)
@@ -149,7 +149,7 @@ class MatchingPairPayload(_StrictModel):
 
 
 class QuestionPayload(_StrictModel):
-    """Quiz question payload."""
+    """Payload вопроса квиза."""
 
     question_id: str = Field(min_length=1)
     question_type: QuizType = QuizType.SINGLE_CHOICE
@@ -162,7 +162,7 @@ class QuestionPayload(_StrictModel):
 
     @model_validator(mode="after")
     def validate_shape(self) -> "QuestionPayload":
-        """Validate fields required by each question type."""
+        """Проверить поля, обязательные для каждого типа вопроса."""
 
         if self.question_type in (QuizType.SINGLE_CHOICE, QuizType.TRUE_FALSE):
             if len(self.options) < 2:
@@ -189,7 +189,7 @@ class QuestionPayload(_StrictModel):
 
 
 class QuizPayload(_StrictModel):
-    """Full quiz payload used in update requests."""
+    """Полный payload квиза, используемый в запросах обновления."""
 
     quiz_id: str = Field(min_length=1)
     document_id: str = Field(min_length=1)
@@ -210,13 +210,13 @@ class QuizPayload(_StrictModel):
 
 
 class QuizUpdateBody(_StrictModel):
-    """Request body for quiz update."""
+    """Тело запроса для обновления квиза."""
 
     quiz: QuizPayload
 
 
 class SingleQuestionRegenerationBody(_StrictModel):
-    """Request body for the single-question regeneration API contract."""
+    """Тело запроса для API-контракта регенерации одного вопроса."""
 
     quiz_id: str | None = Field(default=None, strict=True, min_length=1)
     question_id: str | None = Field(default=None, strict=True, min_length=1)
@@ -228,7 +228,7 @@ class SingleQuestionRegenerationBody(_StrictModel):
     profile_name: str | None = Field(default=None, strict=True, min_length=1)
 
     def to_contract_dict(self) -> dict[str, str]:
-        """Return explicitly provided contract fields for the response."""
+        """Вернуть явно переданные поля контракта для ответа."""
 
         values = {
             "quiz_id": self.quiz_id,
@@ -243,7 +243,7 @@ class SingleQuestionRegenerationBody(_StrictModel):
         return {key: value for key, value in values.items() if value is not None}
 
     def to_generation_settings(self, defaults: GenerationSettings | None = None) -> GenerationSettings:
-        """Resolve regeneration settings from request values and saved defaults."""
+        """Определить настройки регенерации из значений запроса и сохраненных значений по умолчанию."""
 
         values = _default_single_question_generation_settings()
         if defaults is not None:
@@ -258,7 +258,7 @@ class SingleQuestionRegenerationBody(_StrictModel):
 
 
 def _default_single_question_generation_settings() -> dict[str, Any]:
-    """Return Russian-first defaults for standalone targeted regeneration."""
+    """Вернуть русскоязычные значения по умолчанию для автономной точечной регенерации."""
 
     return {
         "question_count": 1,
@@ -270,7 +270,7 @@ def _default_single_question_generation_settings() -> dict[str, Any]:
 
 
 def build_validation_error_message(errors: list[dict[str, Any]]) -> str:
-    """Render Pydantic validation errors into a single human-readable message."""
+    """Преобразовать ошибки валидации Pydantic в одно человекочитаемое сообщение."""
 
     fragments: list[str] = []
     for error in errors:

@@ -1,4 +1,4 @@
-"""Health endpoints for the backend API surface."""
+"""Endpoint'ы проверки состояния для поверхности backend API."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from backend.app.llm.registry import ProviderName
 
 
 def register_health_routes(app: FastAPI, config: AppConfig) -> None:
-    """Register backend and provider health endpoints on the app."""
+    """Зарегистрировать endpoint'ы состояния backend и провайдера в приложении."""
 
     @app.get("/health")
     async def backend_health() -> dict[str, object]:

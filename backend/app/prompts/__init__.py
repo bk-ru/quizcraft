@@ -1,4 +1,4 @@
-"""Versioned prompt definitions for generation workflows."""
+"""Версионированные определения prompt для workflows генерации."""
 
 from backend.app.prompts.registry import DIRECT_GENERATION_PROMPT_KEY
 from backend.app.prompts.registry import PromptDefinition

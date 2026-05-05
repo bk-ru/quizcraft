@@ -18,7 +18,7 @@ function writeRawEntries(storage, entries) {
   try {
     storage.setItem(STORAGE_KEY, JSON.stringify(entries));
   } catch (_error) {
-    /* localStorage unavailable (private mode, full, etc.) — degrade silently. */
+    /* Локальное хранилище недоступно: приватный режим, переполнение и т. п.; деградируем без ошибки. */
   }
 }
 
@@ -127,7 +127,7 @@ export function createQuizHistory({
     try {
       storageRef.removeItem(STORAGE_KEY);
     } catch (_error) {
-      /* ignore */
+      /* игнорировать */
     }
     renderHistoryDatalist();
   }

@@ -11,7 +11,7 @@ from backend.app.parsing.chunking import TextChunk
 
 
 class FakeEmbeddingProvider:
-    """Stub provider capturing embedding requests and returning canned vectors."""
+    """Stub провайдера, захватывающий запросы embeddings и возвращающий canned vectors."""
 
     def __init__(self, vectors_by_text: dict[str, tuple[float, ...]], model_name: str = "fake-embed") -> None:
         self._vectors_by_text = vectors_by_text

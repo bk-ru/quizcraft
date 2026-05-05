@@ -10,7 +10,7 @@ from backend.app.main import create_app
 
 
 class HealthyProvider:
-    """Provider test double that reports a healthy LM Studio connection."""
+    """Test double провайдера, сообщающий о рабочем подключении LM Studio."""
 
     def healthcheck(self) -> ProviderHealthStatus:
         return ProviderHealthStatus(status="available", message="LM Studio is available")
@@ -23,7 +23,7 @@ class HealthyProvider:
 
 
 class FailingProvider:
-    """Provider test double that raises one configured healthcheck error."""
+    """Test double провайдера, вызывающий одну настроенную ошибку healthcheck."""
 
     def __init__(self, error: Exception) -> None:
         self._error = error

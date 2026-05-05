@@ -1,14 +1,14 @@
-"""CSV export for persisted quizzes — Google Forms compatible.
+"""CSV-экспорт сохраненных квизов, совместимый с Google Forms.
 
-Google Forms column format:
+Формат колонок Google Forms:
 Question, Question Type, Option 1, Option 2, ..., Option 10, Correct Answer, Points, Feedback
 
-Supported mappings:
-- single_choice → Multiple choice (with all options)
-- true_false → Multiple choice (2 options: Верно, Неверно)
-- fill_blank → Short answer (correct answer in Correct Answer column)
+Поддерживаемые mappings:
+- single_choice → Multiple choice со всеми вариантами
+- true_false → Multiple choice с 2 вариантами: Верно, Неверно
+- fill_blank → Short answer с правильным ответом в колонке Correct Answer
 - short_answer → Short answer
-- matching → Skipped (Google Forms has no native matching type)
+- matching → пропускается, потому что в Google Forms нет нативного типа matching
 
 Reference: https://support.google.com/a/answer/6191489
 """
@@ -25,13 +25,13 @@ from backend.app.export.base import ExportedQuizFile
 
 
 class QuizCsvExporter:
-    """Export persisted quizzes into Google Forms compatible UTF-8 CSV."""
+    """Экспортировать сохраненные квизы в совместимый с Google Forms UTF-8 CSV."""
 
     media_type = "text/csv; charset=utf-8"
     _MAX_OPTIONS = 10
 
     def export(self, quiz: Quiz) -> ExportedQuizFile:
-        """Render one quiz into a CSV file for Google Forms import."""
+        """Отрендерить один квиз в CSV-файл для импорта в Google Forms."""
 
         output = io.StringIO(newline="")
 
@@ -61,7 +61,7 @@ class QuizCsvExporter:
         )
 
     def _render_question_row(self, question: Question) -> list[str] | None:
-        """Render one question as a CSV row for Google Forms."""
+        """Отрендерить один вопрос как CSV-строку для Google Forms."""
 
         qt = question.question_type
 
@@ -80,7 +80,7 @@ class QuizCsvExporter:
         raise DomainValidationError(f"unsupported question type for CSV export: {qt}")
 
     def _render_single_choice(self, question: Question) -> list[str]:
-        """Render single_choice question for Google Forms."""
+        """Отрендерить вопрос single_choice для Google Forms."""
 
         row: list[str] = [
             question.prompt,
@@ -109,7 +109,7 @@ class QuizCsvExporter:
         return row
 
     def _render_true_false(self, question: Question) -> list[str]:
-        """Render true_false question for Google Forms."""
+        """Отрендерить вопрос true_false для Google Forms."""
 
         row: list[str] = [
             question.prompt,
@@ -137,7 +137,7 @@ class QuizCsvExporter:
         return row
 
     def _render_short_answer(self, question: Question) -> list[str]:
-        """Render fill_blank or short_answer question for Google Forms."""
+        """Отрендерить вопрос fill_blank или short_answer для Google Forms."""
 
         row: list[str] = [
             question.prompt,

@@ -1,4 +1,4 @@
-"""Canonical JSON export for persisted quizzes."""
+"""Канонический JSON-экспорт для сохраненных квизов."""
 
 from __future__ import annotations
 
@@ -9,12 +9,12 @@ from backend.app.export.base import ExportedQuizFile
 
 
 class QuizJsonExporter:
-    """Export persisted quizzes into deterministic JSON files."""
+    """Экспортировать сохраненные квизы в детерминированные JSON-файлы."""
 
     media_type = "application/json; charset=utf-8"
 
     def export(self, quiz: Quiz) -> ExportedQuizFile:
-        """Render one quiz into a canonical UTF-8 JSON file."""
+        """Отрендерить один квиз в канонический UTF-8 JSON-файл."""
 
         payload = json.dumps(
             quiz.to_dict(),

@@ -1,4 +1,4 @@
-"""Targeted single-question regeneration orchestration."""
+"""Оркестрация точечной регенерации одного вопроса."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from backend.app.generation.request_builder import SingleQuestionRegenerationReq
 
 @dataclass(frozen=True, slots=True)
 class SingleQuestionRegenerationResult:
-    """Successful targeted question regeneration result."""
+    """Успешный результат точечной регенерации вопроса."""
 
     quiz: Quiz
     regenerated_question: Question
@@ -27,7 +27,7 @@ class SingleQuestionRegenerationResult:
 
 
 class SingleQuestionRegenerationOrchestrator:
-    """Regenerate one question inside an existing persisted quiz."""
+    """Регенерировать один вопрос внутри существующего сохраненного квиза."""
 
     def __init__(
         self,
@@ -52,7 +52,7 @@ class SingleQuestionRegenerationOrchestrator:
         generation_request: GenerationRequest,
         instructions: str | None,
     ) -> SingleQuestionRegenerationResult:
-        """Regenerate and persist exactly one question in a quiz."""
+        """Регенерировать и сохранить ровно один вопрос в квизе."""
 
         quiz = self._quiz_repository.get(quiz_id)
         target_question = _get_quiz_question(quiz, question_id)
@@ -94,7 +94,7 @@ class SingleQuestionRegenerationOrchestrator:
 
 
 def _get_quiz_question(quiz: Quiz, question_id: str) -> Question:
-    """Return one question from a quiz or raise a controlled not-found error."""
+    """Вернуть один вопрос из квиза или вызвать контролируемую ошибку отсутствия."""
 
     for question in quiz.questions:
         if question.question_id == question_id:

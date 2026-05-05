@@ -1,4 +1,4 @@
-"""Bounded context assembler for retrieval-augmented generation."""
+"""Сборщик ограниченного контекста для retrieval-augmented generation."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def assemble_context(
     max_chars: int,
     separator: str = "\n\n",
 ) -> str:
-    """Build a bounded context block from retrieved chunks in supplied order."""
+    """Сформировать ограниченный блок контекста из retrieved chunks в переданном порядке."""
 
     _validate_assemble_context_inputs(scored_chunks, max_chars, separator)
 
@@ -42,7 +42,7 @@ def _validate_assemble_context_inputs(
     max_chars: int,
     separator: str,
 ) -> None:
-    """Reject invalid context assembler inputs with controlled domain errors."""
+    """Отклонить некорректные входы сборщика контекста контролируемыми доменными ошибками."""
 
     if isinstance(max_chars, bool) or not isinstance(max_chars, int):
         raise DomainValidationError("max_chars must be a positive integer")

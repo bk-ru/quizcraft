@@ -1,4 +1,4 @@
-"""Lazy runtime wiring for API endpoints that need backend services."""
+"""Ленивая runtime-сборка для API endpoint'ов, которым нужны backend-сервисы."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from backend.app.core.config import AppConfig
 from backend.app.generation import DirectGenerationOrchestrator
 from backend.app.generation import DirectGenerationRequestBuilder
+from backend.app.generation import FileSystemGenerationDiagnosticLogger
 from backend.app.generation import GenerationOrchestratorDispatcher
 from backend.app.generation import GenerationQualityChecker
 from backend.app.generation import RagGenerationOrchestrator
@@ -30,13 +31,13 @@ DEFAULT_STORAGE_DIRECTORY_NAME = ".quizcraft"
 
 
 def resolve_default_storage_root() -> Path:
-    """Resolve the default filesystem root for persisted backend artifacts."""
+    """Определить корень файловой системы по умолчанию для сохраняемых backend-артефактов."""
 
     return Path.cwd() / DEFAULT_STORAGE_DIRECTORY_NAME
 
 
 def get_document_ingestion_service(app: FastAPI) -> DocumentIngestionService:
-    """Get or lazily build the document-ingestion service for the FastAPI app."""
+    """Получить или лениво создать сервис ingestion документов для приложения FastAPI."""
 
     service = getattr(app.state, "document_ingestion_service", None)
     if service is None:
@@ -49,7 +50,7 @@ def get_document_ingestion_service(app: FastAPI) -> DocumentIngestionService:
 
 
 def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
-    """Get or lazily build the direct-generation orchestrator for the FastAPI app."""
+    """Получить или лениво создать orchestrator прямой генерации для приложения FastAPI."""
 
     orchestrator = getattr(app.state, "generation_orchestrator", None)
     if orchestrator is None:
@@ -61,13 +62,14 @@ def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
             provider=app.state.provider,
             quality_checker=GenerationQualityChecker(),
             max_document_chars=app.state.config.max_document_chars,
+            diagnostic_logger=get_generation_diagnostic_logger(app),
         )
         app.state.generation_orchestrator = orchestrator
     return orchestrator
 
 
 def get_rag_generation_orchestrator(app: FastAPI) -> RagGenerationOrchestrator:
-    """Get or lazily build the rag generation orchestrator for the FastAPI app."""
+    """Получить или лениво создать orchestrator RAG-генерации для приложения FastAPI."""
 
     orchestrator = getattr(app.state, "rag_generation_orchestrator", None)
     if orchestrator is None:
@@ -78,14 +80,16 @@ def get_rag_generation_orchestrator(app: FastAPI) -> RagGenerationOrchestrator:
             provider=app.state.provider,
             quality_checker=GenerationQualityChecker(),
             max_document_chars=app.state.config.max_document_chars,
+            embedding_model_name=app.state.config.default_embedding_model,
             rag_cache_repository=FileSystemRagCacheRepository(app.state.storage_root),
+            diagnostic_logger=get_generation_diagnostic_logger(app),
         )
         app.state.rag_generation_orchestrator = orchestrator
     return orchestrator
 
 
 def get_generation_dispatcher(app: FastAPI) -> GenerationOrchestratorDispatcher:
-    """Get or lazily build the generation dispatcher routing direct and rag paths."""
+    """Получить или лениво создать dispatcher генерации, маршрутизирующий direct и rag пути."""
 
     dispatcher = getattr(app.state, "generation_dispatcher", None)
     if dispatcher is None:
@@ -99,7 +103,7 @@ def get_generation_dispatcher(app: FastAPI) -> GenerationOrchestratorDispatcher:
 
 
 def get_generation_settings_repository(app: FastAPI) -> FileSystemGenerationSettingsRepository:
-    """Get or lazily build the generation settings repository for the FastAPI app."""
+    """Получить или лениво создать repository настроек генерации для приложения FastAPI."""
 
     repository = getattr(app.state, "generation_settings_repository", None)
     if repository is None:
@@ -108,8 +112,18 @@ def get_generation_settings_repository(app: FastAPI) -> FileSystemGenerationSett
     return repository
 
 
+def get_generation_diagnostic_logger(app: FastAPI) -> FileSystemGenerationDiagnosticLogger:
+    """Получить или лениво создать filesystem logger диагностических артефактов генерации."""
+
+    diagnostic_logger = getattr(app.state, "generation_diagnostic_logger", None)
+    if diagnostic_logger is None:
+        diagnostic_logger = FileSystemGenerationDiagnosticLogger(app.state.storage_root)
+        app.state.generation_diagnostic_logger = diagnostic_logger
+    return diagnostic_logger
+
+
 def get_single_question_regeneration_orchestrator(app: FastAPI) -> SingleQuestionRegenerationOrchestrator:
-    """Get or lazily build the targeted question regeneration orchestrator."""
+    """Получить или лениво создать orchestrator точечной регенерации вопросов."""
 
     orchestrator = getattr(app.state, "single_question_regeneration_orchestrator", None)
     if orchestrator is None:
@@ -127,7 +141,7 @@ def _build_document_ingestion_service(
     config: AppConfig,
     storage_root: Path,
 ) -> DocumentIngestionService:
-    """Build the concrete service graph for document ingestion."""
+    """Сформировать конкретный граф сервисов для ingestion документов."""
 
     document_repository = FileSystemDocumentRepository(storage_root)
     validator = UploadedFileValidator(max_file_size_bytes=config.max_file_size_mb * 1024 * 1024)
@@ -141,6 +155,6 @@ def _build_document_ingestion_service(
 
 
 def _get_document_repository(storage_root: Path) -> FileSystemDocumentRepository:
-    """Build the shared document repository for upload and generation flows."""
+    """Сформировать общий repository документов для потоков загрузки и генерации."""
 
     return FileSystemDocumentRepository(storage_root)

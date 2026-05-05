@@ -13,7 +13,7 @@ from backend.app.storage.documents import FileSystemDocumentRepository
 
 
 class StubProvider:
-    """Provider test double for upload and generate API flows."""
+    """Test double провайдера для API-потоков загрузки и генерации."""
 
     def __init__(
         self,

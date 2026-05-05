@@ -1,10 +1,12 @@
 import io
 import json
+import logging
 import socket
 from urllib.error import HTTPError
 
 import pytest
 
+from backend.app.domain.errors import LLMRequestError
 from backend.app.domain.errors import LLMResponseFormatError
 from backend.app.domain.errors import LLMServerError
 from backend.app.domain.errors import LLMTimeoutError
@@ -14,23 +16,23 @@ from backend.app.llm.retry import RetryPolicy
 
 
 class FakeHTTPResponse:
-    """Minimal context-manager response used to stub urllib calls."""
+    """Минимальный ответ context manager, используемый для stub вызовов urllib."""
 
     def __init__(self, payload: bytes | dict[str, object]) -> None:
         self._payload = payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
 
     def read(self) -> bytes:
-        """Return the prepared raw response payload."""
+        """Вернуть подготовленный raw payload ответа."""
 
         return self._payload
 
     def __enter__(self) -> "FakeHTTPResponse":
-        """Return the response for context-manager usage."""
+        """Вернуть ответ для использования context manager."""
 
         return self
 
     def __exit__(self, exc_type, exc, traceback) -> bool:
-        """Propagate exceptions raised inside the context manager."""
+        """Пробросить исключения, вызванные внутри context manager."""
 
         return False
 
@@ -110,6 +112,61 @@ def test_client_posts_schema_and_returns_structured_payload(monkeypatch: pytest.
         "temperature": 0.2,
         "max_tokens": 256,
     }
+
+
+def test_client_logs_safe_request_and_response_summary(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_urlopen(request, timeout):
+        return FakeHTTPResponse(
+            {
+                "model": "local-model",
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps({"questions": [{"prompt": "Question 1"}]})
+                        }
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    with caplog.at_level(logging.INFO, logger="backend.app.llm.lm_studio"):
+        build_client().generate_structured(build_request())
+
+    rendered = "\n".join(record.getMessage() for record in caplog.records)
+    assert "Sending LM Studio request path=/chat/completions" in rendered
+    assert "Received LM Studio response path=/chat/completions" in rendered
+    assert "schema_name" in rendered
+    assert "user_prompt_preview" in rendered
+    assert "You turn source text into a quiz." not in rendered
+
+
+def test_client_includes_upstream_error_body_for_request_errors(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_urlopen(request, timeout):
+        raise HTTPError(
+            url="http://localhost:1234/v1/chat/completions",
+            code=400,
+            msg="Bad Request",
+            hdrs=None,
+            fp=io.BytesIO(b'{"error":"model does not support json_schema"}'),
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    with caplog.at_level(logging.WARNING, logger="backend.app.llm.lm_studio"):
+        with pytest.raises(LLMRequestError, match="model does not support json_schema"):
+            build_client(max_retries=0).generate_structured(build_request())
+
+    rendered = "\n".join(record.getMessage() for record in caplog.records)
+    assert "LM Studio HTTP error path=/chat/completions status=400" in rendered
+    assert "model does not support json_schema" in rendered
 
 
 def test_client_retries_timeout_errors_and_raises_controlled_error(monkeypatch: pytest.MonkeyPatch) -> None:

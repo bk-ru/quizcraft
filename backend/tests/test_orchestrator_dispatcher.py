@@ -14,7 +14,7 @@ from backend.app.generation.mode_selector import DEFAULT_RAG_THRESHOLD_CHARS
 
 
 class _StubOrchestrator:
-    """Capture dispatched generation invocations and return canned results."""
+    """Захватывать dispatch-вызовы генерации и возвращать canned results."""
 
     def __init__(self, *, name: str, response: GenerationResult) -> None:
         self.name = name
@@ -27,7 +27,7 @@ class _StubOrchestrator:
 
 
 class _StubDocumentRepository:
-    """Return a configured document by id and record lookups."""
+    """Вернуть настроенный документ по id и записать обращения."""
 
     def __init__(self, documents: dict[str, DocumentRecord]) -> None:
         self._documents = dict(documents)

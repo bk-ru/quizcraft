@@ -1,4 +1,4 @@
-"""Provider request builder for direct-generation flows."""
+"""Сборщик запросов к провайдеру для потоков direct-генерации."""
 
 from __future__ import annotations
 
@@ -11,13 +11,15 @@ from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
 from backend.app.domain.models import StructuredGenerationRequest
+from backend.app.generation.question_types import render_question_type_policy
+from backend.app.generation.question_types import render_question_type_rules
 from backend.app.prompts.registry import DIRECT_GENERATION_PROMPT_KEY
 from backend.app.prompts.registry import PromptRegistry
 from backend.app.prompts.registry import SINGLE_QUESTION_REGENERATION_PROMPT_KEY
 
 
 class DirectGenerationRequestBuilder:
-    """Build provider-facing requests for direct quiz generation."""
+    """Сформировать запросы к провайдеру для direct-генерации квиза."""
 
     _prompt_keys_by_mode = {
         GenerationMode.DIRECT: DIRECT_GENERATION_PROMPT_KEY,
@@ -27,7 +29,7 @@ class DirectGenerationRequestBuilder:
         self._prompt_registry = prompt_registry
 
     def resolve_prompt_key(self, generation_request: GenerationRequest) -> str:
-        """Resolve the prompt key for a generation request mode."""
+        """Определить ключ prompt для режима запроса генерации."""
 
         try:
             return self._prompt_keys_by_mode[generation_request.generation_mode]
@@ -41,7 +43,7 @@ class DirectGenerationRequestBuilder:
         document: DocumentRecord,
         generation_request: GenerationRequest,
     ) -> StructuredGenerationRequest:
-        """Build the provider-facing structured generation request."""
+        """Сформировать структурированный запрос генерации к провайдеру."""
 
         prompt = self._prompt_registry.resolve(self.resolve_prompt_key(generation_request))
         inference_parameters = {
@@ -57,6 +59,8 @@ class DirectGenerationRequestBuilder:
                 language=generation_request.language,
                 difficulty=generation_request.difficulty,
                 quiz_type=generation_request.quiz_type,
+                question_type_policy=render_question_type_policy(generation_request),
+                question_type_rules=render_question_type_rules(generation_request),
             ),
             schema_name=prompt.schema_name,
             schema=prompt.schema,
@@ -66,7 +70,7 @@ class DirectGenerationRequestBuilder:
 
 
 class SingleQuestionRegenerationRequestBuilder:
-    """Build provider-facing requests for targeted question regeneration."""
+    """Сформировать запросы к провайдеру для точечной регенерации вопроса."""
 
     def __init__(self, prompt_registry: type[PromptRegistry]) -> None:
         self._prompt_registry = prompt_registry
@@ -80,7 +84,7 @@ class SingleQuestionRegenerationRequestBuilder:
         generation_request: GenerationRequest,
         instructions: str | None,
     ) -> StructuredGenerationRequest:
-        """Build the provider-facing structured request for one question."""
+        """Сформировать структурированный запрос к провайдеру для одного вопроса."""
 
         if generation_request.generation_mode is not GenerationMode.SINGLE_QUESTION_REGEN:
             raise UnsupportedGenerationModeError(
@@ -115,13 +119,13 @@ class SingleQuestionRegenerationRequestBuilder:
         )
 
     def prompt_version(self) -> str:
-        """Return the targeted-regeneration prompt version."""
+        """Вернуть версию prompt для точечной регенерации."""
 
         return self._prompt_registry.resolve(SINGLE_QUESTION_REGENERATION_PROMPT_KEY).version
 
 
 def _serialize_question(question: Question) -> dict[str, object]:
-    """Serialize one quiz question for prompt context."""
+    """Сериализовать один вопрос квиза для контекста prompt."""
 
     return {
         "question_id": question.question_id,

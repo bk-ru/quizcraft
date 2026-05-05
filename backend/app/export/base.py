@@ -1,4 +1,4 @@
-"""Common contracts for quiz export artifacts."""
+"""Общие контракты для артефактов экспорта квиза."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from backend.app.domain.models import Quiz
 
 @dataclass(frozen=True, slots=True)
 class ExportedQuizFile:
-    """Download-ready exported quiz artifact."""
+    """Готовый к скачиванию экспортированный артефакт квиза."""
 
     filename: str
     media_type: str
@@ -18,9 +18,9 @@ class ExportedQuizFile:
 
 
 class QuizExporter(Protocol):
-    """Exporter contract for persisted quizzes."""
+    """Контракт экспортера для сохраненных квизов."""
 
     media_type: str
 
     def export(self, quiz: Quiz) -> ExportedQuizFile:
-        """Render one quiz into a download-ready artifact."""
+        """Отрендерить один квиз в готовый к скачиванию артефакт."""

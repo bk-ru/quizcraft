@@ -1,4 +1,4 @@
-"""Registry for quiz export formats."""
+"""Registry форматов экспорта квиза."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ from backend.app.export.pptx_exporter import QuizPptxExporter
 
 
 class QuizExportRegistry:
-    """Resolve quiz exporters by stable format keys."""
+    """Разрешать экспортеры квизов по стабильным ключам форматов."""
 
     def __init__(self, exporters: Mapping[str, QuizExporter]) -> None:
         registered_exporters: dict[str, QuizExporter] = {}
@@ -33,12 +33,12 @@ class QuizExportRegistry:
         self._exporters = registered_exporters
 
     def supported_formats(self) -> tuple[str, ...]:
-        """Return registered quiz export formats in deterministic order."""
+        """Вернуть зарегистрированные форматы экспорта квиза в детерминированном порядке."""
 
         return tuple(sorted(self._exporters))
 
     def get(self, export_format: str) -> QuizExporter:
-        """Resolve one quiz exporter by requested format."""
+        """Разрешить один экспортер квиза по запрошенному формату."""
 
         normalized_format = self._normalize_requested_format(export_format)
         exporter = self._exporters.get(normalized_format)
@@ -47,7 +47,7 @@ class QuizExportRegistry:
         return exporter
 
     def export(self, quiz: Quiz, export_format: str) -> ExportedQuizFile:
-        """Export one quiz using the exporter registered for the requested format."""
+        """Экспортировать один квиз через экспортер, зарегистрированный для запрошенного формата."""
 
         return self.get(export_format).export(quiz)
 

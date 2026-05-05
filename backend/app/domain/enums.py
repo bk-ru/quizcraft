@@ -1,4 +1,4 @@
-"""Whitelisted enums for generation-request parameters."""
+"""Разрешенные enum'ы для параметров запроса генерации."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ from enum import Enum
 
 
 class Difficulty(str, Enum):
-    """Allowed difficulty values for generation requests."""
+    """Разрешенные значения сложности для запросов генерации."""
 
     EASY = "easy"
     MEDIUM = "medium"
@@ -14,7 +14,7 @@ class Difficulty(str, Enum):
 
 
 class QuizType(str, Enum):
-    """Allowed quiz-type values for generation requests."""
+    """Разрешенные значения типа квиза для запросов генерации."""
 
     SINGLE_CHOICE = "single_choice"
     TRUE_FALSE = "true_false"
@@ -24,7 +24,7 @@ class QuizType(str, Enum):
 
 
 class Language(str, Enum):
-    """Allowed language tags for generation requests."""
+    """Разрешенные языковые теги для запросов генерации."""
 
     RU = "ru"
     EN = "en"

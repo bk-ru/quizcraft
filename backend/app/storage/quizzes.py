@@ -1,4 +1,4 @@
-"""Filesystem-backed quiz repository."""
+"""Filesystem-backed repository квизов."""
 
 from __future__ import annotations
 
@@ -12,14 +12,14 @@ from backend.app.domain.models import Quiz
 
 
 class FileSystemQuizRepository:
-    """Store and load quizzes from the local filesystem."""
+    """Сохранять и загружать квизы из локальной файловой системы."""
 
     def __init__(self, root_path: Path) -> None:
         self._storage_path = Path(root_path) / "quizzes"
         self._storage_path.mkdir(parents=True, exist_ok=True)
 
     def save(self, quiz: Quiz) -> Quiz:
-        """Persist a quiz to disk."""
+        """Сохранить квиз на диск."""
 
         target_path = self._storage_path / f"{quiz.quiz_id}.json"
         existing_quiz = self.get(quiz.quiz_id) if target_path.exists() else None
@@ -35,7 +35,7 @@ class FileSystemQuizRepository:
         return persisted_quiz
 
     def get(self, quiz_id: str) -> Quiz:
-        """Load a quiz by its identifier."""
+        """Загрузить квиз по его идентификатору."""
 
         target_path = self._storage_path / f"{quiz_id}.json"
         if not target_path.exists():
@@ -46,7 +46,7 @@ class FileSystemQuizRepository:
 
     @staticmethod
     def _build_last_edited_at(existing_quiz: Quiz | None) -> str:
-        """Build a monotonically increasing UTC edit timestamp."""
+        """Сформировать монотонно возрастающий UTC timestamp редактирования."""
 
         current_time = datetime.now(timezone.utc)
         if existing_quiz and existing_quiz.last_edited_at:

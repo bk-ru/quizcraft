@@ -39,19 +39,6 @@ body {
     radial-gradient(32vmax 26vmax at 10% 86%, rgba(102, 204, 255, 0.18), transparent 62%),
     var(--bg);
   filter: saturate(1.05);
-  animation: aurora-drift 32s linear infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .shell-background {
-    animation: none;
-  }
-}
-
-@keyframes aurora-drift {
-  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
-  50% { transform: translate3d(2vmax, -2vmax, 0) rotate(6deg); }
-  100% { transform: translate3d(0, 0, 0) rotate(0deg); }
 }
 
 ::selection {

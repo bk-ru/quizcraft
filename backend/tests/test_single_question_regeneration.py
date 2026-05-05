@@ -22,7 +22,7 @@ from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
 class RecordingProvider:
-    """Provider test double for single-question regeneration API flows."""
+    """Test double провайдера для API-потоков регенерации одного вопроса."""
 
     def __init__(
         self,

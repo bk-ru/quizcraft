@@ -1,4 +1,4 @@
-"""Quiz read, update, and export endpoints for the HTTP API."""
+"""Endpoint'ы чтения, обновления и экспорта квизов для HTTP API."""
 
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
 def register_quiz_routes(app: FastAPI) -> None:
-    """Register quiz read, update, and export routes on the FastAPI app."""
+    """Зарегистрировать маршруты чтения, обновления и экспорта квизов в приложении FastAPI."""
 
     @app.get("/export/formats")
     async def get_export_formats(request: Request) -> dict[str, Any]:
@@ -91,7 +91,7 @@ def register_quiz_routes(app: FastAPI) -> None:
 
 
 def _serialize_quiz(quiz: Quiz, request_id: str) -> dict[str, Any]:
-    """Serialize a persisted quiz for API responses."""
+    """Сериализовать сохраненный квиз для API-ответов."""
 
     return {
         "quiz_id": quiz.quiz_id,
@@ -101,7 +101,7 @@ def _serialize_quiz(quiz: Quiz, request_id: str) -> dict[str, Any]:
 
 
 def _build_export_response(exported_file: ExportedQuizFile) -> Response:
-    """Build a file download response for an exported quiz artifact."""
+    """Сформировать ответ скачивания файла для экспортированного артефакта квиза."""
 
     response = Response(content=exported_file.content_bytes, media_type=exported_file.media_type)
     response.headers["content-disposition"] = f'attachment; filename="{exported_file.filename}"'
@@ -110,7 +110,7 @@ def _build_export_response(exported_file: ExportedQuizFile) -> Response:
 
 
 def _export_persisted_quiz(storage_root, quiz_id: str, export_format: str) -> ExportedQuizFile:
-    """Export a persisted quiz through the registered exporter for the requested format."""
+    """Экспортировать сохраненный квиз через зарегистрированный экспортер запрошенного формата."""
 
     exporter = DEFAULT_QUIZ_EXPORT_REGISTRY.get(export_format)
     quiz = FileSystemQuizRepository(storage_root).get(quiz_id)
@@ -118,7 +118,7 @@ def _export_persisted_quiz(storage_root, quiz_id: str, export_format: str) -> Ex
 
 
 def _serialize_export_formats() -> list[dict[str, str]]:
-    """Serialize supported export formats for API capability discovery."""
+    """Сериализовать поддерживаемые форматы экспорта для обнаружения возможностей API."""
 
     return [
         {
@@ -133,7 +133,7 @@ def _serialize_single_question_regeneration_result(
     result: SingleQuestionRegenerationResult,
     request_id: str,
 ) -> dict[str, Any]:
-    """Serialize a targeted regeneration result for API responses."""
+    """Сериализовать результат точечной регенерации для API-ответов."""
 
     return {
         "quiz_id": result.quiz.quiz_id,
@@ -147,7 +147,7 @@ def _serialize_single_question_regeneration_result(
 
 
 def _apply_quiz_update(payload: QuizUpdateBody, quiz_id: str, existing_quiz: Quiz) -> Quiz:
-    """Build the domain quiz for an update, enforcing path and ownership invariants."""
+    """Сформировать доменный квиз для обновления, соблюдая инварианты пути и владения."""
 
     if payload.quiz.quiz_id != quiz_id:
         raise DomainValidationError("quiz_id in payload must match path")
@@ -169,7 +169,7 @@ def _validate_regeneration_boundary(
     quiz_id: str,
     question_id: str,
 ) -> None:
-    """Validate optional payload identifiers against the path boundary."""
+    """Проверить необязательные идентификаторы payload относительно границы пути."""
 
     if payload.quiz_id is not None and payload.quiz_id != quiz_id:
         raise DomainValidationError("quiz_id in payload must match path")
@@ -178,7 +178,7 @@ def _validate_regeneration_boundary(
 
 
 def _get_quiz_question(quiz: Quiz, question_id: str) -> Question:
-    """Return one question from a quiz or raise a controlled not-found error."""
+    """Вернуть один вопрос из квиза или вызвать контролируемую ошибку отсутствия."""
 
     for question in quiz.questions:
         if question.question_id == question_id:
@@ -187,7 +187,7 @@ def _get_quiz_question(quiz: Quiz, question_id: str) -> Question:
 
 
 def _serialize_question(question: Question) -> dict[str, Any]:
-    """Serialize one quiz question for API responses."""
+    """Сериализовать один вопрос квиза для API-ответов."""
 
     return {
         "question_id": question.question_id,
@@ -211,7 +211,7 @@ def _serialize_question(question: Question) -> dict[str, Any]:
 
 
 def _load_saved_settings(settings_repository) -> GenerationSettings | None:
-    """Load saved generation settings if they exist."""
+    """Загрузить сохраненные настройки генерации, если они существуют."""
 
     try:
         return settings_repository.get()

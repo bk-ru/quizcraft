@@ -1,4 +1,4 @@
-"""Structured logging helpers for generation pipeline events."""
+"""Вспомогательные средства структурированного логирования событий pipeline генерации."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from backend.app.generation.status import GenerationPipelineEvent
 
 
 def log_generation_pipeline_event(logger: logging.Logger, event: GenerationPipelineEvent) -> None:
-    """Emit one structured generation pipeline event."""
+    """Выпустить одно структурированное событие pipeline генерации."""
 
     logger.info(
         "Generation pipeline step status=%s step=%s document_id=%s",

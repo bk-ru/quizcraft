@@ -1,4 +1,4 @@
-"""JSON Schema artifacts for persisted domain payloads."""
+"""Артефакты JSON Schema для сохраняемых доменных payload'ов."""
 
 from __future__ import annotations
 

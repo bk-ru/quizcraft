@@ -1,1 +1,1 @@
-"""Document parsing primitives for ingestion flows."""
+"""Примитивы парсинга документов для потоков ingestion."""

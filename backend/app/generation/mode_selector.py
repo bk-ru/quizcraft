@@ -1,4 +1,4 @@
-"""Rule-based selector for choosing between direct and RAG generation modes."""
+"""Rule-based selector для выбора между режимами direct и RAG генерации."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ def select_generation_mode(
     document_length_chars: int,
     rag_threshold_chars: int = DEFAULT_RAG_THRESHOLD_CHARS,
 ) -> GenerationMode:
-    """Pick the effective generation mode for a request based on document size."""
+    """Выбрать эффективный режим генерации для запроса на основе размера документа."""
 
     _validate_selector_inputs(
         requested_mode=requested_mode,
@@ -37,7 +37,7 @@ def _validate_selector_inputs(
     document_length_chars: int,
     rag_threshold_chars: int,
 ) -> None:
-    """Reject invalid selector inputs with controlled domain errors."""
+    """Отклонить некорректные входы selector'а контролируемыми доменными ошибками."""
 
     if not isinstance(requested_mode, GenerationMode):
         raise DomainValidationError("requested_mode must be a GenerationMode")

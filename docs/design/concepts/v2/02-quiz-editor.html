@@ -27,7 +27,7 @@
     }
     body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
 
-    /* ─── TOPBAR ─── */
+    /* ─── ВЕРХНЯЯ ПАНЕЛЬ ─── */
     .topbar {
       height: 58px; display: flex; align-items: center; justify-content: space-between;
       padding: 0 1.5rem; border-bottom: 1px solid var(--border);
@@ -63,10 +63,10 @@
     .save-status { font-size: .78rem; color: var(--muted); display: flex; align-items: center; gap: .3rem; }
     .save-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--success); }
 
-    /* ─── LAYOUT ─── */
+    /* ─── МАКЕТ ─── */
     .editor-layout { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 58px); }
 
-    /* ─── SIDEBAR LEFT: question list ─── */
+    /* ─── ЛЕВАЯ БОКОВАЯ ПАНЕЛЬ: список вопросов ─── */
     .sidebar-left {
       width: 240px; flex-shrink: 0; background: var(--surface);
       border-right: 1px solid var(--border); overflow-y: auto;
@@ -101,7 +101,7 @@
     .dot-mc { background: var(--success); }
     .dot-tf { background: var(--accent); }
 
-    /* ─── MAIN EDITOR ─── */
+    /* ─── ОСНОВНОЙ РЕДАКТОР ─── */
     .editor-main {
       flex: 1; overflow-y: auto; padding: 2rem;
       display: flex; flex-direction: column; gap: 1.25rem;
@@ -218,7 +218,7 @@
     .regen-btn:hover { color: var(--primary); border-color: var(--primary); background: rgba(111,106,248,.06); }
     .regen-btn svg { width: 11px; height: 11px; stroke: currentColor; fill: none; stroke-width: 2; }
 
-    /* ─── ADD QUESTION BUTTON ─── */
+    /* ─── КНОПКА ДОБАВЛЕНИЯ ВОПРОСА ─── */
     .add-question-row {
       display: flex; justify-content: center; padding: .5rem 0 1rem;
     }
@@ -230,7 +230,7 @@
     }
     .add-q-main-btn:hover { border-color: var(--primary); color: var(--primary); background: rgba(111,106,248,.06); }
 
-    /* ─── RIGHT PANEL: Settings ─── */
+    /* ─── ПРАВАЯ ПАНЕЛЬ: настройки ─── */
     .sidebar-right {
       width: 280px; flex-shrink: 0; background: var(--surface);
       border-left: 1px solid var(--border); overflow-y: auto; padding: 1.25rem;
@@ -281,7 +281,7 @@
     }
     .export-btn:hover { border-color: var(--primary); background: rgba(111,106,248,.1); color: var(--primary); }
 
-    /* scrollbar */
+    /* скроллбар */
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--surface3); border-radius: 3px; }
@@ -292,7 +292,7 @@
 </head>
 <body>
 
-<!-- TOPBAR -->
+<!-- ВЕРХНЯЯ ПАНЕЛЬ -->
 <div class="topbar">
   <div class="topbar-left">
     <a class="back-btn" href="01-homepage.html">
@@ -312,10 +312,10 @@
   </div>
 </div>
 
-<!-- MAIN LAYOUT -->
+<!-- ОСНОВНОЙ МАКЕТ -->
 <div class="editor-layout">
 
-  <!-- LEFT SIDEBAR: question thumbnails -->
+  <!-- ЛЕВАЯ БОКОВАЯ ПАНЕЛЬ: миниатюры вопросов -->
   <div class="sidebar-left">
     <div class="sidebar-left-head">
       <span>Вопросы (5)</span>
@@ -350,10 +350,10 @@
     </div>
   </div>
 
-  <!-- EDITOR MAIN AREA -->
+  <!-- ОСНОВНАЯ ОБЛАСТЬ РЕДАКТОРА -->
   <div class="editor-main" id="editorMain">
 
-    <!-- Question 1: Single Choice -->
+    <!-- Вопрос 1: одиночный выбор -->
     <div class="question-card selected" draggable="true" id="qcard-0">
       <div class="card-header">
         <div class="drag-handle">
@@ -406,7 +406,7 @@
       </div>
     </div>
 
-    <!-- Question 2: Multiple Choice -->
+    <!-- Вопрос 2: множественный выбор -->
     <div class="question-card" draggable="true" id="qcard-1">
       <div class="card-header">
         <div class="drag-handle">
@@ -455,7 +455,7 @@
       </div>
     </div>
 
-    <!-- Question 3: True/False -->
+    <!-- Вопрос 3: верно/неверно -->
     <div class="question-card" draggable="true" id="qcard-2">
       <div class="card-header">
         <div class="drag-handle">
@@ -498,7 +498,7 @@
     </div>
   </div>
 
-  <!-- RIGHT PANEL: Settings -->
+  <!-- ПРАВАЯ ПАНЕЛЬ: настройки -->
   <div class="sidebar-right">
     <div class="panel-section">
       <div class="panel-section-title">Статистика</div>

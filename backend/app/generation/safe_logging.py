@@ -1,4 +1,4 @@
-"""Helpers for redacted generation logging."""
+"""Вспомогательные средства для редактированного логирования генерации."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from backend.app.domain.models import GenerationResult
 
 
 def summarize_document_payload(document: DocumentRecord) -> dict[str, Any]:
-    """Return a redacted summary of a stored document payload."""
+    """Вернуть редактированную сводку сохраненного payload документа."""
 
     return {
         "document_id": document.document_id,
@@ -25,7 +25,7 @@ def summarize_document_payload(document: DocumentRecord) -> dict[str, Any]:
 
 
 def summarize_generation_request(request: GenerationRequest) -> dict[str, Any]:
-    """Return a redacted summary of a generation request."""
+    """Вернуть редактированную сводку запроса генерации."""
 
     return {
         "question_count": request.question_count,
@@ -37,7 +37,7 @@ def summarize_generation_request(request: GenerationRequest) -> dict[str, Any]:
 
 
 def summarize_model_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return a redacted summary of model-produced structured content."""
+    """Вернуть редактированную сводку структурированного содержимого, созданного моделью."""
 
     serialized_payload = json.dumps(payload, ensure_ascii=True, sort_keys=True)
     return {
@@ -48,7 +48,7 @@ def summarize_model_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 
 def summarize_generation_result(result: GenerationResult) -> dict[str, Any]:
-    """Return a redacted summary of a persisted generation result."""
+    """Вернуть редактированную сводку сохраненного результата генерации."""
 
     return {
         "quiz_id": result.quiz.quiz_id,
@@ -60,6 +60,6 @@ def summarize_generation_result(result: GenerationResult) -> dict[str, Any]:
 
 
 def _digest_text(value: str) -> str:
-    """Build a short stable digest for sensitive text."""
+    """Сформировать короткий стабильный digest для чувствительного текста."""
 
     return hashlib.sha256(value.encode("utf-8")).hexdigest()[:12]

@@ -18,7 +18,7 @@ RAG_GENERATION_PROMPT_KEY = "rag_generation"
 
 @dataclass(frozen=True, slots=True)
 class PromptDefinition:
-    """Resolved prompt definition with versioning and provider metadata."""
+    """Resolved prompt definition with provider metadata."""
 
     key: str
     version: str
@@ -30,7 +30,7 @@ class PromptDefinition:
 
 
 class PromptRegistry:
-    """Registry for all versioned prompt definitions used by generation flows."""
+    """Registry of versioned prompt definitions used by generation flows."""
 
     _registry = {
         DIRECT_GENERATION_PROMPT_KEY: PromptDefinition(
@@ -49,11 +49,9 @@ class PromptRegistry:
                 "Language: {language}\n"
                 "Difficulty: {difficulty}\n"
                 "Quiz type: {quiz_type}\n"
-                "If several question types are listed, distribute questions across those types. "
-                "Set question_type on every question. For single_choice and true_false, use options and correct_option_index. "
-                "For fill_blank and short_answer, use correct_answer. For matching, use matching_pairs with left and right Russian text when language is ru.\n"
-                "Constraints: single_choice and true_false must have at least 2 options each. "
-                "matching must have at least 4 pairs — if the document does not contain enough distinct concepts to form 4 pairs, use a different question type instead.\n"
+                "Question type policy: {question_type_policy}\n"
+                "Question type rules:\n{question_type_rules}\n"
+                "If matching is allowed but the document does not contain enough distinct concepts to form 4 pairs, use another allowed type instead.\n"
                 "Use only the document content.\n"
                 "Set title to a short descriptive name for the quiz written in the requested language. "
                 "Do NOT use IDs or technical strings as the title.\n"
@@ -75,6 +73,14 @@ class PromptRegistry:
             user_template=(
                 "Repair the invalid quiz JSON below.\n"
                 "Validation error: {validation_error}\n"
+                "Original generation settings:\n"
+                "Question count: {question_count}\n"
+                "Language: {language}\n"
+                "Difficulty: {difficulty}\n"
+                "Quiz type: {quiz_type}\n"
+                "Question type policy: {question_type_policy}\n"
+                "Question type rules:\n{question_type_rules}\n"
+                "The repaired JSON must satisfy the original settings. Replace invalid question types with allowed ones.\n"
                 "Invalid JSON:\n{invalid_json}"
             ),
             inference_parameters={"temperature": 0.0},
@@ -118,11 +124,9 @@ class PromptRegistry:
                 "Language: {language}\n"
                 "Difficulty: {difficulty}\n"
                 "Quiz type: {quiz_type}\n"
-                "If several question types are listed, distribute questions across those types. "
-                "Set question_type on every question. For single_choice and true_false, use options and correct_option_index. "
-                "For fill_blank and short_answer, use correct_answer. For matching, use matching_pairs.\n"
-                "Constraints: single_choice and true_false must have at least 2 options each. "
-                "matching must have at least 4 pairs — if the context does not contain enough distinct concepts to form 4 pairs, use a different question type instead.\n"
+                "Question type policy: {question_type_policy}\n"
+                "Question type rules:\n{question_type_rules}\n"
+                "If matching is allowed but the context does not contain enough distinct concepts to form 4 pairs, use another allowed type instead.\n"
                 "Use only the retrieved context.\n"
                 "Set title to a short descriptive name for the quiz written in the requested language. "
                 "Do NOT use IDs or technical strings as the title.\n"

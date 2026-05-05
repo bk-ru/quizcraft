@@ -1,4 +1,4 @@
-"""Embedding chunks, in-memory vector index, and top-k cosine retriever."""
+"""Embedding chunks, in-memory vector index и top-k cosine retriever."""
 
 from __future__ import annotations
 
@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class EmbeddedChunk:
-    """A chunk paired with its embedding vector."""
+    """Chunk, связанный со своим embedding-вектором."""
 
     chunk: TextChunk
     embedding: tuple[float, ...]
@@ -25,7 +25,7 @@ class EmbeddedChunk:
 
 @dataclass(frozen=True, slots=True)
 class ScoredChunk:
-    """A retrieved chunk paired with its similarity score."""
+    """Retrieved chunk, связанный со своей оценкой similarity."""
 
     chunk: TextChunk
     score: float
@@ -38,7 +38,7 @@ def embed_chunks(
     model_name: str | None = None,
     batch_size: int = 32,
 ) -> tuple[EmbeddedChunk, ...]:
-    """Generate embeddings for the supplied chunks via the provider."""
+    """Сгенерировать embeddings для переданных chunks через провайдера."""
 
     _validate_embed_chunks_inputs(chunks, batch_size)
 
@@ -65,7 +65,7 @@ def embed_chunks(
 
 
 def _validate_embed_chunks_inputs(chunks: Sequence[TextChunk], batch_size: int) -> None:
-    """Reject invalid embed_chunks inputs with controlled domain errors."""
+    """Отклонить некорректные входы embed_chunks контролируемыми доменными ошибками."""
 
     if isinstance(batch_size, bool) or not isinstance(batch_size, int):
         raise DomainValidationError("batch_size must be a positive integer")
@@ -77,7 +77,7 @@ def _validate_embed_chunks_inputs(chunks: Sequence[TextChunk], batch_size: int) 
 
 
 class InMemoryVectorIndex:
-    """Local vector index backed by per-chunk cosine similarity search."""
+    """Локальный vector index на основе per-chunk поиска cosine similarity."""
 
     def __init__(self, embedded_chunks: Sequence[EmbeddedChunk]) -> None:
         validated_chunks = self._validate_embedded_chunks(embedded_chunks)
@@ -87,19 +87,19 @@ class InMemoryVectorIndex:
         )
 
     def __len__(self) -> int:
-        """Return the number of embedded chunks held by the index."""
+        """Вернуть количество embedded chunks, хранящихся в index."""
 
         return len(self._embedded_chunks)
 
     @property
     def dimension(self) -> int:
-        """Return the embedding dimension shared by indexed vectors."""
+        """Вернуть размерность embedding, общую для indexed vectors."""
 
         return self._dimension
 
     @property
     def embedded_chunks(self) -> tuple[EmbeddedChunk, ...]:
-        """Return the embedded chunks held by the index in insertion order."""
+        """Вернуть embedded chunks, хранящиеся в index, в порядке вставки."""
 
         return self._embedded_chunks
 
@@ -109,7 +109,7 @@ class InMemoryVectorIndex:
         *,
         top_k: int,
     ) -> tuple[ScoredChunk, ...]:
-        """Return the top-`top_k` chunks ordered by descending similarity."""
+        """Вернуть top-`top_k` chunks, упорядоченные по убыванию similarity."""
 
         self._validate_search_inputs(query_vector, top_k)
 
@@ -135,7 +135,7 @@ class InMemoryVectorIndex:
     def _validate_embedded_chunks(
         embedded_chunks: Sequence[EmbeddedChunk],
     ) -> tuple[EmbeddedChunk, ...]:
-        """Validate the embedded chunks and freeze them as a tuple."""
+        """Проверить embedded chunks и зафиксировать их как tuple."""
 
         materialized: list[EmbeddedChunk] = []
         expected_dimension: int | None = None
@@ -166,7 +166,7 @@ class InMemoryVectorIndex:
         query_vector: Sequence[float],
         top_k: int,
     ) -> None:
-        """Reject invalid search inputs with controlled domain errors."""
+        """Отклонить некорректные входы поиска контролируемыми доменными ошибками."""
 
         if isinstance(top_k, bool) or not isinstance(top_k, int):
             raise DomainValidationError("top_k must be a positive integer")
@@ -183,7 +183,7 @@ class InMemoryVectorIndex:
 
 
 def _cosine_similarity(left: Sequence[float], right: Sequence[float]) -> float:
-    """Compute cosine similarity between two equal-length vectors."""
+    """Вычислить cosine similarity между двумя векторами одинаковой длины."""
 
     if len(left) != len(right):
         raise DomainValidationError("vectors must share the same dimension")

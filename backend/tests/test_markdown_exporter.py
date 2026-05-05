@@ -9,7 +9,7 @@ from backend.app.export.markdown_exporter import QuizMarkdownExporter
 
 
 def build_quiz_with_all_types() -> Quiz:
-    """Build a quiz containing all question types with Cyrillic text."""
+    """Сформировать квиз со всеми типами вопросов и кириллическим текстом."""
 
     return Quiz(
         quiz_id="quiz-ru-moscow-2026",
@@ -69,7 +69,7 @@ def build_quiz_with_all_types() -> Quiz:
 
 
 def test_markdown_exporter_builds_utf8_file_with_all_types() -> None:
-    """Export quiz with all question types and verify UTF-8 Cyrillic preservation."""
+    """Экспортировать квиз со всеми типами вопросов и проверить сохранение кириллицы в UTF-8."""
 
     exporter = QuizMarkdownExporter()
     quiz = build_quiz_with_all_types()
@@ -116,7 +116,7 @@ def test_markdown_exporter_builds_utf8_file_with_all_types() -> None:
 
 
 def test_markdown_exporter_preserves_cyrillic_in_answer_key() -> None:
-    """Verify answer section preserves Cyrillic text correctly."""
+    """Проверить корректное сохранение кириллического текста в разделе ответов."""
 
     exporter = QuizMarkdownExporter()
     quiz = build_quiz_with_all_types()
@@ -141,7 +141,7 @@ def test_markdown_exporter_preserves_cyrillic_in_answer_key() -> None:
 
 
 def test_markdown_exporter_deterministic_output() -> None:
-    """Same quiz produces identical output on repeated exports."""
+    """Один и тот же квиз дает идентичный вывод при повторных экспортах."""
 
     exporter = QuizMarkdownExporter()
     quiz = build_quiz_with_all_types()
@@ -155,7 +155,7 @@ def test_markdown_exporter_deterministic_output() -> None:
 
 
 def test_markdown_exporter_escapes_special_characters() -> None:
-    """Markdown special chars in question text are escaped."""
+    """Специальные символы Markdown в тексте вопроса экранируются."""
 
     quiz = Quiz(
         quiz_id="quiz-escapes",

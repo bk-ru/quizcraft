@@ -15,30 +15,30 @@ from backend.app.main import create_app
 
 
 class FakeHTTPResponse:
-    """Minimal context-manager response used to stub urllib calls."""
+    """Минимальный ответ context manager, используемый для stub вызовов urllib."""
 
     def __init__(self, payload: dict[str, object]) -> None:
         self._payload = json.dumps(payload, ensure_ascii=False).encode("utf-8")
 
     def read(self) -> bytes:
-        """Return the prepared raw response payload."""
+        """Вернуть подготовленный raw payload ответа."""
 
         return self._payload
 
     def __enter__(self) -> "FakeHTTPResponse":
-        """Return the response for context-manager usage."""
+        """Вернуть ответ для использования context manager."""
 
         return self
 
     def __exit__(self, exc_type, exc, traceback) -> bool:
-        """Propagate exceptions raised inside the context manager."""
+        """Пробросить исключения, вызванные внутри context manager."""
 
         return False
 
 
 @pytest.fixture(autouse=True)
 def _isolate_env_file(monkeypatch: pytest.MonkeyPatch, tmp_path) -> None:
-    """Point the config loader at an empty path so real ``.env`` files never leak into tests."""
+    """Направить загрузчик конфигурации на пустой путь, чтобы реальные файлы ``.env`` не попадали в тесты."""
 
     monkeypatch.setenv("QUIZCRAFT_ENV_FILE", str(tmp_path / "missing.env"))
 

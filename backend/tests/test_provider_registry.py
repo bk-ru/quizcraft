@@ -14,7 +14,7 @@ from backend.app.llm.registry import ProviderRegistry
 
 
 class StubProvider:
-    """Provider test double for provider registry enforcement tests."""
+    """Test double провайдера для тестов контроля registry провайдеров."""
 
     def __init__(self) -> None:
         self.healthcheck_calls = 0

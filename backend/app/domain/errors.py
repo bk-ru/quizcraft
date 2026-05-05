@@ -1,10 +1,10 @@
-"""Domain-level error hierarchy."""
+"""Иерархия ошибок доменного уровня."""
 
 from __future__ import annotations
 
 
 class BackendError(Exception):
-    """Base error type for backend-specific failures."""
+    """Базовый тип ошибки для backend-специфичных сбоев."""
 
     code = "backend_error"
 
@@ -14,73 +14,73 @@ class BackendError(Exception):
 
 
 class ConfigurationError(BackendError):
-    """Raised when required runtime configuration is missing or invalid."""
+    """Вызывается, когда обязательная runtime-конфигурация отсутствует или некорректна."""
 
     code = "configuration_error"
 
 
 class DomainValidationError(BackendError):
-    """Raised when a domain entity violates business rules."""
+    """Вызывается, когда доменная сущность нарушает бизнес-правила."""
 
     code = "validation_error"
 
 
 class GenerationQualityError(DomainValidationError):
-    """Raised when normalized generation output is structurally valid but unusable."""
+    """Вызывается, когда нормализованный результат генерации структурно валиден, но непригоден."""
 
     code = "generation_quality_error"
 
 
 class ModelSelectionError(DomainValidationError):
-    """Raised when a requested model is not allowed by configuration."""
+    """Вызывается, когда запрошенная модель не разрешена конфигурацией."""
 
     code = "model_selection_error"
 
 
 class GenerationProfileError(DomainValidationError):
-    """Raised when a requested generation profile is unknown or invalid."""
+    """Вызывается, когда запрошенный профиль генерации неизвестен или некорректен."""
 
     code = "generation_profile_error"
 
 
 class GenerationSettingsError(DomainValidationError):
-    """Raised when saved or request-time generation settings are invalid."""
+    """Вызывается, когда сохраненные или request-time настройки генерации некорректны."""
 
     code = "generation_settings_error"
 
 
 class DocumentTooLargeForGenerationError(DomainValidationError):
-    """Raised when a stored document exceeds the allowed input size for generation."""
+    """Вызывается, когда сохраненный документ превышает допустимый размер входа для генерации."""
 
     code = "document_too_large_for_generation"
 
 
 class ParsingError(BackendError):
-    """Raised when document validation or parsing fails."""
+    """Вызывается при сбое валидации или парсинга документа."""
 
     code = "parsing_error"
 
 
 class FileValidationError(ParsingError):
-    """Raised when an uploaded file fails validation."""
+    """Вызывается, когда загруженный файл не проходит валидацию."""
 
     code = "file_validation_error"
 
 
 class TextExtractionError(ParsingError):
-    """Raised when text cannot be extracted from a validated file."""
+    """Вызывается, когда из валидированного файла невозможно извлечь текст."""
 
     code = "text_extraction_error"
 
 
 class UnsupportedGenerationModeError(BackendError):
-    """Raised when a requested generation mode is not registered."""
+    """Вызывается, когда запрошенный режим генерации не зарегистрирован."""
 
     code = "unsupported_generation_mode"
 
 
 class UnsupportedExportFormatError(BackendError):
-    """Raised when a requested quiz export format is not registered."""
+    """Вызывается, когда запрошенный формат экспорта квиза не зарегистрирован."""
 
     code = "unsupported_export_format"
 
@@ -94,7 +94,7 @@ class UnsupportedExportFormatError(BackendError):
 
 
 class RepositoryNotFoundError(BackendError):
-    """Raised when a repository cannot load a requested entity."""
+    """Вызывается, когда repository не может загрузить запрошенную сущность."""
 
     code = "not_found"
 
@@ -105,14 +105,14 @@ class RepositoryNotFoundError(BackendError):
 
 
 class LLMProviderError(BackendError):
-    """Base error type for provider-related failures."""
+    """Базовый тип ошибки для сбоев, связанных с провайдерами."""
 
     code = "llm_provider_error"
     retryable = False
 
 
 class UnsupportedProviderError(LLMProviderError):
-    """Raised when a requested provider is not registered."""
+    """Вызывается, когда запрошенный провайдер не зарегистрирован."""
 
     code = "unsupported_provider"
 
@@ -126,7 +126,7 @@ class UnsupportedProviderError(LLMProviderError):
 
 
 class ProviderDisabledError(LLMProviderError):
-    """Raised when a disabled provider receives a generation or embedding request."""
+    """Вызывается, когда отключенный провайдер получает запрос генерации или embeddings."""
 
     code = "provider_disabled"
 
@@ -136,21 +136,21 @@ class ProviderDisabledError(LLMProviderError):
 
 
 class LLMConnectionError(LLMProviderError):
-    """Raised when the provider cannot be reached."""
+    """Вызывается, когда провайдер недоступен."""
 
     code = "llm_connection_error"
     retryable = True
 
 
 class LLMTimeoutError(LLMProviderError):
-    """Raised when the provider does not respond before the timeout."""
+    """Вызывается, когда провайдер не отвечает до timeout."""
 
     code = "llm_timeout_error"
     retryable = True
 
 
 class LLMRequestError(LLMProviderError):
-    """Raised when the provider rejects a request as invalid."""
+    """Вызывается, когда провайдер отклоняет запрос как некорректный."""
 
     code = "llm_request_error"
 
@@ -160,7 +160,7 @@ class LLMRequestError(LLMProviderError):
 
 
 class LLMServerError(LLMProviderError):
-    """Raised when the provider fails with a retriable upstream error."""
+    """Вызывается, когда провайдер падает с повторяемой upstream-ошибкой."""
 
     code = "llm_server_error"
     retryable = True
@@ -171,18 +171,18 @@ class LLMServerError(LLMProviderError):
 
 
 class LLMResponseFormatError(LLMProviderError):
-    """Raised when the provider returns an invalid or malformed payload."""
+    """Вызывается, когда провайдер возвращает некорректный или malformed payload."""
 
     code = "llm_response_format_error"
 
 
 class UnsupportedProviderCapabilityError(LLMProviderError):
-    """Raised when a provider capability is declared but not implemented yet."""
+    """Вызывается, когда возможность провайдера объявлена, но еще не реализована."""
 
     code = "unsupported_provider_capability"
 
 
 class PromptResolutionError(BackendError):
-    """Raised when a prompt key cannot be resolved from the registry."""
+    """Вызывается, когда ключ prompt не удается разрешить через registry."""
 
     code = "prompt_resolution_error"

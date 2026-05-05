@@ -11,7 +11,7 @@ from backend.app.main import create_app
 
 
 class RecordingProvider:
-    """Provider test double recording generation requests."""
+    """Test double провайдера, записывающий запросы генерации."""
 
     def __init__(self) -> None:
         self.requests: list[StructuredGenerationRequest] = []

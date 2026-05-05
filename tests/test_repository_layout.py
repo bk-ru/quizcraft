@@ -22,6 +22,14 @@ def test_repository_layout_uses_canonical_locations() -> None:
     assert not (ROOT / "design-concepts-v2").exists()
 
 
+def test_backend_run_script_does_not_enable_reload_by_default() -> None:
+    script = (ROOT / "run-backend.ps1").read_text(encoding="utf-8")
+
+    assert "[switch]$Reload" in script
+    assert 'if ($Reload)' in script
+    assert "[switch]$NoReload" not in script
+
+
 def test_design_concepts_keep_internal_html_links_resolvable() -> None:
     pattern = re.compile(r"""(?:href|window\.location\.href)\s*=\s*['"]([^'"]+\.html)['"]""")
     all_referenced_files: set[str] = set()

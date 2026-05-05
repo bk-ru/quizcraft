@@ -27,14 +27,14 @@
       pointer-events: none;
     }
 
-    /* ─── SECTION LABELS ─── */
+    /* ─── МЕТКИ РАЗДЕЛОВ ─── */
     .phone-wrapper { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
     .screen-label {
       font-size: .78rem; font-weight: 700; color: var(--muted);
       text-transform: uppercase; letter-spacing: .8px;
     }
 
-    /* ─── PHONE FRAME ─── */
+    /* ─── РАМКА ТЕЛЕФОНА ─── */
     .phone {
       width: 360px; height: 780px;
       background: #0a0a0f;
@@ -51,7 +51,7 @@
       border-radius: 38px; overflow: hidden;
       position: relative; background: var(--bg);
     }
-    /* notch / dynamic island */
+    /* вырез / dynamic island */
     .dynamic-island {
       position: absolute; top: 10px; left: 50%; transform: translateX(-50%);
       width: 112px; height: 32px; background: #000; border-radius: 22px;
@@ -61,7 +61,7 @@
     .island-cam { width: 9px; height: 9px; border-radius: 50%; background: #1a1a2e; border: 1px solid #333; }
     .island-dot { width: 5px; height: 5px; border-radius: 50%; background: #333; }
 
-    /* status bar */
+    /* статус-бар */
     .status-bar {
       height: 50px; display: flex; align-items: flex-end; justify-content: space-between;
       padding: 0 20px 6px; position: relative; z-index: 10;
@@ -70,11 +70,11 @@
     .status-icons { display: flex; align-items: center; gap: 5px; }
     .status-icons svg { width: 14px; height: 14px; fill: var(--text); }
 
-    /* scrollable screen content */
+    /* прокручиваемое содержимое экрана */
     .screen-scroll { height: calc(100% - 50px); overflow-y: auto; overflow-x: hidden; }
     .screen-scroll::-webkit-scrollbar { display: none; }
 
-    /* ─── SCREEN 1: HOME ─── */
+    /* ─── ЭКРАН 1: ГЛАВНЫЙ ─── */
     .s-home-header {
       padding: 1.2rem 1.2rem .8rem;
       background: linear-gradient(160deg, #1a1040 0%, #0d0f17 100%);
@@ -152,7 +152,7 @@
     .r-card .r-arrow { margin-left: auto; color: var(--muted); }
     .r-card .r-arrow svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
 
-    /* BOTTOM NAV */
+    /* НИЖНЯЯ НАВИГАЦИЯ */
     .bottom-nav {
       position: absolute; bottom: 0; left: 0; right: 0; height: 78px;
       background: rgba(13,15,23,.95); backdrop-filter: blur(20px);
@@ -166,7 +166,7 @@
     .nav-item.active svg { stroke: var(--primary); }
     .nav-item.active span { color: var(--primary); }
 
-    /* FAB */
+    /* ПЛАВАЮЩАЯ КНОПКА */
     .fab {
       position: absolute; bottom: 90px; right: 18px;
       width: 50px; height: 50px; border-radius: 50%;
@@ -177,7 +177,7 @@
     }
     .fab svg { width: 22px; height: 22px; stroke: #fff; fill: none; stroke-width: 2; }
 
-    /* ─── SCREEN 2: EDITOR (phone) ─── */
+    /* ─── ЭКРАН 2: РЕДАКТОР (телефон) ─── */
     .s-editor-header {
       display: flex; align-items: center; gap: .75rem;
       padding: .9rem 1.2rem; border-bottom: 1px solid var(--border);
@@ -237,7 +237,7 @@
 </head>
 <body>
 
-<!-- PHONE 1: HOME -->
+<!-- ТЕЛЕФОН 1: ГЛАВНЫЙ ЭКРАН -->
 <div class="phone-wrapper">
   <span class="screen-label">Главный экран</span>
   <div class="phone">
@@ -331,12 +331,12 @@
         </div>
       </div>
 
-      <!-- FAB -->
+      <!-- ПЛАВАЮЩАЯ КНОПКА -->
       <div class="fab">
         <svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
       </div>
 
-      <!-- BOTTOM NAV -->
+      <!-- НИЖНЯЯ НАВИГАЦИЯ -->
       <div class="bottom-nav">
         <div class="nav-item active">
           <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/></svg>
@@ -360,7 +360,7 @@
   </div>
 </div>
 
-<!-- PHONE 2: EDITOR -->
+<!-- ТЕЛЕФОН 2: РЕДАКТОР -->
 <div class="phone-wrapper">
   <span class="screen-label">Редактор теста</span>
   <div class="phone" style="animation-delay:.12s">
@@ -451,7 +451,7 @@
         </div>
       </div>
 
-      <!-- BOTTOM NAV -->
+      <!-- НИЖНЯЯ НАВИГАЦИЯ -->
       <div class="bottom-nav">
         <div class="nav-item">
           <svg viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/></svg>

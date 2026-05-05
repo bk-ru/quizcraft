@@ -1,4 +1,4 @@
-"""Document ingestion service for supported local formats."""
+"""Сервис ingestion документов для поддерживаемых локальных форматов."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 class DocumentIngestionService:
-    """Validate, parse, normalize, and persist supported documents."""
+    """Проверять, парсить, нормализовать и сохранять поддерживаемые документы."""
 
     def __init__(
         self,
@@ -47,7 +47,7 @@ class DocumentIngestionService:
         }
 
     def ingest(self, filename: str, media_type: str, content: bytes) -> DocumentRecord:
-        """Ingest a supported document into the document repository."""
+        """Выполнить ingestion поддерживаемого документа в repository документов."""
 
         validated_file = self._validator.validate(
             filename=filename,
@@ -74,7 +74,7 @@ class DocumentIngestionService:
         return persisted_document
 
     def _get_parser(self, extension: str):
-        """Resolve a parser for the validated file extension."""
+        """Разрешить парсер для валидированного расширения файла."""
 
         try:
             return self._parsers_by_extension[extension]
@@ -82,7 +82,7 @@ class DocumentIngestionService:
             raise TextExtractionError(f"no parser registered for file extension: {extension}") from error
 
     def _get_metadata_builder(self, extension: str):
-        """Resolve a metadata builder for the validated file extension."""
+        """Разрешить builder метаданных для валидированного расширения файла."""
 
         try:
             return self._metadata_builders_by_extension[extension]

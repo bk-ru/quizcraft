@@ -1,7 +1,7 @@
-"""DOCX export for persisted quizzes — two-section format.
+"""DOCX-экспорт сохраненных квизов в формате из двух разделов.
 
-Section 1: Quiz cards for participants (no answers).
-Section 2: Answer key table (page 2).
+Раздел 1: карточки квиза для участников без ответов.
+Раздел 2: таблица ключей ответов на странице 2.
 """
 
 from __future__ import annotations
@@ -91,16 +91,16 @@ def _blank_answer_line(doc: Document) -> None:
 
 
 class QuizDocxExporter:
-    """Export persisted quizzes into two-section DOCX files.
+    """Экспортировать сохраненные квизы в DOCX-файлы из двух разделов.
 
-    Section 1 — quiz cards for participants (no answers).
-    Section 2 — answer key table, separated by a page break.
+    Раздел 1 — карточки квиза для участников без ответов.
+    Раздел 2 — таблица ключей ответов, отделенная разрывом страницы.
     """
 
     media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 
     def export(self, quiz: Quiz) -> ExportedQuizFile:
-        """Render one quiz into a two-section DOCX file."""
+        """Отрендерить один квиз в DOCX-файл из двух разделов."""
 
         doc = Document()
         for section in doc.sections:

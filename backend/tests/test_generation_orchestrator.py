@@ -21,7 +21,7 @@ from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
 class StubProvider:
-    """Deterministic provider test double for orchestrator flows."""
+    """Детерминированный test double провайдера для потоков orchestrator."""
 
     def __init__(self, responses: list[StructuredGenerationResponse]) -> None:
         self._responses = list(responses)
@@ -154,6 +154,9 @@ def test_direct_generation_orchestrator_uses_repair_prompt_after_quality_failure
     assert result.prompt_version == "repair-v1"
     assert len(provider.requests) == 2
     assert "question count" in provider.requests[1].user_prompt
+    assert "Original generation settings" in provider.requests[1].user_prompt
+    assert "Allowed question type: single_choice" in provider.requests[1].user_prompt
+    assert "Every question MUST use question_type=single_choice" in provider.requests[1].user_prompt
     assert "\"questions\"" in provider.requests[1].user_prompt
 
 

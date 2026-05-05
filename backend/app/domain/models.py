@@ -1,4 +1,4 @@
-"""Core domain models for QuizCraft foundation and provider contracts."""
+"""Основные доменные модели для фундамента QuizCraft и контрактов провайдеров."""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ from backend.app.domain.errors import GenerationSettingsError
 
 @dataclass(frozen=True, slots=True)
 class Explanation:
-    """Explanation attached to a generated question."""
+    """Пояснение, связанное со сгенерированным вопросом."""
 
     text: str
 
 
 @dataclass(frozen=True, slots=True)
 class Option:
-    """Answer option for a quiz question."""
+    """Вариант ответа для вопроса квиза."""
 
     option_id: str
     text: str
@@ -29,7 +29,7 @@ class Option:
 
 @dataclass(frozen=True, slots=True)
 class MatchingPair:
-    """One left-to-right pair for matching questions."""
+    """Одна пара слева-направо для вопросов на сопоставление."""
 
     left: str
     right: str
@@ -37,7 +37,7 @@ class MatchingPair:
 
 @dataclass(frozen=True, slots=True)
 class Question:
-    """Quiz question with selectable options."""
+    """Вопрос квиза с выбираемыми вариантами."""
 
     question_id: str
     prompt: str
@@ -51,7 +51,7 @@ class Question:
 
 @dataclass(frozen=True, slots=True)
 class Quiz:
-    """Persisted quiz aggregate."""
+    """Сохраненный агрегат квиза."""
 
     quiz_id: str
     document_id: str
@@ -61,7 +61,7 @@ class Quiz:
     questions: tuple[Question, ...]
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize the quiz into a JSON-compatible dictionary."""
+        """Сериализовать квиз в JSON-совместимый словарь."""
 
         return {
             "quiz_id": self.quiz_id,
@@ -94,7 +94,7 @@ class Quiz:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "Quiz":
-        """Deserialize a quiz from a JSON-compatible dictionary."""
+        """Десериализовать квиз из JSON-совместимого словаря."""
 
         return cls(
             quiz_id=payload["quiz_id"],
@@ -134,7 +134,7 @@ class Quiz:
 
 @dataclass(frozen=True, slots=True)
 class GenerationRequest:
-    """Request metadata for quiz generation."""
+    """Метаданные запроса для генерации квиза."""
 
     question_count: int
     language: str
@@ -147,7 +147,7 @@ class GenerationRequest:
     quiz_types: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        """Normalize multi-type request metadata while preserving legacy quiz_type."""
+        """Нормализовать метаданные multi-type запроса, сохраняя legacy quiz_type."""
 
         normalized_types = tuple(
             item.strip()
@@ -157,7 +157,7 @@ class GenerationRequest:
         object.__setattr__(self, "quiz_types", normalized_types or (self.quiz_type,))
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize the generation request into a JSON-compatible dictionary."""
+        """Сериализовать запрос генерации в JSON-совместимый словарь."""
 
         payload = {
             "question_count": self.question_count,
@@ -177,7 +177,7 @@ class GenerationRequest:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "GenerationRequest":
-        """Deserialize a generation request from a JSON-compatible dictionary."""
+        """Десериализовать запрос генерации из JSON-совместимого словаря."""
 
         return cls(
             question_count=payload["question_count"],
@@ -194,7 +194,7 @@ class GenerationRequest:
 
 @dataclass(frozen=True, slots=True)
 class GenerationSettings:
-    """Persisted generation defaults for the single-user local backend."""
+    """Сохраненные значения генерации по умолчанию для локального single-user backend."""
 
     question_count: int
     language: str
@@ -205,7 +205,7 @@ class GenerationSettings:
     profile_name: str | None = None
 
     def __post_init__(self) -> None:
-        """Validate persisted generation settings."""
+        """Проверить сохраненные настройки генерации."""
 
         if not isinstance(self.question_count, int) or isinstance(self.question_count, bool):
             raise GenerationSettingsError("question_count must be a positive integer")
@@ -226,7 +226,7 @@ class GenerationSettings:
                 object.__setattr__(self, field_name, value.strip())
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize generation settings into a JSON-compatible dictionary."""
+        """Сериализовать настройки генерации в JSON-совместимый словарь."""
 
         payload: dict[str, Any] = {
             "question_count": self.question_count,
@@ -243,7 +243,7 @@ class GenerationSettings:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "GenerationSettings":
-        """Deserialize generation settings from a JSON-compatible dictionary."""
+        """Десериализовать настройки генерации из JSON-совместимого словаря."""
 
         try:
             return cls(
@@ -259,7 +259,7 @@ class GenerationSettings:
             raise GenerationSettingsError(f"generation settings missing required field: {error.args[0]}") from error
 
     def merge(self, overrides: dict[str, Any]) -> "GenerationSettings":
-        """Return settings with explicit request values applied."""
+        """Вернуть настройки с примененными явными значениями запроса."""
 
         payload = self.to_dict()
         for key, value in overrides.items():
@@ -274,7 +274,7 @@ class GenerationSettings:
         profile_name: str | None,
         inference_parameters: dict[str, Any],
     ) -> GenerationRequest:
-        """Convert persisted settings into a resolved generation request."""
+        """Преобразовать сохраненные настройки в разрешенный запрос генерации."""
 
         return GenerationRequest(
             question_count=self.question_count,
@@ -291,7 +291,7 @@ class GenerationSettings:
 
 @dataclass(frozen=True, slots=True)
 class GenerationResult:
-    """Successful generation result and its metadata."""
+    """Успешный результат генерации и его метаданные."""
 
     quiz: Quiz
     request: GenerationRequest
@@ -299,7 +299,7 @@ class GenerationResult:
     prompt_version: str
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize the generation result into a JSON-compatible dictionary."""
+        """Сериализовать результат генерации в JSON-совместимый словарь."""
 
         return {
             "quiz": self.quiz.to_dict(),
@@ -310,7 +310,7 @@ class GenerationResult:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "GenerationResult":
-        """Deserialize a generation result from a JSON-compatible dictionary."""
+        """Десериализовать результат генерации из JSON-совместимого словаря."""
 
         return cls(
             quiz=Quiz.from_dict(payload["quiz"]),
@@ -322,7 +322,7 @@ class GenerationResult:
 
 @dataclass(frozen=True, slots=True)
 class DocumentRecord:
-    """Stored document payload used by later generation stages."""
+    """Сохраненный payload документа, используемый последующими этапами генерации."""
 
     document_id: str
     filename: str
@@ -332,7 +332,7 @@ class DocumentRecord:
     metadata: dict[str, Any]
 
     def to_dict(self) -> dict[str, Any]:
-        """Serialize the document into a JSON-compatible dictionary."""
+        """Сериализовать документ в JSON-совместимый словарь."""
 
         return {
             "document_id": self.document_id,
@@ -345,7 +345,7 @@ class DocumentRecord:
 
     @classmethod
     def from_dict(cls, payload: dict[str, Any]) -> "DocumentRecord":
-        """Deserialize a document record from a JSON-compatible dictionary."""
+        """Десериализовать запись документа из JSON-совместимого словаря."""
 
         return cls(
             document_id=payload["document_id"],
@@ -359,7 +359,7 @@ class DocumentRecord:
 
 @dataclass(frozen=True, slots=True)
 class ProviderHealthStatus:
-    """Provider availability status returned by later healthcheck operations."""
+    """Статус доступности провайдера, возвращаемый последующими healthcheck-операциями."""
 
     status: str
     message: str
@@ -367,7 +367,7 @@ class ProviderHealthStatus:
 
 @dataclass(frozen=True, slots=True)
 class StructuredGenerationRequest:
-    """Provider-facing request for structured JSON generation."""
+    """Запрос к провайдеру для структурированной JSON-генерации."""
 
     system_prompt: str
     user_prompt: str
@@ -379,7 +379,7 @@ class StructuredGenerationRequest:
 
 @dataclass(frozen=True, slots=True)
 class StructuredGenerationResponse:
-    """Provider-facing structured generation result."""
+    """Структурированный результат генерации от провайдера."""
 
     model_name: str
     content: dict[str, Any]
@@ -388,13 +388,13 @@ class StructuredGenerationResponse:
 
 @dataclass(frozen=True, slots=True)
 class EmbeddingRequest:
-    """Provider-facing embeddings request for one or more texts."""
+    """Запрос embeddings к провайдеру для одного или нескольких текстов."""
 
     texts: tuple[str, ...]
     model_name: str | None = None
 
     def __post_init__(self) -> None:
-        """Validate embeddings request payload."""
+        """Проверить payload запроса embeddings."""
 
         if not isinstance(self.texts, tuple):
             raise DomainValidationError("texts must be a tuple of strings")
@@ -413,7 +413,7 @@ class EmbeddingRequest:
 
 @dataclass(frozen=True, slots=True)
 class EmbeddingResponse:
-    """Provider-facing embeddings result with one vector per requested text."""
+    """Результат embeddings от провайдера с одним вектором на каждый запрошенный текст."""
 
     model_name: str
     vectors: tuple[tuple[float, ...], ...]

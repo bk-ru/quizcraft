@@ -1088,6 +1088,7 @@ def test_frontend_theme_toggle_swaps_icon_per_active_theme() -> None:
 
 def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
+    base_css = (FRONTEND_DIR / "base.css").read_text(encoding="utf-8")
     layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
     generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
 
@@ -1104,6 +1105,8 @@ def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
     assert "animation: pulse 1.8s infinite" not in layout_css, (
         "pulse animation must not loop forever"
     )
+    assert "aurora-drift" not in base_css
+    assert "animation: aurora-drift" not in base_css
     assert "prefers-reduced-motion: no-preference" in layout_css, (
         "pulse animation must be guarded by a reduced-motion media query"
     )

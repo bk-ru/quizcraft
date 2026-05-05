@@ -13,7 +13,7 @@ from backend.app.main import create_app
 
 
 class StubRagApiProvider:
-    """Provider stub that handles both embed and generate_structured calls."""
+    """Stub провайдера, обрабатывающий вызовы embed и generate_structured."""
 
     def __init__(
         self,
@@ -61,6 +61,7 @@ def build_config(max_document_chars: int = 50_000) -> AppConfig:
     return AppConfig(
         lm_studio_base_url="http://localhost:1234/v1",
         lm_studio_model="local-model",
+        lm_studio_embedding_model="configured-embed",
         max_document_chars=max_document_chars,
         log_format="%(levelname)s:%(message)s",
     )
@@ -162,7 +163,9 @@ def test_rag_generation_endpoint_calls_embed_for_chunks_and_query(tmp_path) -> N
     chunks_request = provider.embedding_requests[0]
     query_request = provider.embedding_requests[1]
     assert len(chunks_request.texts) >= 1
+    assert chunks_request.model_name == "configured-embed"
     assert all("Москва" in text or "Санкт-Петербург" in text or "Кемерово" in text for text in chunks_request.texts)
+    assert query_request.model_name == "configured-embed"
     assert query_request.texts == ("Создай 2 вопросов на языке ru, сложность medium, тип single_choice, опираясь только на содержание документа.",)
 
 

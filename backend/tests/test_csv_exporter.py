@@ -12,7 +12,7 @@ from backend.app.export.csv_exporter import QuizCsvExporter
 
 
 def build_quiz_with_cyrillic() -> Quiz:
-    """Build a quiz with Cyrillic text covering all CSV-supported question types."""
+    """Сформировать квиз с кириллическим текстом, покрывающий все поддерживаемые CSV типы вопросов."""
 
     return Quiz(
         quiz_id="quiz-ru-csv-2026",
@@ -67,7 +67,7 @@ def build_quiz_with_cyrillic() -> Quiz:
 
 
 def test_csv_exporter_builds_google_forms_compatible_file() -> None:
-    """Export quiz to CSV and verify Google Forms column structure."""
+    """Экспортировать квиз в CSV и проверить структуру колонок Google Forms."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -94,7 +94,7 @@ def test_csv_exporter_builds_google_forms_compatible_file() -> None:
 
 
 def test_csv_exporter_preserves_cyrillic_text() -> None:
-    """Verify Cyrillic characters are preserved in UTF-8 CSV output."""
+    """Проверить сохранение кириллических символов в UTF-8 CSV-выводе."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -110,7 +110,7 @@ def test_csv_exporter_preserves_cyrillic_text() -> None:
 
 
 def test_csv_exporter_single_choice_format() -> None:
-    """Verify single_choice question maps to Google Forms Multiple choice."""
+    """Проверить, что вопрос single_choice сопоставляется с Multiple choice в Google Forms."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -132,7 +132,7 @@ def test_csv_exporter_single_choice_format() -> None:
 
 
 def test_csv_exporter_true_false_format() -> None:
-    """Verify true_false question maps to Multiple choice with Верно/Неверно."""
+    """Проверить, что вопрос true_false сопоставляется с Multiple choice с вариантами Верно/Неверно."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -152,7 +152,7 @@ def test_csv_exporter_true_false_format() -> None:
 
 
 def test_csv_exporter_short_answer_format() -> None:
-    """Verify short_answer question maps to Google Forms Short answer."""
+    """Проверить, что вопрос short_answer сопоставляется с Short answer в Google Forms."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -170,7 +170,7 @@ def test_csv_exporter_short_answer_format() -> None:
 
 
 def test_csv_exporter_fill_blank_format() -> None:
-    """Verify fill_blank question maps to Google Forms Short answer."""
+    """Проверить, что вопрос fill_blank сопоставляется с Short answer в Google Forms."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -188,7 +188,7 @@ def test_csv_exporter_fill_blank_format() -> None:
 
 
 def test_csv_exporter_skips_matching_questions() -> None:
-    """Verify matching questions are skipped (not included in output)."""
+    """Проверить, что вопросы matching пропускаются и не попадают в вывод."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -201,7 +201,7 @@ def test_csv_exporter_skips_matching_questions() -> None:
 
 
 def test_csv_exporter_includes_explanation_as_feedback() -> None:
-    """Verify explanations are included in Feedback column."""
+    """Проверить, что пояснения включаются в колонку Feedback."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -214,7 +214,7 @@ def test_csv_exporter_includes_explanation_as_feedback() -> None:
 
 
 def test_csv_exporter_deterministic_output() -> None:
-    """Same quiz produces identical output on repeated exports."""
+    """Один и тот же квиз дает идентичный вывод при повторных экспортах."""
 
     exporter = QuizCsvExporter()
     quiz = build_quiz_with_cyrillic()
@@ -227,7 +227,7 @@ def test_csv_exporter_deterministic_output() -> None:
 
 
 def test_csv_exporter_handles_more_than_ten_options() -> None:
-    """Questions with >10 options are truncated to fit CSV format."""
+    """Вопросы с количеством вариантов больше 10 обрезаются под формат CSV."""
 
     many_options = tuple(
         Option(option_id=f"opt-{i}", text=f"Вариант {i}")

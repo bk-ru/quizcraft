@@ -1,4 +1,4 @@
-"""Typed provider registry and enablement enforcement."""
+"""Типизированный registry провайдеров и контроль включения."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from backend.app.llm.provider import LLMProvider
 
 
 class ProviderName(str, Enum):
-    """Supported provider identifiers."""
+    """Поддерживаемые идентификаторы провайдеров."""
 
     LM_STUDIO = "lm_studio"
     OLLAMA = "ollama"
@@ -27,7 +27,7 @@ class ProviderName(str, Enum):
 
     @classmethod
     def normalize(cls, provider_name: "ProviderName | str") -> "ProviderName":
-        """Normalize a provider identifier into a typed enum value."""
+        """Нормализовать идентификатор провайдера в типизированное enum-значение."""
 
         if isinstance(provider_name, cls):
             return provider_name
@@ -44,7 +44,7 @@ class ProviderName(str, Enum):
 
 
 class ProviderRegistry:
-    """Registry of configured providers with feature-flag enforcement."""
+    """Registry настроенных провайдеров с контролем feature flags."""
 
     def __init__(
         self,
@@ -62,23 +62,23 @@ class ProviderRegistry:
 
     @property
     def registered_provider_names(self) -> tuple[ProviderName, ...]:
-        """Return registered provider names in deterministic order."""
+        """Вернуть имена зарегистрированных провайдеров в детерминированном порядке."""
 
         return tuple(provider for provider in ProviderName if provider in self._providers)
 
     @property
     def enabled_provider_names(self) -> tuple[ProviderName, ...]:
-        """Return enabled provider names in deterministic order."""
+        """Вернуть имена включенных провайдеров в детерминированном порядке."""
 
         return tuple(provider for provider in ProviderName if provider in self._enabled_providers)
 
     def is_enabled(self, provider_name: ProviderName | str) -> bool:
-        """Return whether a provider is enabled by feature flags."""
+        """Вернуть, включен ли провайдер через feature flags."""
 
         return ProviderName.normalize(provider_name) in self._enabled_providers
 
     def ensure_enabled(self, provider_name: ProviderName | str) -> ProviderName:
-        """Return the normalized provider name or raise if it is disabled."""
+        """Вернуть нормализованное имя провайдера или вызвать ошибку, если он отключен."""
 
         normalized_provider_name = ProviderName.normalize(provider_name)
         if normalized_provider_name not in self._enabled_providers:
@@ -86,7 +86,7 @@ class ProviderRegistry:
         return normalized_provider_name
 
     def enforced_provider(self, provider_name: ProviderName | str) -> LLMProvider:
-        """Return a provider wrapper that enforces provider feature flags."""
+        """Вернуть wrapper провайдера, контролирующий feature flags провайдера."""
 
         normalized_provider_name = ProviderName.normalize(provider_name)
         provider = self._providers.get(normalized_provider_name)
@@ -102,14 +102,14 @@ class ProviderRegistry:
 
 @dataclass(frozen=True, slots=True)
 class RegistryEnforcedProvider(LLMProvider):
-    """Provider wrapper that blocks calls when its provider is disabled."""
+    """Wrapper провайдера, блокирующий вызовы, когда провайдер отключен."""
 
     provider_name: ProviderName
     provider: LLMProvider
     registry: ProviderRegistry
 
     def healthcheck(self) -> ProviderHealthStatus:
-        """Return provider health or a disabled status without calling the provider."""
+        """Вернуть состояние провайдера или статус отключения без вызова провайдера."""
 
         if not self.registry.is_enabled(self.provider_name):
             return ProviderHealthStatus(
@@ -119,13 +119,13 @@ class RegistryEnforcedProvider(LLMProvider):
         return self.provider.healthcheck()
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
-        """Generate a structured payload when the provider is enabled."""
+        """Сгенерировать структурированный payload, когда провайдер включен."""
 
         self.registry.ensure_enabled(self.provider_name)
         return self.provider.generate_structured(request)
 
     def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
-        """Generate embeddings when the provider is enabled."""
+        """Сгенерировать embeddings, когда провайдер включен."""
 
         self.registry.ensure_enabled(self.provider_name)
         return self.provider.embed(request)

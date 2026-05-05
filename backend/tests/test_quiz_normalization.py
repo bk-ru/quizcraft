@@ -231,42 +231,42 @@ def test_normalize_quiz_output_infers_matching_when_single_choice_has_no_options
 
 
 def test_resolve_readable_quiz_title_preserves_meaningful_llm_title() -> None:
-    """If LLM provided a meaningful title, keep it as-is."""
+    """Если LLM предоставила осмысленный заголовок, сохранить его без изменений."""
 
     result = resolve_readable_quiz_title("География России", "document.txt", 5)
     assert result == "География России"
 
 
 def test_resolve_readable_quiz_title_generates_from_filename() -> None:
-    """Generate readable title from filename when LLM returned default."""
+    """Сгенерировать читаемый заголовок из имени файла, когда LLM вернула значение по умолчанию."""
 
     result = resolve_readable_quiz_title("Сгенерированный квиз", "lecture_notes_2026.txt", 10)
     assert result == "lecture notes 2026 — 10 вопросов"
 
 
 def test_resolve_readable_quiz_title_replaces_generic_model_title_with_filename() -> None:
-    """Replace generic model titles with the uploaded Russian filename."""
+    """Заменить общие заголовки модели загруженным русским именем файла."""
 
     result = resolve_readable_quiz_title("quiz_1", "География_России.txt", 7)
     assert result == "География России — 7 вопросов"
 
 
 def test_resolve_readable_quiz_title_replaces_hyphenated_generic_model_title() -> None:
-    """Replace numbered generic model titles with readable document names."""
+    """Заменить нумерованные общие заголовки модели читаемыми именами документов."""
 
     result = resolve_readable_quiz_title("quiz-12", "История-Москвы.pdf", 3)
     assert result == "История Москвы — 3 вопроса"
 
 
 def test_resolve_readable_quiz_title_handles_cyrillic_filename() -> None:
-    """Handle Russian filenames correctly."""
+    """Корректно обрабатывать русские имена файлов."""
 
     result = resolve_readable_quiz_title("Сгенерированный квиз", "История_Москвы.docx", 5)
     assert result == "История Москвы — 5 вопросов"
 
 
 def test_resolve_readable_quiz_title_uses_correct_pluralization() -> None:
-    """Use correct Russian plural forms for question count."""
+    """Использовать корректные русские формы множественного числа для количества вопросов."""
 
     assert resolve_readable_quiz_title("Сгенерированный квиз", "doc.txt", 1) == "doc — 1 вопрос"
     assert resolve_readable_quiz_title("Сгенерированный квиз", "doc.txt", 2) == "doc — 2 вопроса"
@@ -280,21 +280,21 @@ def test_resolve_readable_quiz_title_uses_correct_pluralization() -> None:
 
 
 def test_resolve_readable_quiz_title_handles_empty_filename() -> None:
-    """Fallback to generic name when filename is empty."""
+    """Возвращаться к общему имени, когда имя файла пустое."""
 
     result = resolve_readable_quiz_title("Сгенерированный квиз", "", 3)
     assert result == "Квиз — 3 вопроса"
 
 
 def test_resolve_readable_quiz_title_strips_extension() -> None:
-    """Remove file extension from filename."""
+    """Удалить расширение из имени файла."""
 
     result = resolve_readable_quiz_title("Сгенерированный квиз", "report.pdf", 8)
     assert result == "report — 8 вопросов"
 
 
 def test_resolve_readable_quiz_title_handles_whitespace_only_title() -> None:
-    """Treat whitespace-only title as missing and generate from filename."""
+    """Считать заголовок только из пробелов отсутствующим и генерировать его из имени файла."""
 
     result = resolve_readable_quiz_title("   ", "my_document.txt", 7)
     assert result == "my document — 7 вопросов"

@@ -1,4 +1,4 @@
-"""Filesystem-backed generation-result repository."""
+"""Filesystem-backed repository результатов генерации."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ from backend.app.domain.models import GenerationResult
 
 
 class FileSystemGenerationResultRepository:
-    """Store and load generation results from the local filesystem."""
+    """Сохранять и загружать результаты генерации из локальной файловой системы."""
 
     def __init__(self, root_path: Path) -> None:
         self._storage_path = Path(root_path) / "generation_results"
         self._storage_path.mkdir(parents=True, exist_ok=True)
 
     def save(self, result: GenerationResult) -> GenerationResult:
-        """Persist a generation result to disk."""
+        """Сохранить результат генерации на диск."""
 
         target_path = self._storage_path / f"{result.quiz.quiz_id}.json"
         target_path.write_text(
@@ -27,7 +27,7 @@ class FileSystemGenerationResultRepository:
         return result
 
     def get(self, quiz_id: str) -> GenerationResult:
-        """Load a generation result by the generated quiz identifier."""
+        """Загрузить результат генерации по идентификатору сгенерированного квиза."""
 
         target_path = self._storage_path / f"{quiz_id}.json"
         if not target_path.exists():

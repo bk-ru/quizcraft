@@ -11,7 +11,7 @@ from backend.app.llm.registry import ProviderName
 
 
 class StubProvider:
-    """Provider test double for provider factory tests."""
+    """Test double провайдера для тестов factory провайдеров."""
 
     def healthcheck(self) -> ProviderHealthStatus:
         return ProviderHealthStatus(status="available", message="stub available")

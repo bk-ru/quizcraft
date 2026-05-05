@@ -1,4 +1,4 @@
-"""Generation orchestrator dispatcher routing between direct and rag pipelines."""
+"""Dispatcher orchestrator'ов генерации, маршрутизирующий между direct и rag pipeline."""
 
 from __future__ import annotations
 
@@ -15,14 +15,13 @@ from backend.app.generation.rag_orchestrator import RagGenerationOrchestrator
 
 
 class GenerationOrchestratorDispatcher:
-    """Route a generation request to the direct or rag orchestrator.
+    """Маршрутизировать запрос генерации в direct или rag orchestrator.
 
-    The dispatcher loads the requested document once to compute its normalized
-    length, applies the rule-based mode selector to promote ``direct`` to ``rag``
-    when the document exceeds the configured threshold, replaces the request's
-    ``generation_mode`` with the resolved mode, and delegates to the matching
-    orchestrator. ``single_question_regen`` is rejected because it has its own
-    dedicated endpoint and orchestrator.
+    Dispatcher один раз загружает запрошенный документ, чтобы вычислить его нормализованную
+    длину, применяет rule-based selector режима для повышения ``direct`` до ``rag``,
+    когда документ превышает настроенный порог, заменяет ``generation_mode`` запроса
+    разрешенным режимом и делегирует соответствующему orchestrator. ``single_question_regen``
+    отклоняется, потому что у него есть собственный endpoint и orchestrator.
     """
 
     def __init__(
@@ -44,7 +43,7 @@ class GenerationOrchestratorDispatcher:
 
     @property
     def rag_threshold_chars(self) -> int:
-        """Expose the configured rag promotion threshold for diagnostics."""
+        """Раскрыть настроенный порог продвижения в rag для диагностики."""
 
         return self._rag_threshold_chars
 
@@ -53,7 +52,7 @@ class GenerationOrchestratorDispatcher:
         document_id: str,
         generation_request: GenerationRequest,
     ) -> GenerationResult:
-        """Resolve the effective mode for the document and delegate to an orchestrator."""
+        """Определить эффективный режим для документа и делегировать orchestrator'у."""
 
         document = self._document_repository.get(document_id)
         resolved_mode = select_generation_mode(

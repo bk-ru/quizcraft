@@ -7,7 +7,7 @@ from backend.app.main import create_app
 
 
 class StubProvider:
-    """Test double for API health checks."""
+    """Test double для проверок состояния API."""
 
     def healthcheck(self):
         raise AssertionError("LM Studio healthcheck should not be called by /health")

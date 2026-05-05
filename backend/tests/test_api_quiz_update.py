@@ -13,7 +13,7 @@ from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
 class StubProvider:
-    """Provider test double for quiz update API flows."""
+    """Test double провайдера для API-потоков обновления квиза."""
 
     def healthcheck(self) -> ProviderHealthStatus:
         return ProviderHealthStatus(status="available", message="LM Studio is available")

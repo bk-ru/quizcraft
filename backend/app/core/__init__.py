@@ -1,1 +1,1 @@
-"""Core backend utilities."""
+"""Основные backend-утилиты."""

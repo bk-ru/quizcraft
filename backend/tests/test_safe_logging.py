@@ -21,7 +21,7 @@ from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
 class StubProvider:
-    """Deterministic provider test double for logging assertions."""
+    """Детерминированный test double провайдера для assertions логирования."""
 
     def __init__(self, response: StructuredGenerationResponse) -> None:
         self._response = response

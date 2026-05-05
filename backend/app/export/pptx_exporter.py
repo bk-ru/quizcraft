@@ -1,4 +1,4 @@
-"""PPTX export for persisted quizzes — quiz-show presentation style."""
+"""PPTX-экспорт сохраненных квизов в стиле quiz-show презентации."""
 
 from __future__ import annotations
 
@@ -203,17 +203,17 @@ def _add_arrow(slide, x1, y1, x2, y2, color: RGBColor, width_pt: float = 2.5) ->
 
 
 class QuizPptxExporter:
-    """Export persisted quizzes into quiz-show style PPTX presentations.
+    """Экспортировать сохраненные квизы в PPTX-презентации в стиле quiz-show.
 
-    Each question produces two slides:
-    - Slide A: question with options, no highlight (shown to audience)
-    - Slide B: same question with correct answer revealed
+    Каждый вопрос создает два слайда:
+    - Слайд A: вопрос с вариантами без выделения для показа аудитории
+    - Слайд B: тот же вопрос с раскрытым правильным ответом
     """
 
     media_type = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
 
     def export(self, quiz: Quiz) -> ExportedQuizFile:
-        """Render one quiz into a quiz-show PPTX file."""
+        """Отрендерить один квиз в PPTX-файл quiz-show."""
 
         prs = Presentation()
         prs.slide_width = _SLIDE_W

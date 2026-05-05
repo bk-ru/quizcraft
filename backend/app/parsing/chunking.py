@@ -1,4 +1,4 @@
-"""Deterministic text chunking with overlap for retrieval-friendly processing."""
+"""Детерминированное разбиение текста на chunks с перекрытием для retrieval-friendly обработки."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from backend.app.domain.errors import DomainValidationError
 
 @dataclass(frozen=True, slots=True)
 class TextChunk:
-    """One overlapping chunk of normalized text."""
+    """Один перекрывающийся chunk нормализованного текста."""
 
     chunk_id: str
     text: str
@@ -23,7 +23,7 @@ def chunk_text(
     chunk_size: int,
     overlap: int,
 ) -> tuple[TextChunk, ...]:
-    """Split normalized text into deterministic overlapping character chunks."""
+    """Разделить нормализованный текст на детерминированные перекрывающиеся символьные chunks."""
 
     _validate_chunking_inputs(text, chunk_size, overlap)
 
@@ -55,7 +55,7 @@ def chunk_text(
 
 
 def _validate_chunking_inputs(text: str, chunk_size: int, overlap: int) -> None:
-    """Reject invalid chunker inputs with controlled domain errors."""
+    """Отклонить некорректные входы chunker'а контролируемыми доменными ошибками."""
 
     if not isinstance(text, str):
         raise DomainValidationError("text must be a string")
@@ -72,6 +72,6 @@ def _validate_chunking_inputs(text: str, chunk_size: int, overlap: int) -> None:
 
 
 def _format_chunk_id(chunk_index: int) -> str:
-    """Build a deterministic chunk identifier ordered by chunk position."""
+    """Сформировать детерминированный идентификатор chunk, упорядоченный по позиции chunk."""
 
     return f"chunk-{chunk_index:04d}"

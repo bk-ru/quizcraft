@@ -1,4 +1,4 @@
-"""Filesystem-backed generation settings repository."""
+"""Filesystem-backed repository настроек генерации."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from backend.app.domain.models import GenerationSettings
 
 
 class FileSystemGenerationSettingsRepository:
-    """Store and load single-user generation settings from the local filesystem."""
+    """Сохранять и загружать single-user настройки генерации из локальной файловой системы."""
 
     def __init__(self, root_path: Path) -> None:
         self._storage_path = Path(root_path) / "settings"
@@ -18,7 +18,7 @@ class FileSystemGenerationSettingsRepository:
         self._target_path = self._storage_path / "generation.json"
 
     def save(self, settings: GenerationSettings) -> GenerationSettings:
-        """Persist generation settings to disk."""
+        """Сохранить настройки генерации на диск."""
 
         self._target_path.write_text(
             json.dumps(settings.to_dict(), ensure_ascii=False, indent=2),
@@ -27,7 +27,7 @@ class FileSystemGenerationSettingsRepository:
         return settings
 
     def get(self) -> GenerationSettings:
-        """Load saved generation settings."""
+        """Загрузить сохраненные настройки генерации."""
 
         if not self._target_path.exists():
             raise RepositoryNotFoundError("generation_settings", "default")
