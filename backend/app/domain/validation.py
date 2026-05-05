@@ -1,9 +1,13 @@
-"""Business validation for domain entities."""
+"""Бизнес-валидация доменных сущностей."""
 
 from __future__ import annotations
 
+import logging
+
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.models import Quiz
+
+logger = logging.getLogger(__name__)
 
 CHOICE_QUESTION_TYPES = frozenset({"single_choice", "true_false"})
 ANSWER_QUESTION_TYPES = frozenset({"fill_blank", "short_answer"})
@@ -11,7 +15,7 @@ SUPPORTED_QUESTION_TYPES = CHOICE_QUESTION_TYPES | ANSWER_QUESTION_TYPES | froze
 
 
 def validate_quiz(quiz: Quiz) -> None:
-    """Validate that a quiz satisfies core business rules."""
+    """Проверить, что квиз соответствует основным бизнес-правилам."""
 
     if not quiz.title.strip():
         raise DomainValidationError("quiz title must not be empty")
@@ -36,7 +40,16 @@ def validate_quiz(quiz: Quiz) -> None:
 
             normalized_options = {option.text.strip().casefold() for option in question.options}
             if len(normalized_options) != len(question.options):
-                raise DomainValidationError("question options must not contain duplicates")
+                duplicate_texts = [
+                    opt.text for opt in question.options
+                    if sum(1 for o in question.options if o.text.strip().casefold() == opt.text.strip().casefold()) > 1
+                ]
+                logger.warning(
+                    "Quiz %s question %s has duplicate options: %s",
+                    quiz.quiz_id,
+                    question.question_id,
+                    list(set(duplicate_texts)),
+                )
 
             if question.correct_option_index is None:
                 raise DomainValidationError("correct option index is required")

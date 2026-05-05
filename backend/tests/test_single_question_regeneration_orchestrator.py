@@ -6,7 +6,6 @@ import pytest
 
 from backend.app.core.modes import GenerationMode
 from backend.app.core.modes import GenerationModeRegistry
-from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import LLMTimeoutError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import Explanation
@@ -24,7 +23,7 @@ from backend.app.storage.quizzes import FileSystemQuizRepository
 
 
 class RecordingProvider:
-    """Provider test double for targeted regeneration orchestration."""
+    """Test double провайдера для оркестрации точечной регенерации."""
 
     def __init__(
         self,
@@ -214,7 +213,8 @@ def test_single_question_regeneration_does_not_persist_when_provider_fails(tmp_p
     assert len(provider.requests) == 1
 
 
-def test_single_question_regeneration_does_not_persist_invalid_replacement(tmp_path) -> None:
+def test_single_question_regeneration_accepts_duplicate_options_with_warning(tmp_path, caplog) -> None:
+    """Дубликаты вариантов теперь не блокируют регенерацию - квиз сохраняется с предупреждением."""
     provider = RecordingProvider(
         [
             build_question_response(
@@ -229,15 +229,18 @@ def test_single_question_regeneration_does_not_persist_invalid_replacement(tmp_p
     document_repository.save(build_document())
     original_quiz = quiz_repository.save(build_quiz())
 
-    with pytest.raises(DomainValidationError, match="duplicates"):
-        orchestrator.regenerate(
+    with caplog.at_level("WARNING"):
+        result = orchestrator.regenerate(
             quiz_id=original_quiz.quiz_id,
             question_id="q-2",
             generation_request=build_generation_request(),
             instructions=None,
         )
 
-    assert quiz_repository.get(original_quiz.quiz_id) == original_quiz
+    assert "duplicate options" in caplog.text
+    assert result.quiz.quiz_id == original_quiz.quiz_id
+    persisted_quiz = quiz_repository.get(original_quiz.quiz_id)
+    assert persisted_quiz.version > original_quiz.version
 
 
 def test_single_question_regeneration_falls_back_to_original_correct_option_index_when_model_omits_it(tmp_path) -> None:

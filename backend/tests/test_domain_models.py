@@ -103,7 +103,8 @@ def test_validate_quiz_rejects_empty_question_prompt() -> None:
         validate_quiz(broken_quiz)
 
 
-def test_validate_quiz_rejects_duplicate_option_text() -> None:
+def test_validate_quiz_warns_on_duplicate_option_text(caplog) -> None:
+    """Дубликаты вариантов теперь не блокируют квиз - только логируют предупреждение."""
     quiz = build_valid_quiz()
     duplicate_question = replace(
         quiz.questions[0],
@@ -112,10 +113,12 @@ def test_validate_quiz_rejects_duplicate_option_text() -> None:
             Option(option_id="option-2", text=" Paris "),
         ),
     )
-    broken_quiz = replace(quiz, questions=(duplicate_question,))
+    quiz_with_duplicate = replace(quiz, questions=(duplicate_question,))
 
-    with pytest.raises(DomainValidationError, match="duplicate"):
-        validate_quiz(broken_quiz)
+    with caplog.at_level("WARNING"):
+        validate_quiz(quiz_with_duplicate)
+
+    assert "duplicate options" in caplog.text
 
 
 def test_generation_mode_registry_supports_direct_mode() -> None:
