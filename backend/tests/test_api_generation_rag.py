@@ -8,7 +8,7 @@ from backend.app.domain.models import EmbeddingResponse
 from backend.app.domain.models import ProviderHealthStatus
 from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.domain.models import StructuredGenerationResponse
-from backend.app.generation.mode_selector import DEFAULT_RAG_THRESHOLD_CHARS
+from backend.app.generation.mode_selector import DEFAULT_RAG_MIN_CHARS
 from backend.app.main import create_app
 
 
@@ -228,10 +228,11 @@ def test_rag_generation_endpoint_passes_retrieved_context_into_structured_reques
 
 
 def test_direct_request_promotes_to_rag_when_document_exceeds_threshold(tmp_path) -> None:
+    """Документ >= 30000 символов должен перейти в RAG режим"""
     provider = StubRagApiProvider(structured_responses=[build_russian_quiz_response()])
     app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
     client = TestClient(app)
-    document_id = upload_long_russian_document(client, target_length=DEFAULT_RAG_THRESHOLD_CHARS + 200)
+    document_id = upload_long_russian_document(client, target_length=DEFAULT_RAG_MIN_CHARS)
 
     response = client.post(
         f"/documents/{document_id}/generate",

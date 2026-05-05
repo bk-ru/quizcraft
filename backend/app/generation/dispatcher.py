@@ -8,7 +8,8 @@ from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import UnsupportedGenerationModeError
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import GenerationResult
-from backend.app.generation.mode_selector import DEFAULT_RAG_THRESHOLD_CHARS
+from backend.app.generation.mode_selector import DEFAULT_DIRECT_MAX_CHARS
+from backend.app.generation.mode_selector import DEFAULT_RAG_MIN_CHARS
 from backend.app.generation.mode_selector import select_generation_mode
 from backend.app.generation.orchestrator import DirectGenerationOrchestrator
 from backend.app.generation.rag_orchestrator import RagGenerationOrchestrator
@@ -30,22 +31,34 @@ class GenerationOrchestratorDispatcher:
         direct_orchestrator: DirectGenerationOrchestrator,
         rag_orchestrator: RagGenerationOrchestrator,
         document_repository,
-        rag_threshold_chars: int = DEFAULT_RAG_THRESHOLD_CHARS,
+        direct_max_chars: int = DEFAULT_DIRECT_MAX_CHARS,
+        rag_min_chars: int = DEFAULT_RAG_MIN_CHARS,
     ) -> None:
-        if isinstance(rag_threshold_chars, bool) or not isinstance(rag_threshold_chars, int):
-            raise ValueError("rag_threshold_chars must be a positive integer")
-        if rag_threshold_chars <= 0:
-            raise ValueError("rag_threshold_chars must be a positive integer")
+        if isinstance(direct_max_chars, bool) or not isinstance(direct_max_chars, int):
+            raise ValueError("direct_max_chars must be a positive integer")
+        if direct_max_chars <= 0:
+            raise ValueError("direct_max_chars must be a positive integer")
+        if isinstance(rag_min_chars, bool) or not isinstance(rag_min_chars, int):
+            raise ValueError("rag_min_chars must be a positive integer")
+        if rag_min_chars <= 0:
+            raise ValueError("rag_min_chars must be a positive integer")
+        if direct_max_chars >= rag_min_chars:
+            raise ValueError("direct_max_chars must be less than rag_min_chars")
         self._direct_orchestrator = direct_orchestrator
         self._rag_orchestrator = rag_orchestrator
         self._document_repository = document_repository
-        self._rag_threshold_chars = rag_threshold_chars
+        self._direct_max_chars = direct_max_chars
+        self._rag_min_chars = rag_min_chars
 
     @property
-    def rag_threshold_chars(self) -> int:
-        """Раскрыть настроенный порог продвижения в rag для диагностики."""
+    def direct_max_chars(self) -> int:
+        """Раскрыть настроенный максимум для direct режима."""
+        return self._direct_max_chars
 
-        return self._rag_threshold_chars
+    @property
+    def rag_min_chars(self) -> int:
+        """Раскрыть настроенный минимум для RAG режима."""
+        return self._rag_min_chars
 
     def dispatch(
         self,
@@ -58,7 +71,8 @@ class GenerationOrchestratorDispatcher:
         resolved_mode = select_generation_mode(
             requested_mode=generation_request.generation_mode,
             document_length_chars=len(document.normalized_text),
-            rag_threshold_chars=self._rag_threshold_chars,
+            direct_max_chars=self._direct_max_chars,
+            rag_min_chars=self._rag_min_chars,
         )
         resolved_request = (
             generation_request

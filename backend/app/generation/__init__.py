@@ -2,7 +2,8 @@
 
 from backend.app.generation.dispatcher import GenerationOrchestratorDispatcher
 from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
-from backend.app.generation.mode_selector import DEFAULT_RAG_THRESHOLD_CHARS
+from backend.app.generation.mode_selector import DEFAULT_DIRECT_MAX_CHARS
+from backend.app.generation.mode_selector import DEFAULT_RAG_MIN_CHARS
 from backend.app.generation.mode_selector import select_generation_mode
 from backend.app.generation.orchestrator import DirectGenerationOrchestrator
 from backend.app.generation.quality import GenerationQualityChecker
@@ -14,7 +15,8 @@ from backend.app.generation.single_question import SingleQuestionRegenerationOrc
 from backend.app.generation.single_question import SingleQuestionRegenerationResult
 
 __all__ = [
-    "DEFAULT_RAG_THRESHOLD_CHARS",
+    "DEFAULT_DIRECT_MAX_CHARS",
+    "DEFAULT_RAG_MIN_CHARS",
     "DirectGenerationOrchestrator",
     "DirectGenerationRequestBuilder",
     "FileSystemGenerationDiagnosticLogger",
