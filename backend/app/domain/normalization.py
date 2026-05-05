@@ -121,8 +121,13 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
         has_pairs = bool(raw_payload.get("matching_pairs"))
         if has_pairs:
             question_type = "matching"
-        elif has_answer:
+        elif has_answer and question_type != "true_false":
             question_type = "short_answer"
+
+    if question_type == "true_false" and not options:
+        options = _make_true_false_options()
+        if inlined_index is None:
+            inlined_index = _resolve_true_false_index(raw_payload)
 
     explicit_index = _normalize_correct_option_index(raw_payload, field_name="correct option")
     resolved_index = explicit_index if explicit_index is not None else inlined_index
@@ -180,6 +185,30 @@ def _extract_inlined_correct_option_index(raw_options: list[Any]) -> int | None:
             return int(raw_text)
         except ValueError:
             pass
+    return None
+
+
+def _make_true_false_options() -> tuple[Option, ...]:
+    """Вернуть стандартные варианты ответа для вопроса типа true_false."""
+
+    return (
+        Option(option_id="true", text="Да"),
+        Option(option_id="false", text="Нет"),
+    )
+
+
+def _resolve_true_false_index(raw_payload: dict[str, Any]) -> int | None:
+    """Определить correct_option_index для true_false из текстового поля correct_answer.
+
+    Модели часто возвращают correct_answer как строку 'Да'/'Нет'/'true'/'false'/'yes'/'no'.
+    Индекс 0 = Да (True), индекс 1 = Нет (False).
+    """
+
+    raw = (raw_payload.get("correct_answer") or "").strip().lower()
+    if raw in {"да", "true", "yes", "1"}:
+        return 0
+    if raw in {"нет", "false", "no", "0"}:
+        return 1
     return None
 
 

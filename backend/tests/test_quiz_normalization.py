@@ -286,6 +286,77 @@ def test_resolve_readable_quiz_title_handles_empty_filename() -> None:
     assert result == "Квиз — 3 вопроса"
 
 
+def test_normalize_quiz_auto_fills_true_false_options_when_absent() -> None:
+    """Модель вернула true_false без опций — нормализатор подставляет Да/Нет."""
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Тест",
+        "version": 1,
+        "last_edited_at": "2026-01-01T00:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "true_false",
+                "prompt": "Фотосинтез происходит в хлоропластах?",
+                "explanation": {"text": "Да, реакция протекает в хлоропластах."},
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+
+    question = quiz.questions[0]
+    assert question.question_type == "true_false"
+    assert len(question.options) == 2
+    assert question.options[0].text == "Да"
+    assert question.options[1].text == "Нет"
+
+
+def test_normalize_quiz_resolves_true_false_index_from_correct_answer_da() -> None:
+    """correct_answer='Да' → correct_option_index=0."""
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Тест",
+        "version": 1,
+        "last_edited_at": "2026-01-01T00:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "true_false",
+                "prompt": "Фотосинтез происходит в хлоропластах?",
+                "correct_answer": "Да",
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+    assert quiz.questions[0].correct_option_index == 0
+
+
+def test_normalize_quiz_resolves_true_false_index_from_correct_answer_net() -> None:
+    """correct_answer='Нет' → correct_option_index=1."""
+    raw_payload = {
+        "quiz_id": "quiz-1",
+        "document_id": "doc-1",
+        "title": "Тест",
+        "version": 1,
+        "last_edited_at": "2026-01-01T00:00:00Z",
+        "questions": [
+            {
+                "question_id": "q-1",
+                "question_type": "true_false",
+                "prompt": "Интенсивность фотосинтеза зависит только от освещённости?",
+                "correct_answer": "Нет",
+            }
+        ],
+    }
+
+    quiz = normalize_quiz_output(raw_payload)
+    assert quiz.questions[0].correct_option_index == 1
+
+
 def test_normalize_quiz_recovers_correct_option_index_inlined_as_option() -> None:
     """Некоторые модели ошибочно кладут correct_option_index как 5-ю псевдо-опцию.
 
