@@ -1,0 +1,20 @@
+classDiagram
+  class domain {
+  }
+  class enums {
+  }
+  class errors {
+  }
+  class models {
+  }
+  class normalization {
+  }
+  class schema {
+  }
+  class validation {
+  }
+  models --> errors
+  normalization --> errors
+  normalization --> models
+  validation --> errors
+  validation --> models

@@ -15,4 +15,6 @@ AGENTS.md
 docs/*
 !docs/images/
 !docs/images/**
+!docs/diagrams/
+!docs/diagrams/**
 staged-flow-prototype/

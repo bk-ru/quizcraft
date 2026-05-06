@@ -1,0 +1,28 @@
+classDiagram
+  class export {
+  }
+  class base {
+  }
+  class csv_exporter {
+  }
+  class docx_exporter {
+  }
+  class json_exporter {
+  }
+  class markdown_exporter {
+  }
+  class pptx_exporter {
+  }
+  class registry {
+  }
+  csv_exporter --> base
+  docx_exporter --> base
+  json_exporter --> base
+  markdown_exporter --> base
+  pptx_exporter --> base
+  registry --> base
+  registry --> csv_exporter
+  registry --> docx_exporter
+  registry --> json_exporter
+  registry --> markdown_exporter
+  registry --> pptx_exporter
