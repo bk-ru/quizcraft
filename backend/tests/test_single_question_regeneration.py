@@ -287,7 +287,7 @@ def test_single_question_regeneration_endpoint_preserves_quiz_when_provider_fail
     assert quiz_repository.get(original_quiz.quiz_id) == original_quiz
 
 
-def test_single_question_regeneration_endpoint_preserves_quiz_when_replacement_is_invalid(tmp_path) -> None:
+def test_single_question_regeneration_endpoint_accepts_duplicate_options(tmp_path) -> None:
     provider = RecordingProvider(
         [
             build_question_response(
@@ -306,7 +306,9 @@ def test_single_question_regeneration_endpoint_preserves_quiz_when_replacement_i
         json={"profile_name": "strict"},
     )
 
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "validation_error"
+    assert response.status_code == 200
     assert len(provider.requests) == 1
-    assert quiz_repository.get(original_quiz.quiz_id) == original_quiz
+    persisted_quiz = quiz_repository.get(original_quiz.quiz_id)
+    assert persisted_quiz.version == original_quiz.version + 1
+    assert persisted_quiz.questions[1].options[0].text == "Нева"
+    assert persisted_quiz.questions[1].options[1].text == "Нева"

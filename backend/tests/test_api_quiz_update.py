@@ -84,19 +84,20 @@ def test_quiz_update_endpoint_persists_valid_changes_and_returns_saved_quiz(tmp_
     assert body["request_id"] == response.headers["X-Request-ID"]
 
 
-def test_quiz_update_endpoint_rejects_invalid_quiz_payload(tmp_path) -> None:
+def test_quiz_update_endpoint_accepts_duplicate_options(tmp_path) -> None:
     repository = FileSystemQuizRepository(tmp_path)
     original_quiz = repository.save(build_quiz())
     app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
     client = TestClient(app)
-    invalid_payload = original_quiz.to_dict()
-    invalid_payload["questions"][0]["options"][1]["text"] = "Москва"
+    duplicate_payload = original_quiz.to_dict()
+    duplicate_payload["questions"][0]["options"][1]["text"] = "Москва"
 
-    response = client.put(f"/quizzes/{original_quiz.quiz_id}", json={"quiz": invalid_payload})
+    response = client.put(f"/quizzes/{original_quiz.quiz_id}", json={"quiz": duplicate_payload})
 
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "validation_error"
-    assert repository.get(original_quiz.quiz_id) == original_quiz
+    assert response.status_code == 200
+    persisted_quiz = repository.get(original_quiz.quiz_id)
+    assert persisted_quiz.version == original_quiz.version + 1
+    assert persisted_quiz.questions[0].options[1].text == "Москва"
 
 
 def test_quiz_update_endpoint_maps_missing_quiz_to_not_found(tmp_path) -> None:

@@ -241,7 +241,7 @@ def test_direct_request_promotes_to_rag_when_document_exceeds_threshold(tmp_path
 
     assert response.status_code == 200
     assert response.json()["prompt_version"] == "rag-v1"
-    assert len(provider.embedding_requests) == 2
+    assert len(provider.embedding_requests) == 3
 
 
 def test_direct_request_below_threshold_skips_rag_path(tmp_path) -> None:

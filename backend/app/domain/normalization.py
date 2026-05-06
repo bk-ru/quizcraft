@@ -108,8 +108,9 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
     if not isinstance(raw_options, list):
         raise DomainValidationError("question options must be a list")
 
+    has_explicit_index = "correct_option_number" in raw_payload or "correct_option_index" in raw_payload
     inlined_index = _extract_inlined_correct_option_index(raw_options)
-    if inlined_index is not None and _has_trailing_duplicate_option(raw_options):
+    if not has_explicit_index and inlined_index is not None and _has_trailing_duplicate_option(raw_options):
         raw_options = raw_options[:-1]
 
     options = tuple(

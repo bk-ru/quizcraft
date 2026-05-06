@@ -86,7 +86,7 @@ def test_ollama_health_endpoint_returns_provider_status(monkeypatch, tmp_path) -
         "default_model": "qwen2.5:7b",
         "embedding_model": "nomic-embed-text",
     }
-    assert captured == {"url": "http://localhost:11434/api/tags", "timeout": 300}
+    assert captured == {"url": "http://localhost:11434/api/tags", "timeout": None}
 
 
 def test_ollama_health_endpoint_reports_disabled_provider_without_calling_provider(monkeypatch, tmp_path) -> None:

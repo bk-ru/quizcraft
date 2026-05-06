@@ -44,6 +44,8 @@ def test_rag_prompt_user_template_renders_cyrillic_context() -> None:
         language="ru",
         difficulty="medium",
         quiz_type="single_choice",
+        question_type_policy="Use only single_choice questions.",
+        question_type_rules="- single_choice: use options and correct_option_index.",
         document_id="doc-ru",
         retrieved_context="Москва — столица России. Население 13 миллионов.",
     )
