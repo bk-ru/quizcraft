@@ -12,3 +12,7 @@ scratch/
 pytest_final.log
 .agent/
 AGENTS.md
+docs/*
+!docs/images/
+!docs/images/**
+staged-flow-prototype/
