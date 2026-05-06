@@ -17,4 +17,8 @@ docs/*
 !docs/images/**
 !docs/diagrams/
 !docs/diagrams/**
+!docs/planning/
+!docs/planning/**
+!docs/design/
+!docs/design/**
 staged-flow-prototype/
