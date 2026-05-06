@@ -256,7 +256,7 @@ LM_STUDIO_ALLOWED_MODELS=replace-with-model
 | `EXTERNAL_API_API_KEY` | API-ключ внешнего провайдера | пусто |
 | `EXTERNAL_API_MODEL` | Chat-модель внешнего провайдера | пусто |
 | `EXTERNAL_API_EMBEDDING_MODEL` | Embedding-модель внешнего провайдера | пусто |
-| `REQUEST_TIMEOUT` | Таймаут запросов к LLM в секундах | `300` |
+| `REQUEST_TIMEOUT` | Таймаут запросов к LLM в секундах | не задан |
 | `MAX_FILE_SIZE_MB` | Максимальный размер загружаемого файла | `10` |
 | `MAX_DOCUMENT_CHARS` | Максимальный объем текста документа | `50000` |
 | `LOG_LEVEL` | Уровень логирования | `INFO` |
@@ -308,24 +308,33 @@ LM_STUDIO_ALLOWED_MODELS=replace-with-model
 
 ```text
 quizcraft/
+├── .github/
+│   └── workflows/        # сценарии GitHub Actions
 ├── backend/
 │   ├── app/
-│   │   ├── api/          # FastAPI routes
-│   │   ├── core/         # config, logging, provider registry
-│   │   ├── domain/       # models, validation, normalization, errors
-│   │   ├── export/       # JSON, DOCX, PPTX, Markdown, CSV exporters
-│   │   ├── generation/   # direct and RAG generation
-│   │   ├── parsing/      # TXT, DOCX, PDF parsing and chunking
-│   │   ├── prompts/      # prompt builders and repair prompts
-│   │   └── storage/      # local JSON storage
-│   └── tests/            # backend pytest tests
-├── frontend/             # browser UI
+│   │   ├── api/          # маршруты FastAPI и схемы HTTP API
+│   │   ├── core/         # конфигурация, режимы и базовые настройки
+│   │   ├── domain/       # доменные модели, ошибки, схемы и валидация
+│   │   ├── export/       # экспорт квизов в JSON, DOCX, PPTX, Markdown и CSV
+│   │   ├── generation/   # генерация, RAG, профили, статусы и диагностика
+│   │   ├── llm/          # клиенты и registry LLM-провайдеров
+│   │   ├── parsing/      # чтение TXT, DOCX, PDF, нормализация и разбиение текста
+│   │   ├── prompts/      # версии prompt-шаблонов для генерации и repair
+│   │   └── storage/      # локальные JSON-хранилища документов, квизов и кеша
+│   ├── requirements.txt  # зависимости backend
+│   └── tests/            # pytest-тесты backend
 ├── docs/
-│   ├── execplans/        # implementation plans
-│   └── images/           # README and UI images
-├── tests/                # repository and frontend shell tests
-├── run-backend.ps1       # Windows backend launcher
-└── run-frontend.ps1      # Windows frontend launcher
+│   └── images/           # изображения для README и интерфейса
+├── frontend/
+│   ├── api/              # браузерный клиент backend API
+│   ├── index.html        # точка входа frontend
+│   ├── *.css             # стили интерфейса
+│   └── *.js              # модули UI, редактора, экспорта и состояния генерации
+├── tests/                # проверки структуры репозитория и frontend shell
+├── .env.example          # пример локальной конфигурации
+├── pyproject.toml        # метаданные проекта, зависимости и настройки tooling
+├── run-backend.ps1       # запуск backend на Windows
+└── run-frontend.ps1      # запуск frontend на Windows
 ```
 
 ## Разработка
@@ -411,4 +420,4 @@ python -m http.server 5501 --directory frontend
 
 ## Лицензия
 
-Лицензия не указана. Перед распространением или коммерческим использованием уточните условия у владельца репозитория.
+Проект распространяется по лицензии MIT. Условия указаны в файле `LICENSE`.
