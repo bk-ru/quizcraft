@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import GenerationQualityError
 from backend.app.domain.models import Quiz
@@ -15,11 +17,25 @@ _DOC_LENGTH_THRESHOLDS: tuple[tuple[int, int], ...] = (
 )
 
 
-def enrich_generation_error(error: DomainValidationError, doc_char_count: int) -> DomainValidationError:
+def fit_generated_question_count(quiz: Quiz, expected_question_count: int) -> Quiz:
+    """Return a quiz with no more than the requested number of questions."""
+
+    if len(quiz.questions) > expected_question_count:
+        return replace(quiz, questions=quiz.questions[:expected_question_count])
+    return quiz
+
+
+def enrich_generation_error(
+    error: DomainValidationError,
+    doc_char_count: int,
+    requested_question_count: int | None = None,
+) -> DomainValidationError:
     """Вернуть новую ошибку с подсказкой о длине документа, когда текст короткий."""
 
     for max_chars, max_questions in _DOC_LENGTH_THRESHOLDS:
         if doc_char_count < max_chars:
+            if requested_question_count is not None and requested_question_count <= max_questions:
+                return error
             hint = (
                 f" Текст документа слишком короткий ({doc_char_count} символов) — "
                 f"рекомендуется не более {max_questions} вопросов. "

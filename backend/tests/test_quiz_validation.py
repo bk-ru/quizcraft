@@ -213,6 +213,14 @@ def test_enrich_generation_error_returns_original_for_long_document() -> None:
     assert enriched.message == error.message
 
 
+def test_enrich_generation_error_skips_short_document_hint_when_request_is_within_limit() -> None:
+    error = DomainValidationError("generated quiz question count does not match the requested question count")
+    enriched = enrich_generation_error(error, doc_char_count=1403, requested_question_count=5)
+
+    assert enriched.message == error.message
+    assert "\u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u0442\u0441\u044f" not in enriched.message
+
+
 def test_enrich_generation_error_handles_cyrillic_document() -> None:
     error = DomainValidationError("matching question must have at least four pairs")
     short_russian_text = "Фотосинтез — процесс преобразования света." * 3

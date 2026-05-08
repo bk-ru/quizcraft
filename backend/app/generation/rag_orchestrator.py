@@ -30,6 +30,7 @@ from backend.app.generation.diagnostics import summarize_structured_generation_r
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.quality import enrich_generation_error
+from backend.app.generation.quality import fit_generated_question_count
 from backend.app.generation.question_types import render_question_type_policy
 from backend.app.generation.question_types import render_question_type_rules
 from backend.app.generation.rag_cache import RagCacheEntry
@@ -434,6 +435,7 @@ class RagGenerationOrchestrator:
                 repair_attempt=repair_attempt,
             )
             raise
+        quiz = fit_generated_question_count(quiz, generation_request.question_count)
         readable_title = resolve_readable_quiz_title(
             quiz.title,
             document.filename,
@@ -547,7 +549,11 @@ class RagGenerationOrchestrator:
             )
             return repaired_quiz, current_response, repair_prompt.version, current_provider_request_summary
 
-        raise enrich_generation_error(current_error, len(document.normalized_text))
+        raise enrich_generation_error(
+            current_error,
+            len(document.normalized_text),
+            requested_question_count=generation_request.question_count,
+        )
 
     def _log_diagnostic_success(
         self,

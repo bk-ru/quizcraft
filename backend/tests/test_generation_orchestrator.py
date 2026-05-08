@@ -179,6 +179,32 @@ def test_direct_generation_orchestrator_raises_after_repair_is_exhausted(tmp_pat
         result_repository.get("quiz-generated")
 
 
+def test_direct_generation_orchestrator_trims_extra_generated_questions(tmp_path) -> None:
+    provider = StubProvider([build_response(build_payload(question_count=6), response_id="resp-1")])
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(
+        DocumentRecord(
+            document_id="doc-1",
+            filename="photosynthesis.txt",
+            media_type="text/plain",
+            file_size_bytes=256,
+            normalized_text=(
+                "\u0424\u043e\u0442\u043e\u0441\u0438\u043d\u0442\u0435\u0437 \u043f\u0440\u0435\u043e\u0431\u0440\u0430\u0437\u0443\u0435\u0442 "
+                "\u0441\u0432\u0435\u0442 \u0432 \u0445\u0438\u043c\u0438\u0447\u0435\u0441\u043a\u0443\u044e "
+                "\u044d\u043d\u0435\u0440\u0433\u0438\u044e."
+            ),
+            metadata={"text_length": 53},
+        )
+    )
+
+    result = orchestrator.generate("doc-1", build_generation_request(question_count=5))
+    persisted = result_repository.get(result.quiz.quiz_id)
+
+    assert len(provider.requests) == 1
+    assert len(result.quiz.questions) == 5
+    assert len(persisted.quiz.questions) == 5
+
+
 def test_direct_generation_orchestrator_preserves_russian_quiz_fields(tmp_path) -> None:
     provider = StubProvider(
         [
