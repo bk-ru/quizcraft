@@ -12,6 +12,8 @@ scratch/
 pytest_final.log
 .agent/
 AGENTS.md
+agents.md
+referat.md
 docs/*
 !docs/images/
 !docs/images/**
