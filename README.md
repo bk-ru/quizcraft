@@ -260,7 +260,7 @@ LM_STUDIO_ALLOWED_MODELS=replace-with-model
 | `MAX_FILE_SIZE_MB` | Максимальный размер загружаемого файла | `10` |
 | `MAX_DOCUMENT_CHARS` | Максимальный объем текста документа | `50000` |
 | `LOG_LEVEL` | Уровень логирования | `INFO` |
-| `LOG_FORMAT` | Формат логов: `text` или `json` | `text` |
+| `LOG_FORMAT` | Формат логов: `text`, `json` или Python logging format string | `text` |
 | `GENERATION_PROFILES` | JSON с профилями генерации | пусто |
 | `DEFAULT_GENERATION_PROFILE` | Профиль генерации по умолчанию | `balanced` |
 

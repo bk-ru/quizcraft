@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from uuid import uuid4
@@ -28,6 +29,44 @@ from backend.app.domain.errors import BackendError
 from backend.app.llm.factory import build_provider_runtime
 
 logger = logging.getLogger(__name__)
+DEFAULT_TEXT_LOG_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
+
+
+class JsonLogFormatter(logging.Formatter):
+    """Format log records as one JSON object per line."""
+
+    def format(self, record: logging.LogRecord) -> str:
+        payload = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+            "correlation_id": getattr(record, "correlation_id", "-"),
+        }
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        return json.dumps(payload, ensure_ascii=False)
+
+
+def _configure_logging(config: AppConfig) -> None:
+    log_format = config.log_format.strip()
+    log_format_key = log_format.lower()
+    log_level = getattr(logging, config.log_level, logging.INFO)
+
+    if log_format_key == "json":
+        handler = logging.StreamHandler()
+        handler.setFormatter(JsonLogFormatter())
+        logging.basicConfig(level=log_level, handlers=[handler], force=True)
+        return
+
+    if log_format_key == "text":
+        log_format = DEFAULT_TEXT_LOG_FORMAT
+
+    logging.basicConfig(
+        level=log_level,
+        format=log_format,
+        force=True,
+    )
 
 
 def create_app(
@@ -39,11 +78,7 @@ def create_app(
 
     resolved_config = config or AppConfig.from_env()
     install_correlation_log_record_factory()
-    logging.basicConfig(
-        level=getattr(logging, resolved_config.log_level, logging.INFO),
-        format=resolved_config.log_format,
-        force=True,
-    )
+    _configure_logging(resolved_config)
     app = FastAPI(title="QuizCraft Backend")
     app.add_middleware(
         CORSMiddleware,
