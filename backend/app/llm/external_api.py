@@ -85,10 +85,16 @@ class ExternalAPIClient(LLMProvider):
         if not isinstance(models, list):
             raise LLMResponseFormatError("External API healthcheck returned malformed response")
 
-        logger.info("External API healthcheck succeeded")
+        available_models = tuple(
+            entry["id"]
+            for entry in models
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"].strip()
+        )
+        logger.info("External API healthcheck succeeded, models=%s", available_models)
         return ProviderHealthStatus(
             status="available",
             message="External API is available",
+            available_models=available_models,
         )
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:

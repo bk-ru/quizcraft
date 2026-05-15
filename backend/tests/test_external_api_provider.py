@@ -88,6 +88,7 @@ def test_healthcheck_uses_models_endpoint_and_bearer_token(monkeypatch: pytest.M
 
     assert status.status == "available"
     assert status.message == "External API is available"
+    assert status.available_models == ("external-quiz-model",)
     assert captured == {
         "url": "https://api.example.test/v1/models",
         "timeout": 9,

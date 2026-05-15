@@ -57,6 +57,7 @@ const docExampleButton = document.getElementById("doc-example-button");
 const toastRegion = document.getElementById("toast-region");
 const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
+const generationLiveJournal = document.getElementById("generation-live-journal");
 const cancelGenerationButton = document.getElementById("cancel-generation-button");
 const generationTimerElement = document.getElementById("generation-timer");
 const stageRoot = document.querySelector("[data-stage-root]");
@@ -78,6 +79,10 @@ const editorExportActions = document.getElementById("editor-export-actions");
 const retryBackendButton = document.getElementById("retry-backend-button");
 const retryProviderButton = document.getElementById("retry-provider-button");
 const preflightStatus = document.getElementById("preflight-status");
+const lmStudioHostInput = document.getElementById("lm-studio-host");
+const lmStudioPortInput = document.getElementById("lm-studio-port");
+const applyLMStudioConnectionButton = document.getElementById("apply-lm-studio-connection");
+const lmStudioConnectionStatus = document.getElementById("lm-studio-connection-status");
 
 const editorState = {
   loadedQuiz: null,
@@ -124,32 +129,45 @@ const statusMap = {
   ok: "ok",
   available: "ok",
   unavailable: "bad",
+  disabled: "bad",
+  bad: "bad",
 };
 
-const LM_STUDIO_UNAVAILABLE_INSTRUCTION =
-  "LM Studio недоступен. Запустите приложение LM Studio, загрузите модель и убедитесь, что сервер слушает http://127.0.0.1:1234.";
+const PROVIDER_DISPLAY_NAMES = Object.freeze({
+  lm_studio: "LM Studio",
+  ollama: "Ollama",
+  external_api: "External API",
+});
+const LM_STUDIO_CONNECTION_STORAGE_KEY = "quizcraft.lmStudioConnection";
+
+const PROVIDER_UNAVAILABLE_INSTRUCTION =
+  "Провайдер недоступен. Проверьте активный провайдер, загрузите выбранную модель и повторите проверку подключения.";
 const BACKEND_AVAILABLE_INSTRUCTION =
-  "Backend отвечает. Если генерация не запускается, проверьте LM Studio и выбранную модель.";
+  "Backend отвечает. Если генерация не запускается, проверьте активный провайдер и выбранную модель.";
 const BACKEND_CHECK_FAILED_INSTRUCTION =
   "Backend недоступен. Запустите сервер командой .\\run-backend.ps1 из корня проекта и проверьте, что порт 8000 свободен.";
 const PROVIDER_AVAILABLE_INSTRUCTION =
-  "LM Studio отвечает через backend. Если генерация падает, проверьте загруженную модель и поддержку structured output.";
+  "Активный провайдер отвечает через backend. Если генерация падает, проверьте загруженную модель и поддержку structured output.";
 const PROVIDER_CHECK_FAILED_INSTRUCTION =
-  "LM Studio не удалось проверить через backend. Убедитесь, что backend запущен, LM Studio открыт, модель загружена, а server mode включен.";
+  "Провайдер не удалось проверить через backend. Убедитесь, что backend запущен, активный провайдер доступен и модель загружена.";
 const PROVIDER_CHECK_BLOCKED_INSTRUCTION =
-  "LM Studio проверяется через backend. Сначала восстановите подключение к серверу.";
+  "Провайдер проверяется через backend. Сначала восстановите подключение к серверу.";
 const GENERATION_CHECKING_MESSAGE =
-  "Проверка подключений ещё не завершена. Дождитесь статусов сервера и LM Studio или нажмите кнопки проверки повторно.";
+  "Проверка подключений ещё не завершена. Дождитесь статусов сервера и провайдера или нажмите кнопки проверки повторно.";
 const BACKEND_GENERATION_BLOCKED_MESSAGE =
   "Backend недоступен. Запустите сервер командой .\\run-backend.ps1 и нажмите «Проверить сервер».";
 const PROVIDER_GENERATION_BLOCKED_MESSAGE =
-  "LM Studio недоступен. Запустите LM Studio, загрузите модель и нажмите «Проверить LM Studio».";
+  "Провайдер недоступен. Проверьте активный провайдер, загрузите модель и нажмите «Проверить провайдер».";
 const SERVICES_GENERATION_BLOCKED_MESSAGE =
-  "Генерация недоступна: backend и LM Studio не подключены. Запустите backend и LM Studio, затем повторите проверку подключений.";
+  "Генерация недоступна: backend и провайдер не подключены. Запустите backend и активный провайдер, затем повторите проверку подключений.";
 
 const generationConnectionState = {
   backend: "checking",
   provider: "checking",
+  backendReason: "",
+  providerReason: "",
+  providerKey: "",
+  providerName: "Провайдер",
 };
 
 function setTextContent(id, value) {
@@ -176,6 +194,61 @@ function setStatus(surface, text, tone, description) {
       delete container.dataset.statusTone;
     }
   }
+}
+
+function formatProviderName(providerName) {
+  const normalized = typeof providerName === "string" ? providerName.trim().toLowerCase() : "";
+  return PROVIDER_DISPLAY_NAMES[normalized] ?? "Провайдер";
+}
+
+function isProviderReadyStatus(status) {
+  return status === "available" || status === "ok";
+}
+
+function buildBackendUnavailableMessage(reason = "") {
+  return [
+    "Сервер недоступен",
+    `Причина: ${reason || "backend не отвечает на запрос проверки."}`,
+    "Что сделать:",
+    "1. Запустите backend командой .\\run-backend.ps1 из корня проекта",
+    `2. Проверьте, что ${backendBaseUrl} доступен в браузере`,
+    "3. Проверьте backendBaseUrl в frontend/config.js",
+    '4. Нажмите "Проверить снова"',
+  ].join("\n");
+}
+
+function buildProviderRecoverySteps(providerKey) {
+  if (providerKey === "ollama") {
+    return [
+      "1. Запустите Ollama",
+      "2. Проверьте, что выбранная модель скачана и доступна",
+      "3. Проверьте OLLAMA_BASE_URL в .env",
+      '4. Нажмите "Проверить снова"',
+    ];
+  }
+  if (providerKey === "external_api") {
+    return [
+      "1. Проверьте доступ к внешнему API",
+      "2. Проверьте API-ключ и базовый URL в .env",
+      "3. Проверьте имя модели в настройках",
+      '4. Нажмите "Проверить снова"',
+    ];
+  }
+  return [
+    "1. Откройте LM Studio",
+    "2. Запустите Local Server",
+    "3. Проверьте LM_STUDIO_BASE_URL в .env",
+    '4. Нажмите "Проверить снова"',
+  ];
+}
+
+function buildProviderUnavailableMessage(reason = "", providerKey = generationConnectionState.providerKey) {
+  return [
+    "Провайдер недоступен",
+    `Причина: ${reason || "активный провайдер не отвечает на запрос проверки."}`,
+    "Что сделать:",
+    ...buildProviderRecoverySteps(providerKey),
+  ].join("\n");
 }
 
 function setRetryButtonBusy(buttonElement, busy) {
@@ -215,8 +288,48 @@ function setPreflightStatus(text, tone) {
   setToneMessage(preflightStatus, text, tone);
 }
 
+function setLMStudioConnectionStatus(text, tone) {
+  setToneMessage(lmStudioConnectionStatus, text, tone);
+}
+
 function setEditorStatus(text, tone) {
   setToneMessage(document.getElementById("quiz-editor-status"), text, tone);
+}
+
+function readStoredLMStudioConnection() {
+  try {
+    const raw = window.localStorage?.getItem(LM_STUDIO_CONNECTION_STORAGE_KEY);
+    if (!raw) {
+      return null;
+    }
+    const parsed = JSON.parse(raw);
+    if (typeof parsed?.host !== "string" || !Number.isFinite(Number(parsed?.port))) {
+      return null;
+    }
+    return { host: parsed.host, port: Number(parsed.port) };
+  } catch {
+    return null;
+  }
+}
+
+function storeLMStudioConnection(connection) {
+  try {
+    window.localStorage?.setItem(LM_STUDIO_CONNECTION_STORAGE_KEY, JSON.stringify(connection));
+  } catch {
+    // localStorage may be blocked in private or file-based browser contexts.
+  }
+}
+
+function fillLMStudioConnectionForm(connection) {
+  if (!connection) {
+    return;
+  }
+  if (lmStudioHostInput && typeof connection.host === "string") {
+    lmStudioHostInput.value = connection.host;
+  }
+  if (lmStudioPortInput && Number.isFinite(Number(connection.port))) {
+    lmStudioPortInput.value = String(connection.port);
+  }
 }
 
 function toggleUnavailableHint(buttonElement, hintId, isDisabled) {
@@ -254,26 +367,58 @@ function setExportAvailability(quizId) {
   }
 }
 
+function getCurrentGenerationReadiness() {
+  const backendState = generationConnectionState.backend;
+  const providerState = generationConnectionState.provider;
+  const backendReady = backendState === "ok";
+  const providerReady = providerState === "ok";
+  if (backendReady && providerReady) {
+    return { ready: true };
+  }
+  if (backendState === "checking" || providerState === "checking") {
+    return { ready: false, message: GENERATION_CHECKING_MESSAGE, tone: "warn" };
+  }
+  if (!backendReady) {
+    const message = generationConnectionState.backendReason
+      ? buildBackendUnavailableMessage(generationConnectionState.backendReason)
+      : BACKEND_GENERATION_BLOCKED_MESSAGE;
+    return { ready: false, message, tone: "bad" };
+  }
+  if (!providerReady) {
+    const message = generationConnectionState.providerReason
+      ? buildProviderUnavailableMessage(generationConnectionState.providerReason, generationConnectionState.providerKey)
+      : PROVIDER_GENERATION_BLOCKED_MESSAGE;
+    return { ready: false, message, tone: "bad" };
+  }
+  return { ready: false, message: SERVICES_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
+}
+
+function updateGenerationSubmitAvailability() {
+  if (!submitButton) {
+    return;
+  }
+  const readiness = getCurrentGenerationReadiness();
+  if (!readiness.ready && readiness.tone === "bad") {
+    submitButton.setAttribute("aria-disabled", "true");
+    submitButton.dataset.disabledReason = readiness.message;
+    submitButton.title = readiness.message;
+  } else {
+    submitButton.removeAttribute("aria-disabled");
+    delete submitButton.dataset.disabledReason;
+    submitButton.removeAttribute("title");
+  }
+}
+
+function showSubmitUnavailableReason() {
+  const reason = submitButton?.dataset.disabledReason;
+  if (!reason) {
+    return;
+  }
+  setPreflightStatus(reason, "bad");
+}
+
 function createGenerationReadinessChecker() {
-  return () => {
-    const backendState = generationConnectionState.backend;
-    const providerState = generationConnectionState.provider;
-    const backendReady = backendState === "ok";
-    const providerReady = providerState === "ok";
-    if (backendReady && providerReady) {
-      return { ready: true };
-    }
-    if (backendState === "checking" || providerState === "checking") {
-      return { ready: false, message: GENERATION_CHECKING_MESSAGE, tone: "warn" };
-    }
-    if (!backendReady && !providerReady) {
-      return { ready: false, message: SERVICES_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
-    }
-    if (!backendReady) {
-      return { ready: false, message: BACKEND_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
-    }
-    return { ready: false, message: PROVIDER_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
-  };
+  return getCurrentGenerationReadiness;
 }
 
 const modalRegion = document.getElementById("modal-region");
@@ -346,6 +491,7 @@ const generationFlow = createGenerationFlow({
   submitButton,
   dropzone,
   quizIdInput,
+  liveJournalElement: generationLiveJournal,
   cancelButton: cancelGenerationButton,
   timerElement: generationTimerElement,
   timerElapsedElement: document.getElementById("timer-elapsed"),
@@ -372,6 +518,7 @@ const generationFlow = createGenerationFlow({
   waitForProgressVisibility: progressController.waitForProgressVisibility,
   startGenerationProgress: progressController.startGenerationProgress,
   advanceGenerationProgress: progressController.advanceGenerationProgress,
+  applyBackendGenerationStatusEvidence: progressController.applyBackendGenerationStatusEvidence,
   completeGenerationProgress: progressController.completeGenerationProgress,
   completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence,
   failGenerationProgress: progressController.failGenerationProgress,
@@ -414,21 +561,27 @@ async function bootstrapShell() {
     setExportAvailability(editorState.lastGeneratedQuizId);
     return;
   }
+  await loadLMStudioConnectionSettings();
   await checkProviderConnection();
   await loadExportFormats();
 }
 
 async function checkBackendConnection({ loadExports = true, refreshSettings = true } = {}) {
   generationConnectionState.backend = "checking";
+  generationConnectionState.backendReason = "";
+  updateGenerationSubmitAvailability();
   setPreflightStatus("", null);
   setStatus("backend", "Проверка…", null, "Проверяем доступность backend-сервера.");
   setRetryButtonBusy(retryBackendButton, true);
   try {
     const backendHealth = await client.getBackendHealth();
     generationConnectionState.backend = "ok";
+    generationConnectionState.backendReason = "";
+    generationConnectionState.providerKey = backendHealth.default_provider ?? generationConnectionState.providerKey;
+    generationConnectionState.providerName = formatProviderName(generationConnectionState.providerKey);
     setStatus(
       "backend",
-      `Доступен · модель ${backendHealth.default_model}`,
+      "Доступен",
       statusMap[backendHealth.status] ?? "ok",
       BACKEND_AVAILABLE_INSTRUCTION,
     );
@@ -441,56 +594,145 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
     }
     return backendHealth;
   } catch (error) {
+    const reason = describeError(error);
     generationConnectionState.backend = "bad";
     generationConnectionState.provider = "blocked";
-    setStatus("backend", "Проверка не удалась", "bad", BACKEND_CHECK_FAILED_INSTRUCTION);
-    setLogMessage(`Не удалось подключиться к серверу: ${describeError(error)}. ${BACKEND_CHECK_FAILED_INSTRUCTION}`, "bad");
+    generationConnectionState.backendReason = reason;
+    generationConnectionState.providerReason = "Сначала восстановите подключение к серверу.";
+    const message = buildBackendUnavailableMessage(reason);
+    setStatus("backend", "Проверка не удалась", "bad", message);
+    setLogMessage(message, "bad");
     setExportAvailability(editorState.lastGeneratedQuizId);
     return null;
   } finally {
     setRetryButtonBusy(retryBackendButton, false);
+    updateGenerationSubmitAvailability();
   }
 }
 
 async function checkProviderConnection() {
   if (generationConnectionState.backend !== "ok") {
     generationConnectionState.provider = "blocked";
+    generationConnectionState.providerReason = "Сначала восстановите подключение к серверу.";
     setPreflightStatus(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
     setStatus("provider", "Недоступен · сначала сервер", "bad", PROVIDER_CHECK_BLOCKED_INSTRUCTION);
     setLogMessage(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
     toastController.showToast(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
+    updateGenerationSubmitAvailability();
     return null;
   }
   generationConnectionState.provider = "checking";
+  generationConnectionState.providerReason = "";
+  updateGenerationSubmitAvailability();
   setPreflightStatus("", null);
-  setStatus("provider", "Проверка…", null, "Проверяем подключение к LM Studio через backend.");
+  setStatus("provider", "Проверка…", null, "Проверяем подключение к активному провайдеру через backend.");
   setRetryButtonBusy(retryProviderButton, true);
   try {
     const providerHealth = await client.getProviderHealth();
-    if (providerHealth.status === "unavailable") {
+    const providerName = formatProviderName(providerHealth.provider);
+    generationConnectionState.providerKey = providerHealth.provider ?? generationConnectionState.providerKey;
+    generationConnectionState.providerName = providerName;
+    if (!isProviderReadyStatus(providerHealth.status)) {
       generationConnectionState.provider = "bad";
-      setStatus("provider", "Недоступен · запустите LM Studio", "bad", LM_STUDIO_UNAVAILABLE_INSTRUCTION);
-      setLogMessage(LM_STUDIO_UNAVAILABLE_INSTRUCTION, "bad");
-      toastController.showToast(LM_STUDIO_UNAVAILABLE_INSTRUCTION, "bad");
+      generationConnectionState.providerReason = providerHealth.message || `status: ${providerHealth.status}`;
+      const message = buildProviderUnavailableMessage(generationConnectionState.providerReason, generationConnectionState.providerKey);
+      setStatus("provider", "Недоступен · проверьте провайдер", "bad", message);
+      setLogMessage(message, "bad");
+      toastController.showToast(message, "bad");
     } else {
       generationConnectionState.provider = "ok";
+      generationConnectionState.providerReason = "";
       setPreflightStatus("", null);
       setStatus(
         "provider",
-        `${providerHealth.status} · ${providerHealth.message}`,
+        `${providerName} · ${providerHealth.message}`,
         statusMap[providerHealth.status] ?? "warn",
         PROVIDER_AVAILABLE_INSTRUCTION,
       );
-      setLogMessage("Подключение к LM Studio проверено.", "ok");
+      setLogMessage("Подключение к провайдеру проверено.", "ok");
+      if (Array.isArray(providerHealth.available_models) && providerHealth.available_models.length > 0) {
+        generationSettings.updateAvailableModels(providerHealth.available_models);
+      }
     }
     return providerHealth;
   } catch (error) {
+    const reason = describeError(error);
     generationConnectionState.provider = "bad";
-    setStatus("provider", "Проверка не удалась", "bad", PROVIDER_CHECK_FAILED_INSTRUCTION);
-    setLogMessage(`Не удалось проверить LM Studio: ${describeError(error)}. ${PROVIDER_CHECK_FAILED_INSTRUCTION}`, "bad");
+    generationConnectionState.providerReason = reason;
+    const message = buildProviderUnavailableMessage(reason, generationConnectionState.providerKey);
+    setStatus("provider", "Проверка не удалась", "bad", message);
+    setLogMessage(message, "bad");
     return null;
   } finally {
     setRetryButtonBusy(retryProviderButton, false);
+    updateGenerationSubmitAvailability();
+  }
+}
+
+async function loadLMStudioConnectionSettings() {
+  const storedConnection = readStoredLMStudioConnection();
+  if (storedConnection) {
+    fillLMStudioConnectionForm(storedConnection);
+  }
+  if (!client || typeof client.getLMStudioConnection !== "function") {
+    return null;
+  }
+  try {
+    const connection = await client.getLMStudioConnection();
+    if (!storedConnection) {
+      fillLMStudioConnectionForm(connection);
+    }
+    setLMStudioConnectionStatus(`Текущий адрес: ${connection.base_url}`, "ok");
+    return connection;
+  } catch (error) {
+    setLMStudioConnectionStatus(`Не удалось получить адрес LM Studio: ${describeError(error)}`, "warn");
+    return null;
+  }
+}
+
+async function applyLMStudioConnectionSettings() {
+  const host = lmStudioHostInput?.value?.trim() ?? "";
+  const port = Number(lmStudioPortInput?.value);
+  if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
+    setLMStudioConnectionStatus("Введите IP/host и порт LM Studio от 1 до 65535.", "bad");
+    return;
+  }
+  if (host.includes("://") || /[/?#@:\\]/.test(host)) {
+    setLMStudioConnectionStatus("Введите только IP или host без http://, /v1 и порта.", "bad");
+    return;
+  }
+  setRetryButtonBusy(applyLMStudioConnectionButton, true);
+  setLMStudioConnectionStatus("Применяем адрес LM Studio…", "warn");
+  try {
+    const connection = await client.putLMStudioConnection({ host, port });
+    fillLMStudioConnectionForm(connection);
+    storeLMStudioConnection({ host: connection.host, port: connection.port });
+    generationConnectionState.providerKey = "lm_studio";
+    generationConnectionState.providerName = "LM Studio";
+    if (isProviderReadyStatus(connection.status)) {
+      generationConnectionState.provider = "ok";
+      generationConnectionState.providerReason = "";
+      setStatus("provider", `LM Studio · ${connection.message}`, statusMap[connection.status] ?? "ok", PROVIDER_AVAILABLE_INSTRUCTION);
+      setPreflightStatus("", null);
+      setLMStudioConnectionStatus(`LM Studio подключён: ${connection.base_url}`, "ok");
+      setLogMessage("Адрес LM Studio применён.", "ok");
+    } else {
+      generationConnectionState.provider = "bad";
+      generationConnectionState.providerReason = connection.message || `status: ${connection.status}`;
+      const message = buildProviderUnavailableMessage(generationConnectionState.providerReason, "lm_studio");
+      setStatus("provider", "Недоступен · проверьте LM Studio", "bad", message);
+      setLMStudioConnectionStatus(message, "bad");
+      setLogMessage(message, "bad");
+    }
+  } catch (error) {
+    generationConnectionState.provider = "bad";
+    generationConnectionState.providerReason = describeError(error);
+    const message = buildProviderUnavailableMessage(generationConnectionState.providerReason, "lm_studio");
+    setLMStudioConnectionStatus(message, "bad");
+    setLogMessage(message, "bad");
+  } finally {
+    setRetryButtonBusy(applyLMStudioConnectionButton, false);
+    updateGenerationSubmitAvailability();
   }
 }
 
@@ -539,6 +781,11 @@ retryBackendButton?.addEventListener("click", () => {
 retryProviderButton?.addEventListener("click", () => {
   checkProviderConnection();
 });
+applyLMStudioConnectionButton?.addEventListener("click", () => {
+  applyLMStudioConnectionSettings();
+});
+submitButton?.addEventListener("pointerenter", showSubmitUnavailableReason);
+submitButton?.addEventListener("focus", showSubmitUnavailableReason);
 stepper?.addEventListener("click", (event) => {
   const target = event.target instanceof Element
     ? event.target.closest("[data-stage-target]")
@@ -680,4 +927,5 @@ quizEditorFields?.addEventListener("click", (event) => {
 });
 
 stageFlow.activateStage("setup");
+updateGenerationSubmitAvailability();
 bootstrapShell();

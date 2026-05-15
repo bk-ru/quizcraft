@@ -67,6 +67,7 @@ def test_lm_studio_health_endpoint_returns_provider_status_and_default_model() -
         "status": "available",
         "message": "LM Studio is available",
         "default_model": "local-model",
+        "available_models": [],
     }
 
 
@@ -82,6 +83,7 @@ def test_lm_studio_health_endpoint_reports_disabled_provider_without_calling_pro
         "status": "disabled",
         "message": "Provider 'lm_studio' is disabled by PROVIDERS_ENABLED",
         "default_model": "local-model",
+        "available_models": [],
     }
 
 

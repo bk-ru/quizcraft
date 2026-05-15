@@ -85,6 +85,7 @@ def test_ollama_health_endpoint_returns_provider_status(monkeypatch, tmp_path) -
         "message": "Ollama is available",
         "default_model": "qwen2.5:7b",
         "embedding_model": "nomic-embed-text",
+        "available_models": ["qwen2.5:7b"],
     }
     assert captured == {"url": "http://localhost:11434/api/tags", "timeout": None}
 
@@ -105,6 +106,7 @@ def test_ollama_health_endpoint_reports_disabled_provider_without_calling_provid
         "message": "Provider 'ollama' is disabled by PROVIDERS_ENABLED",
         "default_model": "qwen2.5:7b",
         "embedding_model": "nomic-embed-text",
+        "available_models": [],
     }
 
 

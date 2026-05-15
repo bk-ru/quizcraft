@@ -86,10 +86,16 @@ class LMStudioClient(LLMProvider):
         if not isinstance(models, list):
             raise LLMResponseFormatError("LM Studio healthcheck returned malformed response")
 
-        logger.info("LM Studio healthcheck succeeded")
+        available_models = tuple(
+            entry["id"]
+            for entry in models
+            if isinstance(entry, dict) and isinstance(entry.get("id"), str) and entry["id"].strip()
+        )
+        logger.info("LM Studio healthcheck succeeded, models=%s", available_models)
         return ProviderHealthStatus(
             status="available",
             message="LM Studio is available",
+            available_models=available_models,
         )
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:

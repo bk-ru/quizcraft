@@ -83,10 +83,16 @@ class OllamaClient(LLMProvider):
         if not isinstance(models, list):
             raise LLMResponseFormatError("Ollama healthcheck returned malformed response")
 
-        logger.info("Ollama healthcheck succeeded")
+        available_models = tuple(
+            entry["name"]
+            for entry in models
+            if isinstance(entry, dict) and isinstance(entry.get("name"), str) and entry["name"].strip()
+        )
+        logger.info("Ollama healthcheck succeeded, models=%s", available_models)
         return ProviderHealthStatus(
             status="available",
             message="Ollama is available",
+            available_models=available_models,
         )
 
     def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:

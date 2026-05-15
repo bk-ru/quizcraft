@@ -86,6 +86,7 @@ def test_healthcheck_returns_available_status(monkeypatch: pytest.MonkeyPatch) -
 
     assert status.status == "available"
     assert status.message == "Ollama is available"
+    assert status.available_models == ("qwen2.5:7b",)
     assert captured == {"url": "http://localhost:11434/api/tags", "timeout": 7}
 
 

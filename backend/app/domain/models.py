@@ -363,6 +363,7 @@ class ProviderHealthStatus:
 
     status: str
     message: str
+    available_models: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

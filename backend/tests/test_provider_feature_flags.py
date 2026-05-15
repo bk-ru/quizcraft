@@ -173,6 +173,7 @@ def test_external_api_health_endpoint_returns_provider_status(monkeypatch: pytes
         "message": "External API is available",
         "default_model": "external-quiz-model",
         "embedding_model": "external-embed-model",
+        "available_models": ["external-quiz-model"],
     }
     assert captured == {
         "url": "https://api.example.test/v1/models",
@@ -199,4 +200,5 @@ def test_external_api_health_endpoint_reports_disabled_provider_without_calling_
         "message": "Provider 'external_api' is disabled by PROVIDERS_ENABLED",
         "default_model": "external-quiz-model",
         "embedding_model": "external-embed-model",
+        "available_models": [],
     }

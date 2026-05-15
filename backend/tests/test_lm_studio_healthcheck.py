@@ -67,6 +67,7 @@ def test_healthcheck_returns_available_status_for_valid_models_response(monkeypa
 
     assert status.status == "available"
     assert status.message == "LM Studio is available"
+    assert status.available_models == ("local-model", "backup-model")
     assert captured["url"] == "http://localhost:1234/v1/models"
     assert captured["timeout"] == 7
 

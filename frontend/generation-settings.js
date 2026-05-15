@@ -118,6 +118,18 @@ export function createGenerationSettingsController({
     return overrides;
   }
 
+  function updateAvailableModels(providerModels) {
+    if (!Array.isArray(providerModels) || providerModels.length === 0) {
+      return;
+    }
+    const validated = providerModels.filter((v) => typeof v === "string" && v.trim());
+    if (validated.length === 0) {
+      return;
+    }
+    state.availableModels = validated;
+    populateModelSelect();
+  }
+
   function refreshAfterGeneration() {
     return loadSettings();
   }
@@ -128,6 +140,7 @@ export function createGenerationSettingsController({
     getGenerationOverrides,
     populateModelSelect,
     populateProfileSelect,
+    updateAvailableModels,
   };
 }
 
