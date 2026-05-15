@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import field_validator
 from pydantic import model_validator
 
 from backend.app.core.modes import GenerationMode
@@ -117,6 +119,28 @@ class GenerationSettingsBody(_StrictModel):
             model_name=self.model_name,
             profile_name=self.profile_name,
         )
+
+
+class LMStudioConnectionBody(_StrictModel):
+    """Runtime-настройка сетевого адреса LM Studio."""
+
+    host: str = Field(min_length=1, max_length=253)
+    port: int = Field(strict=True, ge=1, le=65535)
+
+    @field_validator("host")
+    @classmethod
+    def validate_host(cls, value: str) -> str:
+        host = value.strip()
+        if "://" in host or any(separator in host for separator in ("/", "\\", "?", "#", "@", ":")):
+            raise ValueError("host must be a bare IP address or DNS name without scheme, path, or port")
+        if not re.fullmatch(r"[A-Za-z0-9.-]+", host):
+            raise ValueError("host must contain only letters, digits, dots, and hyphens")
+        if host.startswith((".", "-")) or host.endswith((".", "-")) or ".." in host:
+            raise ValueError("host must be a valid IP address or DNS name")
+        return host
+
+    def to_base_url(self) -> str:
+        return f"http://{self.host}:{self.port}/v1"
 
 
 class ExplanationPayload(_StrictModel):

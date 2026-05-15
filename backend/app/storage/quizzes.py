@@ -8,7 +8,9 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from backend.app.domain.errors import RepositoryNotFoundError
+from backend.app.domain.errors import StorageKeyError
 from backend.app.domain.models import Quiz
+from backend.app.storage.keys import storage_json_path
 
 
 class FileSystemQuizRepository:
@@ -21,7 +23,7 @@ class FileSystemQuizRepository:
     def save(self, quiz: Quiz) -> Quiz:
         """Сохранить квиз на диск."""
 
-        target_path = self._storage_path / f"{quiz.quiz_id}.json"
+        target_path = storage_json_path(self._storage_path, quiz.quiz_id)
         existing_quiz = self.get(quiz.quiz_id) if target_path.exists() else None
         persisted_quiz = replace(
             quiz,
@@ -37,7 +39,10 @@ class FileSystemQuizRepository:
     def get(self, quiz_id: str) -> Quiz:
         """Загрузить квиз по его идентификатору."""
 
-        target_path = self._storage_path / f"{quiz_id}.json"
+        try:
+            target_path = storage_json_path(self._storage_path, quiz_id)
+        except StorageKeyError as error:
+            raise RepositoryNotFoundError("quiz", quiz_id) from error
         if not target_path.exists():
             raise RepositoryNotFoundError("quiz", quiz_id)
 

@@ -217,7 +217,13 @@ def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
     assert "regenerateQuestion" in content
     assert "getExportFormats" in content
     assert "/health" in content
-    assert "/health/lm-studio" in content
+    assert "/health/provider" in content
+    assert "/health/lm-studio" not in content
+    assert "/providers/lm-studio/connection" in content
+    assert "getLMStudioConnection" in content
+    assert "putLMStudioConnection" in content
+    assert "getGenerationEvents" in content
+    assert "/generation/runs/" in content
     assert "/export/formats" in content
     assert "/documents" in content
     assert "/quizzes/" in content
@@ -229,6 +235,7 @@ def test_api_client_uses_role_based_timeouts() -> None:
     content = API_CLIENT_JS.read_text(encoding="utf-8")
 
     assert "DEFAULT_TIMEOUTS" in content
+    assert "health: 15000" in content
     for role in ("health", "upload", "generate", "quizEditor"):
         assert f'"{role}"' in content or f"'{role}'" in content or role in content
     assert "timeoutMs" in content
@@ -247,6 +254,7 @@ def test_frontend_config_exposes_role_based_timeouts() -> None:
 
     assert "timeouts" in content
     assert "health" in content
+    assert "health: 15000" in content
     assert "upload" in content
     assert "generate" in content
     assert "quizEditor" in content
@@ -331,6 +339,25 @@ def test_frontend_params_advanced_block_and_generation_mode() -> None:
     assert ".form-advanced-summary" in styles
 
 
+def test_frontend_exposes_manual_lm_studio_connection_controls() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="lm-studio-host"' in index_content
+    assert 'id="lm-studio-port"' in index_content
+    assert 'id="apply-lm-studio-connection"' in index_content
+    assert 'id="lm-studio-connection-status"' in index_content
+    assert "IP или host устройства" in index_content
+    assert "IP или host ноутбука" not in index_content
+    assert "Порт LM Studio" in index_content
+    assert "function loadLMStudioConnectionSettings" in app_content
+    assert "function applyLMStudioConnectionSettings" in app_content
+    assert "client.getLMStudioConnection" in app_content
+    assert "client.putLMStudioConnection" in app_content
+    assert "localStorage" in app_content
+    assert 'applyLMStudioConnectionButton?.addEventListener("click"' in app_content
+
+
 def test_frontend_editor_wires_single_question_regeneration_action() -> None:
     app_content = APP_JS.read_text(encoding="utf-8")
     editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
@@ -403,22 +430,22 @@ def test_frontend_generation_focuses_result_before_explicit_editor_open() -> Non
     )
 
 
-def test_frontend_marks_lm_studio_unavailable_as_critical() -> None:
+def test_frontend_marks_provider_unready_statuses_as_critical() -> None:
     app_content = APP_JS.read_text(encoding="utf-8")
 
     assert re.search(r"unavailable\s*:\s*\"bad\"", app_content), (
-        "statusMap must map LM Studio unavailable to the critical bad tone"
+        "statusMap must map provider unavailable to the critical bad tone"
     )
-    assert "LM_STUDIO_UNAVAILABLE_INSTRUCTION" in app_content
-    assert "LM Studio недоступен" in app_content, (
-        "Russian instruction for LM Studio unavailable state must be present"
+    assert re.search(r"disabled\s*:\s*\"bad\"", app_content), (
+        "statusMap must map provider disabled to the critical bad tone"
     )
-    assert "http://127.0.0.1:1234" in app_content, (
-        "LM Studio instruction must point the user to the default provider URL"
+    assert re.search(r"bad\s*:\s*\"bad\"", app_content), (
+        "statusMap must preserve backend bad statuses as critical"
     )
-    assert 'setStatus("provider", "Недоступен · запустите LM Studio", "bad", LM_STUDIO_UNAVAILABLE_INSTRUCTION)' in app_content, (
-        "provider topbar must surface the critical Russian marker on unavailable status"
-    )
+    assert "PROVIDER_UNAVAILABLE_INSTRUCTION" in app_content
+    assert "LM_STUDIO_UNAVAILABLE_INSTRUCTION" not in app_content
+    assert "isProviderReadyStatus" in app_content
+    assert "formatProviderName" in app_content
 
 
 def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
@@ -427,14 +454,14 @@ def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
     layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
 
     assert 'data-status-label="Сервер"' in index_content
-    assert 'data-status-label="LM Studio"' in index_content
+    assert 'data-status-label="Провайдер"' in index_content
     assert 'data-status-tooltip="Сервер · Проверка…"' in index_content
-    assert 'data-status-tooltip="LM Studio · Проверка…"' in index_content
+    assert 'data-status-tooltip="Провайдер · Проверка…"' in index_content
     assert 'tabindex="0"' in index_content
     assert 'id="retry-backend-button"' in index_content
     assert 'id="retry-provider-button"' in index_content
     assert 'aria-label="Повторно проверить подключение к серверу"' in index_content
-    assert 'aria-label="Повторно проверить подключение к LM Studio"' in index_content
+    assert 'aria-label="Повторно проверить активный провайдер"' in index_content
     assert 'class="status-retry-inline"' in index_content
 
     assert "BACKEND_CHECK_FAILED_INSTRUCTION" in app_content
@@ -471,8 +498,47 @@ def test_frontend_generation_preflight_status_is_visible_on_setup_stage() -> Non
     assert "setPreflightStatus" in generation_content
     assert "setPreflightStatus" in app_content
     assert "Генерация недоступна" in app_content
-    assert "backend и LM Studio" in app_content
-    assert "LM Studio недоступен" in app_content
+    assert "backend и провайдер" in app_content
+    assert "Провайдер недоступен" in app_content
+
+
+def test_frontend_provider_unavailable_help_includes_reason_and_recovery_steps() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert "function buildProviderUnavailableMessage" in app_content
+    assert "function buildBackendUnavailableMessage" in app_content
+    assert "Причина:" in app_content
+    assert "Что сделать:" in app_content
+    assert "Откройте LM Studio" in app_content
+    assert "Запустите Local Server" in app_content
+    assert "Проверьте LM_STUDIO_BASE_URL в .env" in app_content
+    assert 'Нажмите "Проверить снова"' in app_content
+    assert "Запустите backend командой .\\\\run-backend.ps1" in app_content
+    assert "white-space: pre-line" in layout_content
+
+
+def test_frontend_generation_button_is_visually_blocked_with_reason_when_services_fail() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+    forms_content = FORMS_CSS.read_text(encoding="utf-8")
+
+    assert "function updateGenerationSubmitAvailability" in app_content
+    assert 'submitButton.setAttribute("aria-disabled", "true")' in app_content
+    assert "submitButton.dataset.disabledReason = readiness.message" in app_content
+    assert "submitButton.title = readiness.message" in app_content
+    assert "function showSubmitUnavailableReason" in app_content
+    assert 'submitButton?.addEventListener("pointerenter", showSubmitUnavailableReason)' in app_content
+    assert 'submitButton?.addEventListener("focus", showSubmitUnavailableReason)' in app_content
+    assert "updateGenerationSubmitAvailability()" in app_content
+    assert '.primary-action[aria-disabled="true"]' in forms_content
+    assert "cursor: not-allowed" in forms_content
+
+
+def test_frontend_backend_available_status_does_not_show_default_model() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "`Доступен · модель ${backendHealth.default_model}`" not in app_content
+    assert '"backend",\n      "Доступен",' in app_content
 
 
 def test_frontend_generation_flow_blocks_submit_when_services_are_unavailable() -> None:
@@ -647,6 +713,8 @@ def test_frontend_index_exposes_generation_progress_panel() -> None:
         assert russian_label in content, (
             f"progress panel must include Russian label: {russian_label}"
         )
+    assert 'id="generation-live-journal"' in content
+    assert "Живой журнал" in content
 
 
 def test_frontend_app_drives_generation_progress_state() -> None:
@@ -670,6 +738,10 @@ def test_frontend_app_drives_generation_progress_state() -> None:
     assert 'advanceGenerationProgress("generate", "validate")' in generation_content
     assert "completeGenerationProgressWithBackendEvidence(generationPayload)" in generation_content
     assert "failGenerationProgress(failedStep)" in generation_content
+    assert "startGenerationEventPolling(generationRequestId)" in generation_content
+    assert "stopGenerationEventPolling" in generation_content
+    assert "client.getGenerationEvents" in generation_content
+    assert "generateRequestId" in generation_content
 
 
 def test_frontend_progress_aligns_with_backend_generation_status_evidence() -> None:
@@ -706,6 +778,8 @@ def test_frontend_styles_theme_generation_progress() -> None:
     assert "progress-pulse" in content, (
         "progress panel must pulse the active step dot"
     )
+    assert ".live-journal" in content
+    assert ".live-journal-entry" in content
     assert "@media (prefers-reduced-motion: reduce)" in content
 
 

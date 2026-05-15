@@ -153,6 +153,48 @@
   font-weight: 600;
 }
 
+.generation-live-journal {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.generation-live-journal h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.live-journal {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.live-journal-entry {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 8px;
+  align-items: baseline;
+  color: var(--muted);
+  font-size: 0.84rem;
+  line-height: 1.45;
+}
+
+.live-journal-time {
+  color: var(--muted-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.live-journal-message {
+  color: var(--ink);
+}
+
 @keyframes progress-pulse {
   0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--brand) 60%, transparent); }
   50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--brand) 0%, transparent); }

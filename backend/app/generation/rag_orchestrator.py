@@ -9,6 +9,7 @@ from dataclasses import replace
 from typing import Any
 from typing import Callable
 from typing import TypeVar
+from uuid import uuid4
 
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
@@ -422,7 +423,11 @@ class RagGenerationOrchestrator:
             summarize_model_payload(response.content),
         )
         try:
-            quiz = replace(self._normalizer(response.content), document_id=document.document_id)
+            quiz = replace(
+                self._normalizer(response.content),
+                quiz_id=f"quiz-{uuid4().hex}",
+                document_id=document.document_id,
+            )
         except DomainValidationError as error:
             self._log_diagnostic_validation_failure(
                 document=document,

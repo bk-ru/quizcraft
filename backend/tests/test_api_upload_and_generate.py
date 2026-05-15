@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+import asyncio
+import json
+import threading
+import time
+
 from fastapi.testclient import TestClient
 
 from backend.app.core.config import AppConfig
@@ -39,10 +44,23 @@ class StubProvider:
         raise AssertionError("embed should not be called in upload or generate API tests")
 
 
-def build_config(max_document_chars: int = 50_000) -> AppConfig:
+class SlowProvider(StubProvider):
+    def __init__(self, responses: list[StructuredGenerationResponse], delay_seconds: float = 0.8) -> None:
+        super().__init__(responses=responses)
+        self.delay_seconds = delay_seconds
+        self.started = threading.Event()
+
+    def generate_structured(self, request: StructuredGenerationRequest) -> StructuredGenerationResponse:
+        self.started.set()
+        time.sleep(self.delay_seconds)
+        return super().generate_structured(request)
+
+
+def build_config(max_document_chars: int = 50_000, max_file_size_mb: int = 10) -> AppConfig:
     return AppConfig(
         lm_studio_base_url="http://localhost:1234/v1",
         lm_studio_model="local-model",
+        max_file_size_mb=max_file_size_mb,
         max_document_chars=max_document_chars,
         log_format="%(levelname)s:%(message)s",
     )
@@ -124,6 +142,60 @@ def upload_russian_document(client: TestClient) -> str:
     return response.json()["document_id"]
 
 
+class FailingIngestionService:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def ingest(self, *, filename: str, media_type: str, content: bytes):
+        self.calls += 1
+        raise AssertionError("ingestion service should not be called for oversized upload")
+
+
+async def post_document_asgi(app, *, headers, chunks, forbid_receive: bool = False):
+    sent_messages: list[dict[str, object]] = []
+    receive_calls = 0
+
+    async def receive():
+        nonlocal receive_calls
+        receive_calls += 1
+        if forbid_receive:
+            raise AssertionError("request body should not be read")
+        if receive_calls <= len(chunks):
+            return {
+                "type": "http.request",
+                "body": chunks[receive_calls - 1],
+                "more_body": receive_calls < len(chunks),
+            }
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        sent_messages.append(message)
+
+    scope = {
+        "type": "http",
+        "asgi": {"version": "3.0"},
+        "http_version": "1.1",
+        "method": "POST",
+        "scheme": "http",
+        "path": "/documents",
+        "raw_path": b"/documents",
+        "query_string": b"",
+        "root_path": "",
+        "headers": headers,
+        "client": ("testclient", 50000),
+        "server": ("testserver", 80),
+    }
+    await app(scope, receive, send)
+
+    status = next(message["status"] for message in sent_messages if message["type"] == "http.response.start")
+    body = b"".join(
+        message.get("body", b"")
+        for message in sent_messages
+        if message["type"] == "http.response.body"
+    )
+    return int(status), json.loads(body.decode("utf-8")), receive_calls
+
+
 def test_document_upload_endpoint_persists_valid_file_and_returns_metadata(tmp_path) -> None:
     app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
     client = TestClient(app)
@@ -159,6 +231,71 @@ def test_document_upload_endpoint_rejects_invalid_file(tmp_path) -> None:
     assert response.json()["error"]["code"] == "file_validation_error"
 
 
+def test_document_upload_rejects_content_length_over_limit_without_calling_ingestion(tmp_path) -> None:
+    limit = 1024 * 1024
+    app = create_app(config=build_config(max_file_size_mb=1), provider=StubProvider(), storage_root=tmp_path)
+    service = FailingIngestionService()
+    app.state.document_ingestion_service = service
+
+    status, payload, receive_calls = asyncio.run(
+        post_document_asgi(
+            app,
+            headers=[
+                (b"host", b"testserver"),
+                (b"x-filename", b"lecture.txt"),
+                (b"content-type", b"text/plain"),
+                (b"content-length", str(limit + 1).encode("ascii")),
+            ],
+            chunks=[b"body"],
+            forbid_receive=True,
+        )
+    )
+
+    assert status == 413
+    assert payload["error"]["code"] == "document_too_large"
+    assert receive_calls == 0
+    assert service.calls == 0
+
+
+def test_document_upload_without_content_length_stops_streaming_when_limit_is_exceeded(tmp_path) -> None:
+    limit = 1024 * 1024
+    app = create_app(config=build_config(max_file_size_mb=1), provider=StubProvider(), storage_root=tmp_path)
+    service = FailingIngestionService()
+    app.state.document_ingestion_service = service
+
+    status, payload, receive_calls = asyncio.run(
+        post_document_asgi(
+            app,
+            headers=[
+                (b"host", b"testserver"),
+                (b"x-filename", b"lecture.txt"),
+                (b"content-type", b"text/plain"),
+            ],
+            chunks=[b"a" * limit, b"b", b"c"],
+        )
+    )
+
+    assert status == 413
+    assert payload["error"]["code"] == "document_too_large"
+    assert receive_calls == 2
+    assert service.calls == 0
+
+
+def test_document_upload_accepts_file_exactly_at_size_limit(tmp_path) -> None:
+    limit = 1024 * 1024
+    app = create_app(config=build_config(max_file_size_mb=1), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+
+    response = client.post(
+        "/documents",
+        content=b"a" * limit,
+        headers={"X-Filename": "lecture.txt", "Content-Type": "text/plain"},
+    )
+
+    assert response.status_code == 201
+    assert response.json()["file_size_bytes"] == limit
+
+
 def test_direct_generation_endpoint_returns_generated_quiz_for_existing_document(tmp_path) -> None:
     provider = StubProvider(responses=[build_provider_response()])
     app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
@@ -175,6 +312,68 @@ def test_direct_generation_endpoint_returns_generated_quiz_for_existing_document
     assert payload["prompt_version"] == "direct-v1"
     assert len(payload["quiz"]["questions"]) == 2
     assert "Question count: 2" in provider.requests[0].user_prompt
+
+
+def test_generation_live_journal_exposes_sanitized_pipeline_events(tmp_path) -> None:
+    provider = StubProvider(responses=[build_provider_response()])
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_document(client)
+
+    response = client.post(
+        f"/documents/{document_id}/generate",
+        json=build_generation_payload(),
+        headers={"X-Request-ID": "run-live-journal-1"},
+    )
+    events_response = client.get("/generation/runs/run-live-journal-1/events")
+
+    assert response.status_code == 200
+    assert events_response.status_code == 200
+    payload = events_response.json()
+    assert payload["request_id"] == "run-live-journal-1"
+    assert payload["complete"] is True
+    messages = [event["message"] for event in payload["events"]]
+    assert "Загружаем документ и проверяем ограничения." in messages
+    assert "Отправляем запрос провайдеру." in messages
+    assert "Провайдер ответил: модель local-model." in messages
+    assert "Квиз сохранён: 2 вопросов." in messages
+    assert all("user_prompt" not in json.dumps(event, ensure_ascii=False) for event in payload["events"])
+
+
+def test_generation_live_journal_streams_while_provider_request_is_in_flight(tmp_path) -> None:
+    provider = SlowProvider(responses=[build_provider_response()])
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_document(client)
+    response_holder = {}
+
+    def run_generation() -> None:
+        response_holder["response"] = client.post(
+            f"/documents/{document_id}/generate",
+            json=build_generation_payload(),
+            headers={"X-Request-ID": "run-live-journal-stream"},
+        )
+
+    generation_thread = threading.Thread(target=run_generation)
+    generation_thread.start()
+    try:
+        assert provider.started.wait(timeout=2)
+        started_at = time.perf_counter()
+        events_response = client.get("/generation/runs/run-live-journal-stream/events")
+        elapsed = time.perf_counter() - started_at
+    finally:
+        generation_thread.join(timeout=3)
+
+    assert not generation_thread.is_alive()
+    assert response_holder["response"].status_code == 200
+    assert events_response.status_code == 200
+    assert elapsed < provider.delay_seconds / 2
+    payload = events_response.json()
+    assert payload["complete"] is False
+    assert any(
+        event["step"] == "generate" and event["status"] == "running"
+        for event in payload["events"]
+    )
 
 
 def test_direct_generation_endpoint_maps_missing_document_to_not_found(tmp_path) -> None:

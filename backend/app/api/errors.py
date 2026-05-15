@@ -13,6 +13,7 @@ from backend.app.api.schemas import build_validation_error_message
 from backend.app.domain.errors import BackendError
 from backend.app.domain.errors import ConfigurationError
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
+from backend.app.domain.errors import DocumentTooLargeError
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import FileValidationError
 from backend.app.domain.errors import LLMConnectionError
@@ -23,6 +24,7 @@ from backend.app.domain.errors import LLMTimeoutError
 from backend.app.domain.errors import PromptResolutionError
 from backend.app.domain.errors import ProviderDisabledError
 from backend.app.domain.errors import RepositoryNotFoundError
+from backend.app.domain.errors import StorageKeyError
 from backend.app.domain.errors import TextExtractionError
 from backend.app.domain.errors import UnsupportedExportFormatError
 from backend.app.domain.errors import UnsupportedGenerationModeError
@@ -37,6 +39,8 @@ def map_backend_error_to_status_code(error: BackendError) -> int:
 
     if isinstance(error, RepositoryNotFoundError):
         return 404
+    if isinstance(error, StorageKeyError):
+        return 400
     if isinstance(
         error,
         (
@@ -47,7 +51,7 @@ def map_backend_error_to_status_code(error: BackendError) -> int:
         ),
     ):
         return 400
-    if isinstance(error, DocumentTooLargeForGenerationError):
+    if isinstance(error, (DocumentTooLargeError, DocumentTooLargeForGenerationError)):
         return 413
     if isinstance(error, DomainValidationError):
         return 422

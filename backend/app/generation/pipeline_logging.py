@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from backend.app.generation.live_journal import record_generation_pipeline_event
 from backend.app.generation.status import GenerationPipelineEvent
 
 
@@ -20,3 +21,4 @@ def log_generation_pipeline_event(logger: logging.Logger, event: GenerationPipel
             **event.to_log_extra(),
         },
     )
+    record_generation_pipeline_event(event)

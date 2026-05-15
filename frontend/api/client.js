@@ -8,7 +8,7 @@ export class QuizCraftApiError extends Error {
 }
 
 const DEFAULT_TIMEOUTS = Object.freeze({
-  health: 5000,
+  health: 15000,
   upload: 30000,
   generate: 0,
   quizEditor: 15000,
@@ -50,11 +50,30 @@ export class QuizCraftApiClient {
   }
 
   getProviderHealth() {
-    return this._request("/health/lm-studio", { timeoutMs: this._timeouts.health });
+    return this._request("/health/provider", { timeoutMs: this._timeouts.health });
+  }
+
+  getLMStudioConnection() {
+    return this._request("/providers/lm-studio/connection", { timeoutMs: this._timeouts.health });
+  }
+
+  putLMStudioConnection(payload) {
+    return this._request("/providers/lm-studio/connection", {
+      method: "PUT",
+      json: payload,
+      timeoutMs: this._timeouts.health,
+    });
   }
 
   getGenerationSettings() {
     return this._request("/generation/settings", { timeoutMs: this._timeouts.health });
+  }
+
+  getGenerationEvents(requestId, { after = 0 } = {}) {
+    const query = new URLSearchParams({ after: String(Math.max(0, Number(after) || 0)) });
+    return this._request(`/generation/runs/${encodeURIComponent(requestId)}/events?${query.toString()}`, {
+      timeoutMs: this._timeouts.health,
+    });
   }
 
   getExportFormats() {
@@ -90,9 +109,10 @@ export class QuizCraftApiClient {
     });
   }
 
-  generateQuiz(documentId, payload, { signal } = {}) {
+  generateQuiz(documentId, payload, { signal, requestId } = {}) {
     return this._request(`/documents/${encodeURIComponent(documentId)}/generate`, {
       method: "POST",
+      headers: requestId ? { "X-Request-ID": requestId } : {},
       json: payload,
       timeoutMs: this._timeouts.generate,
       signal,

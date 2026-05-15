@@ -67,6 +67,12 @@ class FileValidationError(ParsingError):
     code = "file_validation_error"
 
 
+class DocumentTooLargeError(ParsingError):
+    """Raised when an uploaded document exceeds the configured request size limit."""
+
+    code = "document_too_large"
+
+
 class TextExtractionError(ParsingError):
     """Вызывается, когда из валидированного файла невозможно извлечь текст."""
 
@@ -102,6 +108,12 @@ class RepositoryNotFoundError(BackendError):
         super().__init__(f"{entity_name} '{entity_id}' was not found")
         self.entity_name = entity_name
         self.entity_id = entity_id
+
+
+class StorageKeyError(BackendError):
+    """Raised when a filesystem storage key is unsafe or malformed."""
+
+    code = "invalid_storage_key"
 
 
 class LLMProviderError(BackendError):

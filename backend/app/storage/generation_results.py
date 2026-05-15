@@ -6,7 +6,9 @@ import json
 from pathlib import Path
 
 from backend.app.domain.errors import RepositoryNotFoundError
+from backend.app.domain.errors import StorageKeyError
 from backend.app.domain.models import GenerationResult
+from backend.app.storage.keys import storage_json_path
 
 
 class FileSystemGenerationResultRepository:
@@ -19,7 +21,7 @@ class FileSystemGenerationResultRepository:
     def save(self, result: GenerationResult) -> GenerationResult:
         """Сохранить результат генерации на диск."""
 
-        target_path = self._storage_path / f"{result.quiz.quiz_id}.json"
+        target_path = storage_json_path(self._storage_path, result.quiz.quiz_id)
         target_path.write_text(
             json.dumps(result.to_dict(), ensure_ascii=False, indent=2),
             encoding="utf-8",
@@ -29,7 +31,10 @@ class FileSystemGenerationResultRepository:
     def get(self, quiz_id: str) -> GenerationResult:
         """Загрузить результат генерации по идентификатору сгенерированного квиза."""
 
-        target_path = self._storage_path / f"{quiz_id}.json"
+        try:
+            target_path = storage_json_path(self._storage_path, quiz_id)
+        except StorageKeyError as error:
+            raise RepositoryNotFoundError("generation_result", quiz_id) from error
         if not target_path.exists():
             raise RepositoryNotFoundError("generation_result", quiz_id)
 

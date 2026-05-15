@@ -218,6 +218,29 @@ def test_rag_orchestrator_generates_and_persists_quiz_from_cyrillic_document(tmp
     assert any("Москву" in question.prompt for question in result.quiz.questions)
 
 
+def test_rag_orchestrator_uses_unique_server_quiz_id_for_repeated_provider_ids(tmp_path) -> None:
+    provider = StubRagProvider(
+        embedding_dimension=3,
+        structured_responses=[
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-1"),
+            build_response(build_quiz_payload(question_count=2), response_id="rag-resp-2"),
+        ],
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_document())
+
+    first_result = orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+    second_result = orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+
+    assert first_result.quiz.quiz_id.startswith("quiz-")
+    assert second_result.quiz.quiz_id.startswith("quiz-")
+    assert first_result.quiz.quiz_id != second_result.quiz.quiz_id
+    assert first_result.quiz.quiz_id != "quiz-rag-generated"
+    assert second_result.quiz.quiz_id != "quiz-rag-generated"
+    assert result_repository.get(first_result.quiz.quiz_id) == first_result
+    assert result_repository.get(second_result.quiz.quiz_id) == second_result
+
+
 def test_rag_orchestrator_chunks_document_and_embeds_chunks_plus_query(tmp_path) -> None:
     provider = StubRagProvider(
         embedding_dimension=3,

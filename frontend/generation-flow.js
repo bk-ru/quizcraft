@@ -8,6 +8,7 @@ const mediaTypeByExtension = {
 };
 
 const SLOW_GENERATION_WARNING_MS = 60000;
+const GENERATION_EVENT_POLL_MS = 1000;
 const DEFAULT_GENERATION_MODE = "direct";
 const SUPPORTED_REQUEST_MODES = Object.freeze(["direct", "rag"]);
 const SUPPORTED_QUIZ_TYPES = Object.freeze(["single_choice", "true_false", "fill_blank", "short_answer", "matching"]);
@@ -64,6 +65,7 @@ export function createGenerationFlow({
   submitButton,
   dropzone,
   quizIdInput,
+  liveJournalElement = null,
   cancelButton,
   timerElement,
   timerElapsedElement = null,
@@ -90,6 +92,7 @@ export function createGenerationFlow({
   waitForProgressVisibility,
   startGenerationProgress,
   advanceGenerationProgress,
+  applyBackendGenerationStatusEvidence = null,
   completeGenerationProgress,
   completeGenerationProgressWithBackendEvidence,
   failGenerationProgress,
@@ -100,8 +103,18 @@ export function createGenerationFlow({
 }, windowRef = (typeof window !== "undefined" ? window : null)) {
   let currentAbortController = null;
   let timerIntervalId = null;
+  let generationEventPollId = null;
+  let generationEventAfter = 0;
+  const generationEventIds = new Set();
   let timerStartedAt = 0;
   let currentGenCharCount = 0;
+
+  function generateRequestId() {
+    if (windowRef?.crypto && typeof windowRef.crypto.randomUUID === "function") {
+      return windowRef.crypto.randomUUID();
+    }
+    return `generation-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  }
 
   function setBusyState(isBusy) {
     if (!form) {
@@ -189,6 +202,89 @@ export function createGenerationFlow({
     }
     if (timerEtaElement) {
       timerEtaElement.hidden = true;
+    }
+  }
+
+  function clearGenerationJournal() {
+    generationEventIds.clear();
+    generationEventAfter = 0;
+    if (liveJournalElement) {
+      liveJournalElement.replaceChildren();
+    }
+  }
+
+  function formatJournalTime(elapsedMs) {
+    const totalSeconds = Math.max(0, Math.floor((Number(elapsedMs) || 0) / 1000));
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  function appendGenerationJournalEvents(events) {
+    if (!liveJournalElement || !Array.isArray(events)) {
+      return;
+    }
+    for (const event of events) {
+      const eventId = Number(event?.event_id);
+      const message = typeof event?.message === "string" ? event.message : "";
+      if (!Number.isFinite(eventId) || !message || generationEventIds.has(eventId)) {
+        continue;
+      }
+      generationEventIds.add(eventId);
+      const item = document.createElement("li");
+      item.className = "live-journal-entry";
+      item.dataset.eventId = String(eventId);
+      item.dataset.status = typeof event.status === "string" ? event.status : "";
+      const time = document.createElement("span");
+      time.className = "live-journal-time";
+      time.textContent = formatJournalTime(event.elapsed_ms);
+      const text = document.createElement("span");
+      text.className = "live-journal-message";
+      text.textContent = message;
+      item.append(time, text);
+      liveJournalElement.append(item);
+    }
+  }
+
+  async function pollGenerationEvents(requestId) {
+    if (!client || typeof client.getGenerationEvents !== "function") {
+      return;
+    }
+    const payload = await client.getGenerationEvents(requestId, { after: generationEventAfter });
+    const events = Array.isArray(payload?.events) ? payload.events : [];
+    if (events.length === 0) {
+      return;
+    }
+    generationEventAfter = Number(payload.next_after) || generationEventAfter;
+    appendGenerationJournalEvents(events);
+    if (typeof applyBackendGenerationStatusEvidence === "function") {
+      applyBackendGenerationStatusEvidence(events);
+    }
+  }
+
+  function startGenerationEventPolling(generationRequestId) {
+    if (!windowRef || !generationRequestId) {
+      return;
+    }
+    stopGenerationEventPolling();
+    clearGenerationJournal();
+    pollGenerationEvents(generationRequestId).catch(() => {});
+    generationEventPollId = windowRef.setInterval(() => {
+      pollGenerationEvents(generationRequestId).catch(() => {});
+    }, GENERATION_EVENT_POLL_MS);
+  }
+
+  async function stopGenerationEventPolling(generationRequestId = null) {
+    if (windowRef && generationEventPollId !== null) {
+      windowRef.clearInterval(generationEventPollId);
+      generationEventPollId = null;
+    }
+    if (generationRequestId) {
+      try {
+        await pollGenerationEvents(generationRequestId);
+      } catch (_error) {
+        // Final generation success/error handling remains authoritative.
+      }
     }
   }
 
@@ -438,6 +534,7 @@ export function createGenerationFlow({
     let uploadPayload;
     let generationPayload;
     let generationBody;
+    let generationRequestId = null;
     try {
       generationBody = buildGenerationPayload();
     } catch (error) {
@@ -462,6 +559,7 @@ export function createGenerationFlow({
       }
       setBusyState(true);
       setExportAvailability(null);
+      clearGenerationJournal();
       advanceStepper("generation", { focus: true });
       startGenerationProgress();
       const inputCharCount = (docTextInput?.value ?? "").length;
@@ -488,10 +586,13 @@ export function createGenerationFlow({
       setSubmissionStatus("Документ загружен. Запускаем генерацию…", "warn");
       setLogMessage("Документ загружен, запускаем генерацию.", "warn");
 
+      generationRequestId = generateRequestId();
+      setTextContent("last-request-id", generationRequestId);
+      startGenerationEventPolling(generationRequestId);
       generationPayload = await client.generateQuiz(
         uploadPayload.document_id,
         generationBody,
-        { signal: abortController.signal },
+        { signal: abortController.signal, requestId: generationRequestId },
       );
 
       advanceGenerationProgress("generate", "validate");
@@ -514,7 +615,7 @@ export function createGenerationFlow({
       setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");
       showToast("Квиз создан и готов к просмотру.", "ok");
       setLogMessage(
-        "Квиз создан. Кириллица отображается без искажений.",
+        "Квиз создан.",
         "ok",
       );
       if (typeof completeGenerationProgressWithBackendEvidence === "function") {
@@ -557,6 +658,7 @@ export function createGenerationFlow({
         }
       }
     } finally {
+      await stopGenerationEventPolling(generationRequestId);
       setBusyState(false);
       stopTimer();
       setCancelButtonVisible(false);
@@ -614,6 +716,7 @@ export function createGenerationFlow({
     removeSelectedFile,
     buildGenerationPayload,
     updateOperationSummary,
+    appendGenerationJournalEvents,
     submitGeneration,
     attachDropzone,
     cancelGeneration,

@@ -139,6 +139,28 @@ def test_direct_generation_orchestrator_persists_generation_result_on_success(tm
     assert len(provider.requests) == 1
 
 
+def test_direct_generation_orchestrator_uses_unique_server_quiz_id_for_repeated_provider_ids(tmp_path) -> None:
+    provider = StubProvider(
+        [
+            build_response(build_payload(), response_id="resp-1"),
+            build_response(build_payload(), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_document())
+
+    first_result = orchestrator.generate("doc-1", build_generation_request())
+    second_result = orchestrator.generate("doc-1", build_generation_request())
+
+    assert first_result.quiz.quiz_id.startswith("quiz-")
+    assert second_result.quiz.quiz_id.startswith("quiz-")
+    assert first_result.quiz.quiz_id != second_result.quiz.quiz_id
+    assert first_result.quiz.quiz_id != "quiz-generated"
+    assert second_result.quiz.quiz_id != "quiz-generated"
+    assert result_repository.get(first_result.quiz.quiz_id) == first_result
+    assert result_repository.get(second_result.quiz.quiz_id) == second_result
+
+
 def test_direct_generation_orchestrator_uses_repair_prompt_after_quality_failure(tmp_path) -> None:
     provider = StubProvider(
         [
@@ -297,7 +319,8 @@ def test_direct_generation_orchestrator_accepts_document_within_limit(tmp_path) 
 
     result = orchestrator.generate("doc-1", build_generation_request())
 
-    assert result.quiz.quiz_id == "quiz-generated"
+    assert result.quiz.quiz_id.startswith("quiz-")
+    assert result.quiz.quiz_id != "quiz-generated"
     assert len(provider.requests) == 1
 
 

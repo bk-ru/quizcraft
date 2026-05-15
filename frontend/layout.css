@@ -103,7 +103,7 @@
   font-size: 0.84rem;
   font-weight: 500;
   line-height: 1.45;
-  white-space: normal;
+  white-space: pre-line;
 }
 
 .topbar-status:hover::before,

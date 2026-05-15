@@ -8,7 +8,9 @@ from pathlib import Path
 
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import RepositoryNotFoundError
+from backend.app.domain.errors import StorageKeyError
 from backend.app.generation.rag_cache import RagCacheEntry
+from backend.app.storage.keys import storage_json_path
 
 
 class FileSystemRagCacheRepository:
@@ -31,7 +33,10 @@ class FileSystemRagCacheRepository:
     def get(self, cache_key: str) -> RagCacheEntry:
         """Загрузить запись кэша RAG по ее cache key."""
 
-        target_path = self._path_for_key(cache_key)
+        try:
+            target_path = self._path_for_key(cache_key)
+        except StorageKeyError as error:
+            raise RepositoryNotFoundError("rag_cache", cache_key) from error
         if not target_path.exists():
             raise RepositoryNotFoundError("rag_cache", cache_key)
 
@@ -46,12 +51,18 @@ class FileSystemRagCacheRepository:
     def exists(self, cache_key: str) -> bool:
         """Вернуть, существует ли запись кэша RAG для переданного ключа."""
 
-        return self._path_for_key(cache_key).exists()
+        try:
+            return self._path_for_key(cache_key).exists()
+        except StorageKeyError:
+            return False
 
     def delete(self, cache_key: str) -> bool:
         """Удалить одну запись кэша RAG, если она существует."""
 
-        target_path = self._path_for_key(cache_key)
+        try:
+            target_path = self._path_for_key(cache_key)
+        except StorageKeyError:
+            return False
         if not target_path.exists():
             return False
         target_path.unlink()
@@ -60,5 +71,6 @@ class FileSystemRagCacheRepository:
     def _path_for_key(self, cache_key: str) -> Path:
         """Сформировать путь файловой системы для валидированного cache key."""
 
+        target_path = storage_json_path(self._storage_path, cache_key)
         RagCacheEntry._validate_hash(cache_key, "cache_key")
-        return self._storage_path / f"{cache_key}.json"
+        return target_path

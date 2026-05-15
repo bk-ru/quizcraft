@@ -15,6 +15,7 @@ from backend.app.generation import GenerationQualityChecker
 from backend.app.generation import RagGenerationOrchestrator
 from backend.app.generation import SingleQuestionRegenerationOrchestrator
 from backend.app.generation import SingleQuestionRegenerationRequestBuilder
+from backend.app.generation.live_journal import GenerationEventStore
 from backend.app.parsing.docx import DocxParser
 from backend.app.parsing.files import UploadedFileValidator
 from backend.app.parsing.ingestion import DocumentIngestionService
@@ -110,6 +111,16 @@ def get_generation_settings_repository(app: FastAPI) -> FileSystemGenerationSett
         repository = FileSystemGenerationSettingsRepository(app.state.storage_root)
         app.state.generation_settings_repository = repository
     return repository
+
+
+def get_generation_event_store(app: FastAPI) -> GenerationEventStore:
+    """Получить in-memory store живого журнала генерации."""
+
+    store = getattr(app.state, "generation_event_store", None)
+    if store is None:
+        store = GenerationEventStore()
+        app.state.generation_event_store = store
+    return store
 
 
 def get_generation_diagnostic_logger(app: FastAPI) -> FileSystemGenerationDiagnosticLogger:
