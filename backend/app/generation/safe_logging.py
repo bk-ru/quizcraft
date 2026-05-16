@@ -56,6 +56,7 @@ def summarize_generation_result(result: GenerationResult) -> dict[str, Any]:
         "question_count": len(result.quiz.questions),
         "model_name": result.model_name,
         "prompt_version": result.prompt_version,
+        "warning_count": len(result.warnings),
     }
 
 

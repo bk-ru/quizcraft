@@ -122,6 +122,17 @@ def build_provider_response() -> StructuredGenerationResponse:
     )
 
 
+def build_partial_provider_response() -> StructuredGenerationResponse:
+    response = build_provider_response()
+    content = dict(response.content)
+    content["questions"] = list(content["questions"])[:1]
+    return StructuredGenerationResponse(
+        model_name=response.model_name,
+        content=content,
+        raw_response={"id": "resp-partial", "choices": [{"index": 0}]},
+    )
+
+
 def upload_document(client: TestClient) -> str:
     response = client.post(
         "/documents",
@@ -312,6 +323,27 @@ def test_direct_generation_endpoint_returns_generated_quiz_for_existing_document
     assert payload["prompt_version"] == "direct-v1"
     assert len(payload["quiz"]["questions"]) == 2
     assert "Question count: 2" in provider.requests[0].user_prompt
+
+
+def test_direct_generation_endpoint_returns_partial_quiz_with_warning_when_llm_returns_too_few_questions(tmp_path) -> None:
+    provider = StubProvider(
+        responses=[
+            build_partial_provider_response(),
+            build_partial_provider_response(),
+        ]
+    )
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_russian_document(client)
+
+    response = client.post(f"/documents/{document_id}/generate", json=build_generation_payload())
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert len(payload["quiz"]["questions"]) == 1
+    assert payload["warnings"][0]["code"] == "generation_quality_error"
+    assert "Модель вернула 1 вопрос вместо запрошенных 2" in payload["warnings"][0]["message"]
+    assert "повторите генерацию" in payload["warnings"][0]["recommendations"][0]
 
 
 def test_generation_live_journal_exposes_sanitized_pipeline_events(tmp_path) -> None:

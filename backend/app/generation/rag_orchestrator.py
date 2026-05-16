@@ -20,6 +20,7 @@ from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import EmbeddingRequest
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import GenerationResult
+from backend.app.domain.models import GenerationWarning
 from backend.app.domain.models import Quiz
 from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.domain.models import StructuredGenerationResponse
@@ -34,6 +35,7 @@ from backend.app.generation.matching_fallback import fallback_invalid_matching_q
 from backend.app.generation.matching_fallback import is_matching_pair_count_error
 from backend.app.generation.matching_fallback import prepare_repair_source_text
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
+from backend.app.generation.partial import build_partial_generation_warning
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.quality import enrich_generation_error
 from backend.app.generation.quality import fit_generated_question_count
@@ -192,7 +194,13 @@ class RagGenerationOrchestrator:
             )
             raise
 
-        quiz, final_response, prompt_version, final_provider_request_summary = self._finalize_generation(
+        (
+            quiz,
+            final_response,
+            prompt_version,
+            final_provider_request_summary,
+            generation_warnings,
+        ) = self._finalize_generation(
             document=document,
             generation_request=generation_request,
             response=rag_response,
@@ -220,6 +228,7 @@ class RagGenerationOrchestrator:
                     generation_request,
                     final_response,
                     prompt_version,
+                    generation_warnings,
                 ),
                 quiz_id=quiz.quiz_id,
                 metadata_builder=summarize_generation_result,
@@ -438,7 +447,7 @@ class RagGenerationOrchestrator:
         provider_request_summary: dict[str, Any],
         rag_metadata: dict[str, Any],
         repair_source_text: str,
-    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
+    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any], tuple[GenerationWarning, ...]]:
         """Нормализовать и проверить RAG-ответ, затем при необходимости попробовать repair."""
 
         try:
@@ -461,7 +470,7 @@ class RagGenerationOrchestrator:
                 rag_metadata=rag_metadata,
                 repair_source_text=repair_source_text,
             )
-        return quiz, response, rag_prompt_version, provider_request_summary
+        return quiz, response, rag_prompt_version, provider_request_summary, ()
 
     def _normalize_and_validate(
         self,
@@ -541,6 +550,30 @@ class RagGenerationOrchestrator:
             raise
         return quiz
 
+    def _build_partial_quiz(
+        self,
+        *,
+        document: DocumentRecord,
+        generation_request: GenerationRequest,
+        response: StructuredGenerationResponse,
+    ) -> Quiz:
+        """Нормализовать RAG-ответ без строгой проверки качества."""
+
+        quiz = replace(
+            self._normalizer(response.content),
+            quiz_id=f"quiz-{uuid4().hex}",
+            document_id=document.document_id,
+        )
+        quiz = fit_generated_question_count(quiz, generation_request.question_count)
+        return replace(
+            quiz,
+            title=resolve_readable_quiz_title(
+                quiz.title,
+                document.filename,
+                len(quiz.questions),
+            ),
+        )
+
     def _repair_generation(
         self,
         document: DocumentRecord,
@@ -551,7 +584,7 @@ class RagGenerationOrchestrator:
         initial_provider_request_summary: dict[str, Any],
         rag_metadata: dict[str, Any],
         repair_source_text: str,
-    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
+    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any], tuple[GenerationWarning, ...]]:
         """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
         original_response = response
@@ -567,13 +600,25 @@ class RagGenerationOrchestrator:
                 generation_request=generation_request,
                 metadata={"phase": "matching_fallback_first"},
             )
-            fallback_result = self._try_matching_fallback(
-                document=document,
-                generation_request=generation_request,
-                response=original_response,
-                prompt_version=original_prompt_version,
-                provider_request_summary=original_provider_request_summary,
-            )
+            try:
+                fallback_result = self._try_matching_fallback(
+                    document=document,
+                    generation_request=generation_request,
+                    response=original_response,
+                    prompt_version=original_prompt_version,
+                    provider_request_summary=original_provider_request_summary,
+                )
+            except DomainValidationError as error:
+                current_error = error
+                self._log_pipeline_step(
+                    status=GenerationRunStatus.FAILED,
+                    step=GenerationPipelineStep.REPAIR,
+                    document_id=document.document_id,
+                    generation_request=generation_request,
+                    metadata={"phase": "matching_fallback_first"},
+                    error=error,
+                )
+                fallback_result = None
             if fallback_result is not None:
                 fallback_actions = fallback_result[4]
                 primary_action = fallback_actions[0] if fallback_actions else None
@@ -592,7 +637,12 @@ class RagGenerationOrchestrator:
                     quiz_id=fallback_result[0].quiz_id,
                     metadata=fallback_meta,
                 )
-                return fallback_result[:4]
+                warning = build_partial_generation_warning(
+                    current_error,
+                    expected_question_count=generation_request.question_count,
+                    actual_question_count=len(fallback_result[0].questions),
+                )
+                return (*fallback_result[:4], (warning,))
 
         repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
         current_response = response
@@ -726,24 +776,55 @@ class RagGenerationOrchestrator:
                     "model_payload": summarize_model_payload(current_response.content),
                 },
             )
-            return repaired_quiz, current_response, repair_prompt.version, current_provider_request_summary
+            warning = build_partial_generation_warning(
+                initial_error,
+                expected_question_count=generation_request.question_count,
+                actual_question_count=len(repaired_quiz.questions),
+            )
+            return repaired_quiz, current_response, repair_prompt.version, current_provider_request_summary, (warning,)
 
-        fallback_result = self._try_matching_fallback(
-            document=document,
-            generation_request=generation_request,
-            response=original_response,
-            prompt_version=original_prompt_version,
-            provider_request_summary=original_provider_request_summary,
-        )
+        try:
+            fallback_result = self._try_matching_fallback(
+                document=document,
+                generation_request=generation_request,
+                response=original_response,
+                prompt_version=original_prompt_version,
+                provider_request_summary=original_provider_request_summary,
+            )
+        except DomainValidationError as error:
+            current_error = error
+            fallback_result = None
         if fallback_result is not None:
-            return fallback_result[:4]
+            warning = build_partial_generation_warning(
+                current_error,
+                expected_question_count=generation_request.question_count,
+                actual_question_count=len(fallback_result[0].questions),
+            )
+            return (*fallback_result[:4], (warning,))
 
         if is_matching_pair_count_error(current_error) and isinstance(current_response.content, dict):
-            raise build_matching_pair_count_error(current_response.content)
-        raise enrich_generation_error(
+            current_error = build_matching_pair_count_error(current_response.content)
+        enriched_error = enrich_generation_error(
             current_error,
             len(document.normalized_text),
             requested_question_count=generation_request.question_count,
+        )
+        partial_quiz = self._build_partial_quiz(
+            document=document,
+            generation_request=generation_request,
+            response=current_response,
+        )
+        warning = build_partial_generation_warning(
+            enriched_error,
+            expected_question_count=generation_request.question_count,
+            actual_question_count=len(partial_quiz.questions),
+        )
+        return (
+            partial_quiz,
+            current_response,
+            current_prompt_version,
+            current_provider_request_summary,
+            (warning,),
         )
 
     def _try_matching_fallback(
@@ -867,6 +948,7 @@ class RagGenerationOrchestrator:
         generation_request: GenerationRequest,
         final_response: StructuredGenerationResponse,
         prompt_version: str,
+        warnings: tuple[GenerationWarning, ...] = (),
     ) -> GenerationResult:
         """Сохранить сгенерированный квиз и метаданные его генерации."""
 
@@ -876,6 +958,7 @@ class RagGenerationOrchestrator:
             request=generation_request,
             model_name=final_response.model_name,
             prompt_version=prompt_version,
+            warnings=warnings,
         )
         self._generation_result_repository.save(result)
         logger.info("Persisted rag generation result summary=%s", summarize_generation_result(result))

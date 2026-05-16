@@ -2,10 +2,7 @@ from __future__ import annotations
 
 import logging
 
-import pytest
-
 from backend.app.core.modes import GenerationMode
-from backend.app.domain.errors import GenerationQualityError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import ProviderHealthStatus
@@ -176,7 +173,7 @@ def test_orchestrator_logs_repair_step_when_initial_generation_fails_quality(cap
     assert repair_events[0].generation_metadata["initial_error_code"] == "generation_quality_error"
 
 
-def test_orchestrator_logs_failed_step_when_generation_cannot_be_repaired(caplog, tmp_path) -> None:
+def test_orchestrator_logs_failed_repair_and_persists_partial_result_warning(caplog, tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_payload(question_count=1), "resp-1"),
@@ -186,10 +183,13 @@ def test_orchestrator_logs_failed_step_when_generation_cannot_be_repaired(caplog
     orchestrator, document_repository = build_orchestrator(tmp_path, provider)
     document_repository.save(build_document())
 
-    with caplog.at_level(logging.INFO), pytest.raises(GenerationQualityError):
-        orchestrator.generate("doc-ru-1", build_generation_request(question_count=2))
+    with caplog.at_level(logging.INFO):
+        result = orchestrator.generate("doc-ru-1", build_generation_request(question_count=2))
 
     assert ("repair", "failed") in event_pairs(caplog)
+    assert ("persist", "done") in event_pairs(caplog)
+    assert len(result.quiz.questions) == 1
+    assert result.warnings
     failed_events = [
         record
         for record in generation_events(caplog)

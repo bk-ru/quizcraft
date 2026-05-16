@@ -5,7 +5,6 @@ import pytest
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DomainValidationError
-from backend.app.domain.errors import GenerationQualityError
 from backend.app.domain.errors import UnsupportedGenerationModeError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import EmbeddingRequest
@@ -440,7 +439,7 @@ def test_rag_orchestrator_uses_repair_prompt_after_quality_failure(tmp_path) -> 
     assert source_block.strip()
 
 
-def test_rag_orchestrator_raises_after_repair_is_exhausted(tmp_path) -> None:
+def test_rag_orchestrator_returns_partial_result_warning_after_repair_is_exhausted(tmp_path) -> None:
     provider = StubRagProvider(
         embedding_dimension=3,
         structured_responses=[
@@ -451,10 +450,12 @@ def test_rag_orchestrator_raises_after_repair_is_exhausted(tmp_path) -> None:
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
     document_repository.save(build_document())
 
-    with pytest.raises(GenerationQualityError):
-        orchestrator.generate("doc-rag", build_rag_request(question_count=2))
+    result = orchestrator.generate("doc-rag", build_rag_request(question_count=2))
 
     assert len(provider.structured_requests) == 2
+    assert len(result.quiz.questions) == 1
+    assert result.warnings
+    assert "Модель вернула 1 вопрос вместо запрошенных 2" in result.warnings[0].message
 
 
 def test_rag_orchestrator_rejects_non_rag_generation_mode(tmp_path) -> None:

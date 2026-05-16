@@ -1806,6 +1806,17 @@ def test_frontend_quiz_renderer_describes_generation_mode_from_prompt_version() 
     )
 
 
+def test_frontend_surfaces_generation_warnings_as_partial_result() -> None:
+    renderer_content = QUIZ_RENDERER_JS.read_text(encoding="utf-8")
+    flow_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "generationPayload.warnings" in renderer_content
+    assert "Квиз показан с предупреждениями" in renderer_content
+    assert "Результат частичный" in renderer_content
+    assert "hasGenerationWarnings" in flow_content
+    assert "Проверьте предупреждения к результату" in flow_content
+
+
 def test_frontend_p3_visual_tokens() -> None:
     tokens = (FRONTEND_DIR / "tokens.css").read_text(encoding="utf-8")
     layout = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")

@@ -4,8 +4,6 @@ import pytest
 
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
-from backend.app.domain.errors import GenerationQualityError
-from backend.app.domain.errors import RepositoryNotFoundError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import ProviderHealthStatus
@@ -379,7 +377,7 @@ def test_direct_generation_fallback_converts_invalid_matching_to_short_answer_af
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
-def test_direct_generation_matching_only_failure_message_is_specific_after_failed_repair(tmp_path) -> None:
+def test_direct_generation_matching_only_pair_count_failure_returns_partial_result_warning(tmp_path) -> None:
     invalid_payload = build_payload_with_matching_pair_count(2, question_count=1)
     provider = StubProvider(
         [
@@ -390,14 +388,16 @@ def test_direct_generation_matching_only_failure_message_is_specific_after_faile
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
     document_repository.save(build_photosynthesis_document())
 
-    with pytest.raises(GenerationQualityError) as error_info:
-        orchestrator.generate("doc-1", build_matching_only_generation_request())
+    result = orchestrator.generate("doc-1", build_matching_only_generation_request())
 
-    assert "модель вернула 2 пары, нужно минимум 4" in error_info.value.message
-    assert "недостаточно информации" not in error_info.value.message
+    assert len(result.quiz.questions) == 1
+    assert result.quiz.questions[0].question_type == "matching"
+    assert result.warnings
+    assert "модель вернула 2 пары, нужно минимум 4" in result.warnings[0].message
+    assert "недостаточно информации" not in result.warnings[0].message
 
 
-def test_direct_generation_matching_only_ungrounded_failure_message_is_specific(tmp_path) -> None:
+def test_direct_generation_matching_only_ungrounded_failure_returns_partial_result_warning(tmp_path) -> None:
     invalid_payload = build_ungrounded_full_text_matching_payload()
     provider = StubProvider(
         [
@@ -408,12 +408,13 @@ def test_direct_generation_matching_only_ungrounded_failure_message_is_specific(
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
     document_repository.save(build_photosynthesis_types_document())
 
-    with pytest.raises(GenerationQualityError) as error_info:
-        orchestrator.generate("doc-1", build_matching_only_generation_request())
+    result = orchestrator.generate("doc-1", build_matching_only_generation_request())
 
-    assert (
-        error_info.value.message
-        == "Вопрос на соответствие не прошёл проверку: пары должны быть явно основаны на тексте документа."
+    assert len(result.quiz.questions) == 1
+    assert result.quiz.questions[0].question_type == "matching"
+    assert result.warnings[0].message == (
+        "Квиз показан с предупреждением: "
+        "Вопрос на соответствие не прошёл проверку: пары должны быть явно основаны на тексте документа."
     )
 
 
@@ -457,7 +458,7 @@ def test_direct_generation_fallback_does_not_save_ungrounded_matching_after_fail
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
-def test_direct_generation_orchestrator_raises_after_repair_is_exhausted(tmp_path) -> None:
+def test_direct_generation_orchestrator_persists_partial_result_with_warning_after_repair_is_exhausted(tmp_path) -> None:
     invalid_payload = build_payload(question_count=1)
     provider = StubProvider(
         [
@@ -468,12 +469,15 @@ def test_direct_generation_orchestrator_raises_after_repair_is_exhausted(tmp_pat
     orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
     document_repository.save(build_document())
 
-    with pytest.raises(GenerationQualityError, match="question count"):
-        orchestrator.generate("doc-1", build_generation_request(question_count=2))
+    result = orchestrator.generate("doc-1", build_generation_request(question_count=2))
 
     assert len(provider.requests) == 2
-    with pytest.raises(RepositoryNotFoundError):
-        result_repository.get("quiz-generated")
+    assert len(result.quiz.questions) == 1
+    assert result.warnings
+    assert result.warnings[0].code == "generation_quality_error"
+    assert "Модель вернула 1 вопрос вместо запрошенных 2" in result.warnings[0].message
+    assert "уменьшите количество вопросов" in result.warnings[0].recommendations[0]
+    assert result_repository.get(result.quiz.quiz_id) == result
 
 
 def test_direct_generation_orchestrator_trims_extra_generated_questions(tmp_path) -> None:
@@ -760,7 +764,7 @@ def test_matching_error_fallback_priority_no_llm_call(tmp_path) -> None:
     assert fallback_question.question_type == "short_answer"
 
 
-def test_prompt_budget_guard_skips_repair_when_too_large(tmp_path) -> None:
+def test_prompt_budget_guard_returns_partial_result_warning_when_repair_is_too_large(tmp_path) -> None:
     invalid_payload = build_payload(question_count=1)
     provider = StubProvider(
         [
@@ -773,10 +777,11 @@ def test_prompt_budget_guard_skips_repair_when_too_large(tmp_path) -> None:
     )
     document_repository.save(build_document())
 
-    with pytest.raises(Exception):
-        orchestrator.generate("doc-1", build_generation_request())
+    result = orchestrator.generate("doc-1", build_generation_request())
 
     assert len(provider.requests) == 1
+    assert len(result.quiz.questions) == 1
+    assert result.warnings
 
 
 def test_non_matching_error_still_uses_repair_within_budget(tmp_path) -> None:

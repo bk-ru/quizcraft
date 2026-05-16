@@ -52,6 +52,11 @@ function formatFileSize(bytes) {
   return `${formatted} ${match.unit}`;
 }
 
+function hasGenerationWarnings(generationPayload) {
+  return Array.isArray(generationPayload?.warnings)
+    && generationPayload.warnings.some((warning) => typeof warning?.message === "string" && warning.message.trim());
+}
+
 export function createGenerationFlow({
   client,
   form,
@@ -621,13 +626,20 @@ export function createGenerationFlow({
           language: generationBody.language,
         });
       }
-      setEditorStatus("Квиз готов. Нажмите «Редактировать квиз», чтобы открыть редактор.", "ok");
-      setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");
-      showToast("Квиз создан и готов к просмотру.", "ok");
-      setLogMessage(
-        "Квиз создан.",
-        "ok",
-      );
+      if (hasGenerationWarnings(generationPayload)) {
+        setEditorStatus("Квиз показан с предупреждениями. Проверьте предупреждения к результату перед редактированием.", "warn");
+        setSubmissionStatus("Квиз создан частично и отрисован ниже.", "warn");
+        showToast("Квиз показан с предупреждениями.", "warn");
+        setLogMessage("Проверьте предупреждения к результату.", "warn");
+      } else {
+        setEditorStatus("Квиз готов. Нажмите «Редактировать квиз», чтобы открыть редактор.", "ok");
+        setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");
+        showToast("Квиз создан и готов к просмотру.", "ok");
+        setLogMessage(
+          "Квиз создан.",
+          "ok",
+        );
+      }
       if (typeof completeGenerationProgressWithBackendEvidence === "function") {
         completeGenerationProgressWithBackendEvidence(generationPayload);
       } else {

@@ -290,6 +290,34 @@ class GenerationSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class GenerationWarning:
+    """Предупреждение о частично пригодном результате генерации."""
+
+    code: str
+    message: str
+    recommendations: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        """Сериализовать предупреждение генерации."""
+
+        return {
+            "code": self.code,
+            "message": self.message,
+            "recommendations": list(self.recommendations),
+        }
+
+    @classmethod
+    def from_dict(cls, payload: dict[str, Any]) -> "GenerationWarning":
+        """Десериализовать предупреждение генерации."""
+
+        return cls(
+            code=payload["code"],
+            message=payload["message"],
+            recommendations=tuple(payload.get("recommendations", ())),
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class GenerationResult:
     """Успешный результат генерации и его метаданные."""
 
@@ -297,6 +325,7 @@ class GenerationResult:
     request: GenerationRequest
     model_name: str
     prompt_version: str
+    warnings: tuple[GenerationWarning, ...] = ()
 
     def to_dict(self) -> dict[str, Any]:
         """Сериализовать результат генерации в JSON-совместимый словарь."""
@@ -306,6 +335,7 @@ class GenerationResult:
             "request": self.request.to_dict(),
             "model_name": self.model_name,
             "prompt_version": self.prompt_version,
+            "warnings": [warning.to_dict() for warning in self.warnings],
         }
 
     @classmethod
@@ -317,6 +347,10 @@ class GenerationResult:
             request=GenerationRequest.from_dict(payload["request"]),
             model_name=payload["model_name"],
             prompt_version=payload["prompt_version"],
+            warnings=tuple(
+                GenerationWarning.from_dict(warning_payload)
+                for warning_payload in payload.get("warnings", ())
+            ),
         )
 
 

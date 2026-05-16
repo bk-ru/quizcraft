@@ -11,6 +11,21 @@ const QUESTION_TYPE_LABELS = Object.freeze({
   matching: "Соответствие",
 });
 
+function normalizeGenerationWarnings(warnings) {
+  if (!Array.isArray(warnings)) {
+    return [];
+  }
+  return warnings.filter((warning) => typeof warning?.message === "string" && warning.message.trim());
+}
+
+function formatWarningSummary(warnings) {
+  const firstWarning = warnings[0];
+  const recommendations = Array.isArray(firstWarning?.recommendations)
+    ? firstWarning.recommendations.filter((item) => typeof item === "string" && item.trim())
+    : [];
+  return [firstWarning.message, ...recommendations].join(" ");
+}
+
 export function describeGenerationMode(promptVersion) {
   if (typeof promptVersion !== "string" || !promptVersion.trim()) {
     return "Не указан";
@@ -139,6 +154,7 @@ export function createQuizRenderer({
   function renderQuizResult(generationPayload) {
     const quiz = generationPayload.quiz ?? {};
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
+    const warnings = normalizeGenerationWarnings(generationPayload.warnings);
 
     setTextContent("quiz-title", quiz.title ?? "Без названия");
     setTextContent("quiz-question-count", String(questions.length));
@@ -150,7 +166,15 @@ export function createQuizRenderer({
       questionList.replaceChildren(...questions.map((question, index) => buildQuestionCard(question, index)));
     }
 
-    setResultState("Результат готов. Квиз отображён ниже.", "ok", "Результат готов");
+    if (warnings.length > 0) {
+      setResultState(
+        `Квиз показан с предупреждениями. ${formatWarningSummary(warnings)}`,
+        "warn",
+        "Результат частичный",
+      );
+    } else {
+      setResultState("Результат готов. Квиз отображён ниже.", "ok", "Результат готов");
+    }
     setExportAvailability(generationPayload.quiz_id ?? quiz.quiz_id ?? null);
     advanceStepper("result");
   }
