@@ -104,6 +104,7 @@ class AppConfig:
     request_timeout: int | None = None
     max_file_size_mb: int = 10
     max_document_chars: int = 50_000
+    llm_repair_max_prompt_chars: int = 9_000
     log_level: str = "INFO"
     log_format: str = "%(asctime)s %(levelname)s %(name)s %(message)s"
     allowed_models: tuple[str, ...] = ()
@@ -419,6 +420,7 @@ class AppConfig:
         request_timeout = cls._load_optional_int("REQUEST_TIMEOUT")
         max_file_size_mb = cls._load_int("MAX_FILE_SIZE_MB", "10")
         max_document_chars = cls._load_int("MAX_DOCUMENT_CHARS", "50000")
+        llm_repair_max_prompt_chars = cls._load_int("LLM_REPAIR_MAX_PROMPT_CHARS", "9000")
         log_level = os.getenv("LOG_LEVEL", "INFO").upper()
         log_format = os.getenv("LOG_FORMAT", "%(asctime)s %(levelname)s %(name)s %(message)s")
         allowed_models = cls._load_allowed_models(tuple(default_allowed_models))
@@ -430,6 +432,8 @@ class AppConfig:
 
         if max_document_chars <= 0:
             raise ConfigurationError("MAX_DOCUMENT_CHARS must be positive")
+        if llm_repair_max_prompt_chars <= 0:
+            raise ConfigurationError("LLM_REPAIR_MAX_PROMPT_CHARS must be positive")
 
         return cls(
             lm_studio_base_url=lm_studio_base_url,
@@ -445,6 +449,7 @@ class AppConfig:
             request_timeout=request_timeout,
             max_file_size_mb=max_file_size_mb,
             max_document_chars=max_document_chars,
+            llm_repair_max_prompt_chars=llm_repair_max_prompt_chars,
             log_level=log_level,
             log_format=log_format,
             allowed_models=allowed_models,

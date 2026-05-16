@@ -24,7 +24,10 @@ from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
 from backend.app.generation.diagnostics import summarize_structured_generation_request
 from backend.app.generation.matching_fallback import build_matching_pair_count_error
+from backend.app.generation.matching_fallback import build_repair_source_excerpt
+from backend.app.generation.matching_fallback import estimate_repair_prompt_chars
 from backend.app.generation.matching_fallback import fallback_invalid_matching_questions
+from backend.app.generation.matching_fallback import is_matching_error
 from backend.app.generation.matching_fallback import is_matching_pair_count_error
 from backend.app.generation.matching_fallback import prepare_repair_source_text
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
@@ -78,6 +81,7 @@ class DirectGenerationOrchestrator:
         prompt_registry: type[PromptRegistry] = PromptRegistry,
         max_repair_attempts: int = 1,
         max_document_chars: int | None = None,
+        llm_repair_max_prompt_chars: int = 9_000,
         diagnostic_logger: FileSystemGenerationDiagnosticLogger | None = None,
     ) -> None:
         if max_document_chars is not None and max_document_chars <= 0:
@@ -92,6 +96,7 @@ class DirectGenerationOrchestrator:
         self._prompt_registry = prompt_registry
         self._max_repair_attempts = max_repair_attempts
         self._max_document_chars = max_document_chars
+        self._llm_repair_max_prompt_chars = llm_repair_max_prompt_chars
         self._diagnostic_logger = diagnostic_logger
 
     def generate(self, document_id: str, generation_request: GenerationRequest) -> GenerationResult:
@@ -369,11 +374,38 @@ class DirectGenerationOrchestrator:
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
         """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
-        repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
         original_response = response
         original_prompt_version = initial_prompt_version
         original_provider_request_summary = initial_provider_request_summary
         current_error: DomainValidationError = initial_error
+
+        if is_matching_error(current_error):
+            self._log_pipeline_step(
+                status=GenerationRunStatus.RUNNING,
+                step=GenerationPipelineStep.REPAIR,
+                document_id=document.document_id,
+                generation_request=generation_request,
+                metadata={"phase": "matching_fallback_first"},
+            )
+            fallback_result = self._try_matching_fallback(
+                document=document,
+                generation_request=generation_request,
+                response=original_response,
+                prompt_version=original_prompt_version,
+                provider_request_summary=original_provider_request_summary,
+            )
+            if fallback_result is not None:
+                self._log_pipeline_step(
+                    status=GenerationRunStatus.DONE,
+                    step=GenerationPipelineStep.REPAIR,
+                    document_id=document.document_id,
+                    generation_request=generation_request,
+                    quiz_id=fallback_result[0].quiz_id,
+                    metadata={"phase": "matching_fallback_success"},
+                )
+                return fallback_result
+
+        repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
         current_response = response
         current_prompt_version = initial_prompt_version
         current_provider_request_summary = initial_provider_request_summary
@@ -397,13 +429,45 @@ class DirectGenerationOrchestrator:
                 },
             )
             try:
+                source_text = (
+                    build_repair_source_excerpt(document.normalized_text, current_response.content)
+                    if isinstance(current_response.content, dict)
+                    else prepare_repair_source_text(document.normalized_text)
+                )
                 repair_request = self._build_repair_request(
                     repair_prompt,
                     current_response,
                     current_error,
                     generation_request,
-                    source_text=document.normalized_text,
+                    source_text=source_text,
                 )
+                prompt_chars = estimate_repair_prompt_chars(
+                    repair_request.system_prompt,
+                    repair_request.user_prompt,
+                    repair_request.schema,
+                )
+                if prompt_chars > self._llm_repair_max_prompt_chars:
+                    logger.warning(
+                        "Repair prompt %s chars exceeds budget %s — skipping repair.",
+                        prompt_chars,
+                        self._llm_repair_max_prompt_chars,
+                    )
+                    self._log_pipeline_step(
+                        status=GenerationRunStatus.FAILED,
+                        step=GenerationPipelineStep.REPAIR,
+                        document_id=document.document_id,
+                        generation_request=generation_request,
+                        metadata={
+                            "attempt": attempt_index,
+                            "prompt_chars": prompt_chars,
+                            "max_prompt_chars": self._llm_repair_max_prompt_chars,
+                            "reason": "prompt_too_large",
+                        },
+                        error=DomainValidationError(
+                            "Repair-запрос слишком большой для контекста модели — применяем fallback."
+                        ),
+                    )
+                    break
                 current_provider_request_summary = summarize_structured_generation_request(repair_request)
                 repair_response = self._provider.generate_structured(repair_request)
                 if not _repair_response_has_expected_question_count(

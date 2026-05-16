@@ -241,11 +241,24 @@ def _format_generate_done(metadata: dict[str, Any]) -> str:
 def _format_repair_message(status: str, metadata: dict[str, Any]) -> str:
     attempt = metadata.get("attempt")
     attempt_label = f" #{attempt}" if isinstance(attempt, int) else ""
+    phase = metadata.get("phase", "")
     if status == "running":
+        if phase == "matching_fallback_first":
+            return "Вопрос на соответствие не прошёл проверку — пробуем fallback без LLM."
         return f"Исправляем ответ модели{attempt_label}."
     if status == "done":
+        if phase == "matching_fallback_success":
+            return "Fallback: вопрос на соответствие заменён на открытый вопрос."
         return f"Ответ модели исправлен{attempt_label}."
     if status == "failed":
+        reason = metadata.get("reason", "")
+        if reason == "prompt_too_large":
+            prompt_chars = metadata.get("prompt_chars")
+            max_chars = metadata.get("max_prompt_chars")
+            return (
+                f"Repair-запрос слишком большой ({prompt_chars} символов при лимите {max_chars}) "
+                "— пропускаем LLM-вызов, применяем fallback."
+            )
         repair_question_count = metadata.get("repair_question_count")
         expected_question_count = metadata.get("expected_question_count")
         if isinstance(repair_question_count, int) and isinstance(expected_question_count, int):

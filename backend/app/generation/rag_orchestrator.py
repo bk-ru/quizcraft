@@ -51,6 +51,9 @@ from backend.app.generation.safe_logging import summarize_model_payload
 from backend.app.generation.status import GenerationPipelineEvent
 from backend.app.generation.status import GenerationPipelineStep
 from backend.app.generation.status import GenerationRunStatus
+from backend.app.generation.matching_fallback import build_repair_source_excerpt
+from backend.app.generation.matching_fallback import estimate_repair_prompt_chars
+from backend.app.generation.matching_fallback import is_matching_error
 from backend.app.generation.orchestrator import _count_questions_in_response
 from backend.app.generation.orchestrator import _repair_response_has_expected_question_count
 from backend.app.parsing.chunking import chunk_text
@@ -98,6 +101,7 @@ class RagGenerationOrchestrator:
         prompt_registry: type[PromptRegistry] = PromptRegistry,
         max_repair_attempts: int = 1,
         max_document_chars: int | None = None,
+        llm_repair_max_prompt_chars: int = 9_000,
         chunk_size: int = DEFAULT_RAG_CHUNK_SIZE,
         chunk_overlap: int = DEFAULT_RAG_CHUNK_OVERLAP,
         top_k: int = DEFAULT_RAG_TOP_K,
@@ -123,6 +127,7 @@ class RagGenerationOrchestrator:
         self._prompt_registry = prompt_registry
         self._max_repair_attempts = max_repair_attempts
         self._max_document_chars = max_document_chars
+        self._llm_repair_max_prompt_chars = llm_repair_max_prompt_chars
         self._chunk_size = chunk_size
         self._chunk_overlap = chunk_overlap
         self._top_k = top_k
@@ -548,11 +553,38 @@ class RagGenerationOrchestrator:
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
         """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
-        repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
         original_response = response
         original_prompt_version = initial_prompt_version
         original_provider_request_summary = initial_provider_request_summary
         current_error: DomainValidationError = initial_error
+
+        if is_matching_error(current_error):
+            self._log_pipeline_step(
+                status=GenerationRunStatus.RUNNING,
+                step=GenerationPipelineStep.REPAIR,
+                document_id=document.document_id,
+                generation_request=generation_request,
+                metadata={"phase": "matching_fallback_first"},
+            )
+            fallback_result = self._try_matching_fallback(
+                document=document,
+                generation_request=generation_request,
+                response=original_response,
+                prompt_version=original_prompt_version,
+                provider_request_summary=original_provider_request_summary,
+            )
+            if fallback_result is not None:
+                self._log_pipeline_step(
+                    status=GenerationRunStatus.DONE,
+                    step=GenerationPipelineStep.REPAIR,
+                    document_id=document.document_id,
+                    generation_request=generation_request,
+                    quiz_id=fallback_result[0].quiz_id,
+                    metadata={"phase": "matching_fallback_success"},
+                )
+                return fallback_result
+
+        repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
         current_response = response
         current_prompt_version = initial_prompt_version
         current_provider_request_summary = initial_provider_request_summary
@@ -576,13 +608,45 @@ class RagGenerationOrchestrator:
                 },
             )
             try:
+                source_text = (
+                    build_repair_source_excerpt(repair_source_text, current_response.content)
+                    if isinstance(current_response.content, dict)
+                    else prepare_repair_source_text(repair_source_text)
+                )
                 repair_request = self._build_repair_request(
                     repair_prompt,
                     current_response,
                     current_error,
                     generation_request,
-                    source_text=repair_source_text,
+                    source_text=source_text,
                 )
+                prompt_chars = estimate_repair_prompt_chars(
+                    repair_request.system_prompt,
+                    repair_request.user_prompt,
+                    repair_request.schema,
+                )
+                if prompt_chars > self._llm_repair_max_prompt_chars:
+                    logger.warning(
+                        "Rag repair prompt %s chars exceeds budget %s — skipping repair.",
+                        prompt_chars,
+                        self._llm_repair_max_prompt_chars,
+                    )
+                    self._log_pipeline_step(
+                        status=GenerationRunStatus.FAILED,
+                        step=GenerationPipelineStep.REPAIR,
+                        document_id=document.document_id,
+                        generation_request=generation_request,
+                        metadata={
+                            "attempt": attempt_index,
+                            "prompt_chars": prompt_chars,
+                            "max_prompt_chars": self._llm_repair_max_prompt_chars,
+                            "reason": "prompt_too_large",
+                        },
+                        error=DomainValidationError(
+                            "Repair-запрос слишком большой для контекста модели — применяем fallback."
+                        ),
+                    )
+                    break
                 current_provider_request_summary = summarize_structured_generation_request(repair_request)
                 repair_response = self._provider.generate_structured(repair_request)
                 if not _repair_response_has_expected_question_count(

@@ -259,6 +259,7 @@ def build_orchestrator(
     provider: StubProvider,
     *,
     max_document_chars: int | None = None,
+    llm_repair_max_prompt_chars: int = 9_000,
 ) -> tuple[
     DirectGenerationOrchestrator,
     FileSystemDocumentRepository,
@@ -275,6 +276,7 @@ def build_orchestrator(
         provider=provider,
         quality_checker=GenerationQualityChecker(),
         max_document_chars=max_document_chars,
+        llm_repair_max_prompt_chars=llm_repair_max_prompt_chars,
     )
     return orchestrator, document_repository, result_repository
 
@@ -338,11 +340,10 @@ def test_direct_generation_orchestrator_uses_repair_prompt_after_quality_failure
     assert "\"questions\"" in provider.requests[1].user_prompt
 
 
-def test_direct_generation_repair_receives_source_text_and_fixes_matching_pairs(tmp_path) -> None:
+def test_direct_generation_matching_error_uses_fallback_before_repair(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_payload_with_matching_pair_count(2), response_id="resp-1"),
-            build_response(build_payload_with_matching_pair_count(4), response_id="resp-2"),
         ]
     )
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
@@ -350,15 +351,11 @@ def test_direct_generation_repair_receives_source_text_and_fixes_matching_pairs(
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    repair_prompt = provider.requests[1].user_prompt
+    assert len(provider.requests) == 1
+    assert result.prompt_version == "direct-v1"
     matching_question = result.quiz.questions[-1]
-    assert result.prompt_version == "repair-v1"
-    assert len(provider.requests) == 2
-    assert "Source document/context:" in repair_prompt
-    assert "Хлорофилл поглощает световую энергию" in repair_prompt
-    assert "Never return a matching question with fewer than 4 matching_pairs" in repair_prompt
-    assert matching_question.question_type == "matching"
-    assert len(matching_question.matching_pairs) == 4
+    assert matching_question.question_type == "short_answer"
+    assert matching_question.matching_pairs == ()
 
 
 def test_direct_generation_fallback_converts_invalid_matching_to_short_answer_after_failed_repair(tmp_path) -> None:
@@ -420,11 +417,10 @@ def test_direct_generation_matching_only_ungrounded_failure_message_is_specific(
     )
 
 
-def test_direct_generation_repairs_matching_with_options_and_ungrounded_terms(tmp_path) -> None:
+def test_direct_generation_matching_with_options_uses_fallback_before_repair(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_bad_photosynthesis_type_matching_payload(), response_id="resp-1"),
-            build_response(build_grounded_photosynthesis_matching_payload(), response_id="resp-2"),
         ]
     )
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
@@ -432,18 +428,10 @@ def test_direct_generation_repairs_matching_with_options_and_ungrounded_terms(tm
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    repair_prompt = provider.requests[1].user_prompt
+    assert len(provider.requests) == 1
     matching_question = result.quiz.questions[-1]
-    serialized = str(result.quiz.to_dict())
-    assert "Source document/context:" in repair_prompt
-    assert "Кислородный фотосинтез характерен для высших растений" in repair_prompt
-    assert "If a matching question uses options or A/B/1/2 values" in repair_prompt
-    assert matching_question.question_type == "matching"
-    assert matching_question.options == ()
-    assert len(matching_question.matching_pairs) == 4
-    assert all(pair.right not in {"A", "B", "1", "2"} for pair in matching_question.matching_pairs)
-    assert "Цианобактерии" not in serialized
-    assert "Хемосинтезирующие бактерии" not in serialized
+    assert matching_question.question_type == "short_answer"
+    assert matching_question.matching_pairs == ()
 
 
 def test_direct_generation_fallback_does_not_save_ungrounded_matching_after_failed_repair(tmp_path) -> None:
@@ -681,13 +669,11 @@ def test_repair_returns_too_few_questions_fallback_from_original(tmp_path) -> No
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
-def test_repair_preserves_count_succeeds(tmp_path) -> None:
+def test_matching_error_fallback_preserves_question_count(tmp_path) -> None:
     bad_payload = build_bad_photosynthesis_type_matching_payload()
-    good_payload = build_grounded_photosynthesis_matching_payload()
     provider = StubProvider(
         [
             build_response(bad_payload, response_id="resp-1"),
-            build_response(good_payload, response_id="resp-2"),
         ]
     )
     orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
@@ -697,8 +683,8 @@ def test_repair_preserves_count_succeeds(tmp_path) -> None:
 
     assert len(result.quiz.questions) == 6
     matching_question = result.quiz.questions[-1]
-    assert matching_question.question_type == "matching"
-    assert len(matching_question.matching_pairs) == 4
+    assert matching_question.question_type == "short_answer"
+    assert matching_question.matching_pairs == ()
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
@@ -754,3 +740,60 @@ def test_ungrounded_external_terms_still_rejected_or_fallbacked(tmp_path) -> Non
     serialized = str(result.quiz.to_dict())
     assert "Цианобактерии" not in serialized
     assert "Хемосинтезирующие бактерии" not in serialized
+
+
+def test_matching_error_fallback_priority_no_llm_call(tmp_path) -> None:
+    bad_payload = build_bad_photosynthesis_type_matching_payload()
+    provider = StubProvider(
+        [
+            build_response(bad_payload, response_id="resp-1"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    assert len(provider.requests) == 1
+    assert result.prompt_version == "direct-v1"
+    fallback_question = result.quiz.questions[-1]
+    assert fallback_question.question_type == "short_answer"
+
+
+def test_prompt_budget_guard_skips_repair_when_too_large(tmp_path) -> None:
+    invalid_payload = build_payload(question_count=1)
+    provider = StubProvider(
+        [
+            build_response(invalid_payload, response_id="resp-1"),
+            build_response(build_payload(), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(
+        tmp_path, provider, llm_repair_max_prompt_chars=10
+    )
+    document_repository.save(build_document())
+
+    with pytest.raises(Exception):
+        orchestrator.generate("doc-1", build_generation_request())
+
+    assert len(provider.requests) == 1
+
+
+def test_non_matching_error_still_uses_repair_within_budget(tmp_path) -> None:
+    bad_payload = build_payload(question_count=1)
+    good_payload = build_payload()
+    provider = StubProvider(
+        [
+            build_response(bad_payload, response_id="resp-1"),
+            build_response(good_payload, response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_document())
+
+    result = orchestrator.generate("doc-1", build_generation_request())
+
+    assert len(provider.requests) == 2
+    assert result.prompt_version == "repair-v1"
+    assert len(result.quiz.questions) == 2
+    assert result_repository.get(result.quiz.quiz_id) == result

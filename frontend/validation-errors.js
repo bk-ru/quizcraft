@@ -4,6 +4,10 @@ export function describeError(error) {
   if (error instanceof QuizCraftApiError) {
     const backendMessage = error.payload?.error?.message;
     if (typeof backendMessage === "string" && backendMessage.trim()) {
+      const translated = translateBackendErrorMessage(backendMessage.trim());
+      if (translated) {
+        return translated;
+      }
       return backendMessage.trim();
     }
     return error.message;
@@ -12,6 +16,15 @@ export function describeError(error) {
     return error.message;
   }
   return "Неизвестная ошибка";
+}
+
+function translateBackendErrorMessage(rawMessage) {
+  for (const [pattern, transform] of BACKEND_ERROR_MESSAGE_RULES) {
+    if (pattern.test(rawMessage)) {
+      return transform();
+    }
+  }
+  return null;
 }
 
 const VALIDATION_FIELD_EXACT_LABELS = {
@@ -55,6 +68,11 @@ const VALIDATION_MESSAGE_RULES = [
   [/^correct option index is out of range/i, () => "Номер правильного варианта вне диапазона"],
   [/^quiz_id in payload must match path/i, () => "Идентификатор квиза в теле запроса не совпадает с URL"],
   [/^document_id must match the stored quiz/i, () => "Идентификатор документа не совпадает с сохранённым квизом"],
+];
+
+const BACKEND_ERROR_MESSAGE_RULES = [
+  [/контекст модели переполнен/i, () => "Контекст модели переполнен. Увеличьте контекст в настройках LM Studio, сократите документ или используйте RAG-режим."],
+  [/n_keep.*n_ctx/i, () => "Контекст модели переполнен. Увеличьте контекст в настройках LM Studio, сократите документ или используйте RAG-режим."],
 ];
 
 function translateValidationMessage(rawMessage) {

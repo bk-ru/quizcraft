@@ -316,6 +316,13 @@ class LMStudioClient(LLMProvider):
         message_suffix = f": {upstream_body_preview}" if upstream_body_preview else ""
         if error.code >= 500:
             return LLMServerError(error.code, f"LM Studio returned server error {error.code}{message_suffix}")
+        if _is_context_overflow_error(upstream_body_preview):
+            return LLMRequestError(
+                error.code,
+                "Контекст модели переполнен: запрос превышает размер контекста (n_ctx). "
+                "Увеличьте контекст в настройках LM Studio, сократите документ или используйте RAG-режим."
+                f"{message_suffix}",
+            )
         return LLMRequestError(error.code, f"LM Studio returned request error {error.code}{message_suffix}")
 
     def _map_url_error(self, error: URLError):
@@ -440,3 +447,8 @@ def _truncate(value: str, max_chars: int = MAX_LOG_PREVIEW_CHARS) -> str:
     if len(value) <= max_chars:
         return value
     return f"{value[:max_chars]}...<truncated {len(value) - max_chars} chars>"
+
+
+def _is_context_overflow_error(body: str) -> bool:
+    """Определить, что LM Studio отклонил запрос из-за переполнения контекста."""
+    return all(p in body for p in ("n_keep", "n_ctx")) or "context overflow" in body.casefold()

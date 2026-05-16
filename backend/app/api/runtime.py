@@ -63,6 +63,7 @@ def get_generation_orchestrator(app: FastAPI) -> DirectGenerationOrchestrator:
             provider=app.state.provider,
             quality_checker=GenerationQualityChecker(),
             max_document_chars=app.state.config.max_document_chars,
+            llm_repair_max_prompt_chars=app.state.config.llm_repair_max_prompt_chars,
             diagnostic_logger=get_generation_diagnostic_logger(app),
         )
         app.state.generation_orchestrator = orchestrator
@@ -81,6 +82,7 @@ def get_rag_generation_orchestrator(app: FastAPI) -> RagGenerationOrchestrator:
             provider=app.state.provider,
             quality_checker=GenerationQualityChecker(),
             max_document_chars=app.state.config.max_document_chars,
+            llm_repair_max_prompt_chars=app.state.config.llm_repair_max_prompt_chars,
             embedding_model_name=app.state.config.default_embedding_model,
             rag_cache_repository=FileSystemRagCacheRepository(app.state.storage_root),
             diagnostic_logger=get_generation_diagnostic_logger(app),

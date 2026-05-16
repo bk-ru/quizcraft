@@ -12,16 +12,32 @@ from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
 from backend.app.domain.validation import MATCHING_SYMBOLIC_RIGHT_VALUES
 from backend.app.generation.matching_grounding import is_matching_pair_grounded
+from backend.app.generation.matching_grounding import MATCHING_GROUNDEDNESS_ERROR_MESSAGE
 from backend.app.generation.matching_grounding import normalize_grounding_text
 from backend.app.generation.question_types import allowed_question_types
 
 MIN_MATCHING_PAIRS = 4
 MATCHING_PAIR_VALIDATION_MESSAGE = "matching question must have at least four pairs"
-REPAIR_SOURCE_TEXT_MAX_CHARS = 12_000
+REPAIR_SOURCE_TEXT_MAX_CHARS = 2_500
+
+_MATCHING_ERROR_SUBSTRINGS = (
+    MATCHING_GROUNDEDNESS_ERROR_MESSAGE,
+    MATCHING_PAIR_VALIDATION_MESSAGE,
+    "matching question must not include options",
+    "matching pair right must contain full text, not an option id",
+    "matching question correct answer must be empty",
+    "matching question correct option index must be empty",
+)
 
 
 def is_matching_pair_count_error(error: Exception) -> bool:
     return MATCHING_PAIR_VALIDATION_MESSAGE in str(getattr(error, "message", str(error)))
+
+
+def is_matching_error(error: Exception) -> bool:
+    """Вернуть True, если ошибка связана с matching-вопросом."""
+    message = str(getattr(error, "message", str(error)))
+    return any(sub in message for sub in _MATCHING_ERROR_SUBSTRINGS)
 
 
 def build_matching_pair_count_error(response_content: dict[str, Any]) -> GenerationQualityError:
@@ -76,6 +92,67 @@ def prepare_repair_source_text(source_text: str) -> str:
     if len(normalized) <= REPAIR_SOURCE_TEXT_MAX_CHARS:
         return normalized
     return normalized[:REPAIR_SOURCE_TEXT_MAX_CHARS].rstrip()
+
+
+def build_repair_source_excerpt(
+    source_text: str,
+    invalid_quiz_or_question: dict[str, Any],
+    max_chars: int = REPAIR_SOURCE_TEXT_MAX_CHARS,
+) -> str:
+    """Выдержка из source_text по терминам из невалидного matching-вопроса."""
+    terms = _extract_matching_terms(invalid_quiz_or_question)
+    if not terms:
+        return source_text.strip()[:max_chars].rstrip()
+    paragraphs = [p.strip() for p in source_text.split("\n\n") if p.strip()]
+    relevant: list[str] = []
+    total_len = 0
+    for para in paragraphs:
+        para_lower = para.casefold()
+        if any(t.casefold() in para_lower for t in terms):
+            if total_len + len(para) + 2 <= max_chars:
+                relevant.append(para)
+                total_len += len(para) + 2
+    if not relevant:
+        return source_text.strip()[:max_chars].rstrip()
+    return "\n\n".join(relevant)
+
+
+def _extract_matching_terms(payload: dict[str, Any]) -> list[str]:
+    """Собрать термины из matching_pairs невалидного вопроса."""
+    terms: list[str] = []
+    questions = payload.get("questions")
+    if not isinstance(questions, list):
+        return terms
+    for question in questions:
+        if not isinstance(question, dict):
+            continue
+        if question.get("question_type") != "matching":
+            continue
+        pairs = question.get("matching_pairs")
+        if not isinstance(pairs, list):
+            continue
+        for pair in pairs:
+            if not isinstance(pair, dict):
+                continue
+            for key in ("left", "right"):
+                value = pair.get(key, "")
+                if isinstance(value, str) and value.strip():
+                    terms.append(value.strip())
+    return terms
+
+
+def estimate_repair_prompt_chars(
+    system_prompt: str,
+    user_prompt: str,
+    schema: dict[str, Any],
+) -> int:
+    """Приблизительная оценка размера repair-запроса в символах."""
+    import json as _json
+    return (
+        len(system_prompt)
+        + len(user_prompt)
+        + len(_json.dumps(schema, ensure_ascii=False))
+    )
 
 
 def _matching_question_needs_fallback(question: Question, normalized_source_text: str) -> bool:
