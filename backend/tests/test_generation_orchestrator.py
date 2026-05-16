@@ -393,8 +393,10 @@ def test_direct_generation_matching_only_pair_count_failure_returns_partial_resu
     result = orchestrator.generate("doc-1", build_matching_only_generation_request())
 
     assert len(result.quiz.questions) == 1
-    assert result.quiz.questions[0].question_type == "matching"
+    assert result.quiz.questions[0].question_type == "short_answer"
+    assert result.quiz.questions[0].matching_pairs == ()
     assert result.warnings
+    assert result.quality_status == "recovered"
     assert "модель вернула 2 пары, нужно минимум 4" in result.warnings[0].message
     assert "недостаточно информации" not in result.warnings[0].message
 
@@ -413,7 +415,9 @@ def test_direct_generation_matching_only_ungrounded_failure_returns_partial_resu
     result = orchestrator.generate("doc-1", build_matching_only_generation_request())
 
     assert len(result.quiz.questions) == 1
-    assert result.quiz.questions[0].question_type == "matching"
+    assert result.quiz.questions[0].question_type == "short_answer"
+    assert result.quiz.questions[0].matching_pairs == ()
+    assert result.quality_status == "recovered"
     assert result.warnings[0].message == (
         "Квиз показан с предупреждением: "
         "Вопрос на соответствие не прошёл проверку: пары должны быть явно основаны на тексте документа."

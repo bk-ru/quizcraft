@@ -326,6 +326,7 @@ class GenerationResult:
     model_name: str
     prompt_version: str
     warnings: tuple[GenerationWarning, ...] = ()
+    quality_status: str = "ok"
 
     def to_dict(self) -> dict[str, Any]:
         """Сериализовать результат генерации в JSON-совместимый словарь."""
@@ -336,6 +337,7 @@ class GenerationResult:
             "model_name": self.model_name,
             "prompt_version": self.prompt_version,
             "warnings": [warning.to_dict() for warning in self.warnings],
+            "quality_status": self.quality_status,
         }
 
     @classmethod
@@ -350,6 +352,10 @@ class GenerationResult:
             warnings=tuple(
                 GenerationWarning.from_dict(warning_payload)
                 for warning_payload in payload.get("warnings", ())
+            ),
+            quality_status=payload.get(
+                "quality_status",
+                "warning" if payload.get("warnings") else "ok",
             ),
         )
 

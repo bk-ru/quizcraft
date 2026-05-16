@@ -7,17 +7,23 @@ from backend.app.domain.models import GenerationRequest
 QUESTION_TYPE_RULES = {
     "single_choice": (
         "single_choice: set question_type to single_choice, provide exactly four options, "
-        "and set correct_option_index to the zero-based index of the correct option."
+        "and set correct_option_index to the zero-based index of the correct option. "
+        "Do not include correct_answer or matching_pairs."
     ),
     "true_false": (
         "true_false: set question_type to true_false, provide two options, "
-        "and set correct_option_index to the zero-based index of the correct option."
+        "and set correct_option_index to the zero-based index of the correct option. "
+        "Do not include correct_answer or matching_pairs."
     ),
     "fill_blank": (
-        "fill_blank: set question_type to fill_blank, omit options, and provide a non-empty correct_answer."
+        "fill_blank: set question_type to fill_blank, omit options, and provide a non-empty correct_answer. "
+        "Do not include options, correct_option_index, or matching_pairs. "
+        "Use a blank-style prompt with a missing word/phrase."
     ),
     "short_answer": (
-        "short_answer: set question_type to short_answer, omit options, and provide a non-empty correct_answer."
+        "short_answer: set question_type to short_answer, omit options, and provide a non-empty correct_answer. "
+        "Do not include options, correct_option_index, or matching_pairs. "
+        "Ask a direct answerable question, not a matching/list placeholder."
     ),
     "matching": (
         "matching: set question_type to matching and provide at least four matching_pairs.\n"

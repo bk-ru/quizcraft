@@ -57,6 +57,7 @@ def summarize_generation_result(result: GenerationResult) -> dict[str, Any]:
         "model_name": result.model_name,
         "prompt_version": result.prompt_version,
         "warning_count": len(result.warnings),
+        "quality_status": result.quality_status,
     }
 
 

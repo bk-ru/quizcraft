@@ -262,13 +262,12 @@ def _apply_matching_fallback(
             final_question_type="short_answer",
         )
 
-    converted = _matching_to_short_answer_no_pairs(question, generation_request)
-    return converted, FallbackAction(
+    return question, FallbackAction(
         action="failed",
         original_pair_count=original_pair_count,
         grounded_pair_count=0,
         removed_pair_count=original_pair_count,
-        final_question_type="short_answer",
+        final_question_type="matching",
     )
 
 
@@ -341,31 +340,6 @@ def _matching_to_short_answer_single_pair(
     )
 
 
-def _matching_to_short_answer_no_pairs(
-    original_question: Question,
-    generation_request: GenerationRequest,
-) -> Question:
-    """Convert a matching question with 0 grounded pairs to a generic short_answer."""
-
-    language = generation_request.language.strip().casefold()
-    if language.startswith("ru"):
-        prompt = "Какие соответствия между понятиями описаны в тексте?"
-        answer = "Ответ должен опираться только на явно описанные в тексте соответствия."
-    else:
-        prompt = "Which relationships between concepts are described in the text?"
-        answer = "The answer must use only relationships explicitly described in the source text."
-    return Question(
-        question_id=original_question.question_id,
-        prompt=prompt,
-        options=(),
-        correct_option_index=None,
-        explanation=original_question.explanation,
-        question_type="short_answer",
-        correct_answer=answer,
-        matching_pairs=(),
-    )
-
-
 def _multi_pair_prompt(
     grounded_pairs: tuple[MatchingPair, ...], language: str
 ) -> str:
@@ -380,7 +354,7 @@ def _multi_pair_prompt(
         if len(grounded_pairs) >= 2:
             concepts_str = ", ".join(left_terms)
             return f"Какие соответствия между этими понятиями описаны в тексте: {concepts_str}?"
-        return "Какие соответствия между понятиями описаны в тексте?"
+        return "Что сказано в тексте об указанных понятиях?"
     stage_terms = [t for t in left_terms if "stage" in t.casefold()]
     if stage_terms and len(stage_terms) == len(grounded_pairs):
         concepts_str = ", ".join(left_terms)
@@ -388,7 +362,7 @@ def _multi_pair_prompt(
     if len(grounded_pairs) >= 2:
         concepts_str = ", ".join(left_terms)
         return f"Which relationships between these concepts are described in the text: {concepts_str}?"
-    return "Which relationships between concepts are described in the text?"
+    return "What does the text say about the listed concepts?"
 
 
 def _multi_pair_answer(grounded_pairs: tuple[MatchingPair, ...]) -> str:

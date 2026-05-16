@@ -84,5 +84,6 @@ def _serialize_generation_result(result: GenerationResult, request_id: str) -> d
         "model_name": result.model_name,
         "prompt_version": result.prompt_version,
         "warnings": [warning.to_dict() for warning in result.warnings],
+        "quality_status": result.quality_status,
         "request_id": request_id,
     }

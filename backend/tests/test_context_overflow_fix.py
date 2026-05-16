@@ -336,6 +336,22 @@ class TestMatchingFallbackDoesNotUseCompareWord:
         assert "compare" not in fallback_q.prompt.casefold()
 
 
+class TestMatchingFallbackWithNoGroundedPairs:
+    def test_no_grounded_pairs_does_not_create_placeholder_question(self) -> None:
+        source = "Фотосинтез происходит в листьях и связан с хлорофиллом."
+        pairs = [
+            ("Азот", "поступает через лёгкие"),
+            ("Белок", "отражает зелёный свет"),
+            ("Митохондрия", "создаёт крахмал"),
+            ("Корень", "выделяет кислород ночью"),
+        ]
+        quiz = _make_quiz_with_matching_question(pairs)
+
+        result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
+
+        assert result is None
+
+
 class TestMatchingFallbackReplacesSymbolicOptionsAndKeepsMatching:
     def test_symbolic_right_resolved_and_matching_kept(self) -> None:
         source = (

@@ -18,8 +18,15 @@ function normalizeGenerationWarnings(warnings) {
   return warnings.filter((warning) => typeof warning?.message === "string" && warning.message.trim());
 }
 
+function normalizeQualityStatus(value) {
+  return typeof value === "string" && value.trim() ? value.trim().toLowerCase() : "ok";
+}
+
 function formatWarningSummary(warnings) {
   const firstWarning = warnings[0];
+  if (!firstWarning) {
+    return "Проверьте показанный квиз перед использованием.";
+  }
   const recommendations = Array.isArray(firstWarning?.recommendations)
     ? firstWarning.recommendations.filter((item) => typeof item === "string" && item.trim())
     : [];
@@ -152,6 +159,18 @@ export function createQuizRenderer({
   }
 
   function renderQuizResult(generationPayload) {
+    const qualityStatus = normalizeQualityStatus(generationPayload.quality_status);
+    if (qualityStatus === "failed") {
+      clearQuizResult();
+      setResultState(
+        "Результат не показан: квиз не прошёл безопасное восстановление.",
+        "bad",
+        "Результат недоступен",
+      );
+      setExportAvailability(null);
+      advanceStepper("result");
+      return;
+    }
     const quiz = generationPayload.quiz ?? {};
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
     const warnings = normalizeGenerationWarnings(generationPayload.warnings);
@@ -166,7 +185,7 @@ export function createQuizRenderer({
       questionList.replaceChildren(...questions.map((question, index) => buildQuestionCard(question, index)));
     }
 
-    if (warnings.length > 0) {
+    if (warnings.length > 0 || qualityStatus === "recovered" || qualityStatus === "warning" || qualityStatus === "partial") {
       setResultState(
         `Квиз показан с предупреждениями. ${formatWarningSummary(warnings)}`,
         "warn",

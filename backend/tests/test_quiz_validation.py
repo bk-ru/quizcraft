@@ -316,6 +316,79 @@ def test_validate_quiz_rejects_blank_short_answer() -> None:
         validate_quiz(quiz)
 
 
+def test_validate_rejects_fill_blank_with_matching_pairs() -> None:
+    quiz = replace(
+        build_valid_quiz(),
+        questions=(
+            Question(
+                question_id="q-fill",
+                prompt="Фотосинтез происходит в ______.",
+                question_type="fill_blank",
+                correct_answer="хлоропластах",
+                matching_pairs=(MatchingPair(left="Хлорофилл", right="пигмент"),),
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="answer question matching_pairs must be empty"):
+        validate_quiz(quiz)
+
+
+def test_validate_rejects_short_answer_with_matching_pairs() -> None:
+    quiz = replace(
+        build_valid_quiz(),
+        questions=(
+            Question(
+                question_id="q-short",
+                prompt="Где происходит световая стадия?",
+                question_type="short_answer",
+                correct_answer="На мембранах тилакоидов.",
+                matching_pairs=(MatchingPair(left="Световая стадия", right="тилакоиды"),),
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="answer question matching_pairs must be empty"):
+        validate_quiz(quiz)
+
+
+def test_validate_rejects_single_choice_with_matching_pairs() -> None:
+    quiz = replace(
+        build_valid_quiz(),
+        questions=(
+            replace(
+                build_valid_quiz().questions[0],
+                matching_pairs=(MatchingPair(left="Хлоропласт", right="органоид"),),
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="choice question matching_pairs must be empty"):
+        validate_quiz(quiz)
+
+
+def test_validate_rejects_true_false_with_correct_answer() -> None:
+    quiz = replace(
+        build_valid_quiz(),
+        questions=(
+            Question(
+                question_id="q-tf",
+                prompt="Темновая стадия требует прямого света.",
+                question_type="true_false",
+                options=(
+                    Option(option_id="0", text="Верно"),
+                    Option(option_id="1", text="Неверно"),
+                ),
+                correct_option_index=1,
+                correct_answer="Неверно",
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="choice question correct_answer must be empty"):
+        validate_quiz(quiz)
+
+
 def test_enrich_generation_error_adds_hint_for_short_document() -> None:
     error = DomainValidationError("question must have at least two options")
     enriched = enrich_generation_error(error, doc_char_count=250)

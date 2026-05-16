@@ -35,6 +35,10 @@ def validate_quiz(quiz: Quiz) -> None:
         if question_type in CHOICE_QUESTION_TYPES:
             if len(question.options) < 2:
                 raise DomainValidationError("question must have at least two options")
+            if question.correct_answer is not None:
+                raise DomainValidationError("choice question correct_answer must be empty")
+            if question.matching_pairs:
+                raise DomainValidationError("choice question matching_pairs must be empty")
 
             if any(not option.text.strip() for option in question.options):
                 raise DomainValidationError("option text must not be empty")
@@ -60,6 +64,12 @@ def validate_quiz(quiz: Quiz) -> None:
         if question_type in ANSWER_QUESTION_TYPES:
             if not isinstance(question.correct_answer, str) or not question.correct_answer.strip():
                 raise DomainValidationError("correct answer must not be empty")
+            if question.options:
+                raise DomainValidationError("answer question options must be empty")
+            if question.correct_option_index is not None:
+                raise DomainValidationError("answer question correct option index must be empty")
+            if question.matching_pairs:
+                raise DomainValidationError("answer question matching_pairs must be empty")
 
         if question_type == "matching":
             if question.options:

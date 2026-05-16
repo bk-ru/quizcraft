@@ -29,6 +29,9 @@ from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.context import assemble_context
 from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
 from backend.app.generation.diagnostics import summarize_structured_generation_request
+from backend.app.generation.display_recovery import dedupe_generation_warnings
+from backend.app.generation.display_recovery import recover_displayable_quiz
+from backend.app.generation.display_recovery import resolve_quality_status
 from backend.app.generation.matching_fallback import build_matching_pair_count_error
 from backend.app.generation.matching_fallback import FallbackAction
 from backend.app.generation.matching_fallback import fallback_invalid_matching_questions
@@ -209,6 +212,12 @@ class RagGenerationOrchestrator:
             rag_metadata=rag_metadata,
             repair_source_text=repair_source_text,
         )
+        quiz, generation_warnings, quality_status = self._prepare_display_result(
+            document=document,
+            generation_request=generation_request,
+            quiz=quiz,
+            warnings=generation_warnings,
+        )
         self._log_diagnostic_success(
             document=document,
             generation_request=generation_request,
@@ -229,6 +238,7 @@ class RagGenerationOrchestrator:
                     final_response,
                     prompt_version,
                     generation_warnings,
+                    quality_status,
                 ),
                 quiz_id=quiz.quiz_id,
                 metadata_builder=summarize_generation_result,
@@ -949,6 +959,7 @@ class RagGenerationOrchestrator:
         final_response: StructuredGenerationResponse,
         prompt_version: str,
         warnings: tuple[GenerationWarning, ...] = (),
+        quality_status: str = "ok",
     ) -> GenerationResult:
         """Сохранить сгенерированный квиз и метаданные его генерации."""
 
@@ -959,10 +970,38 @@ class RagGenerationOrchestrator:
             model_name=final_response.model_name,
             prompt_version=prompt_version,
             warnings=warnings,
+            quality_status=quality_status,
         )
         self._generation_result_repository.save(result)
         logger.info("Persisted rag generation result summary=%s", summarize_generation_result(result))
         return result
+
+    def _prepare_display_result(
+        self,
+        *,
+        document: DocumentRecord,
+        generation_request: GenerationRequest,
+        quiz: Quiz,
+        warnings: tuple[GenerationWarning, ...],
+    ) -> tuple[Quiz, tuple[GenerationWarning, ...], str]:
+        recovered_quiz, recovery_warnings = recover_displayable_quiz(
+            quiz,
+            generation_request,
+            document.normalized_text,
+        )
+        merged_warnings = dedupe_generation_warnings((*warnings, *recovery_warnings))
+        self._quality_checker.ensure_quality(
+            recovered_quiz,
+            generation_request.question_count,
+            source_text=document.normalized_text,
+            allow_partial=len(recovered_quiz.questions) < generation_request.question_count,
+        )
+        quality_status = resolve_quality_status(
+            expected_question_count=generation_request.question_count,
+            actual_question_count=len(recovered_quiz.questions),
+            warnings=merged_warnings,
+        )
+        return recovered_quiz, merged_warnings, quality_status
 
     def _guard_document_length(self, document: DocumentRecord) -> None:
         """Отклонить документы, нормализованный текст которых превышает настроенный лимит."""

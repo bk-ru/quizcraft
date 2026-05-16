@@ -52,6 +52,11 @@ def test_domain_models_capture_generation_metadata() -> None:
     assert result.request.question_count == 5
     assert result.model_name == "local-model"
     assert result.prompt_version == "v1"
+    assert result.quality_status == "ok"
+    restored = GenerationResult.from_dict(
+        replace(result, quality_status="recovered").to_dict()
+    )
+    assert restored.quality_status == "recovered"
 
 
 def test_question_model_roundtrips_russian_non_choice_shapes() -> None:

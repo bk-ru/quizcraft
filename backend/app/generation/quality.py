@@ -57,13 +57,14 @@ class GenerationQualityChecker:
         expected_question_count: int,
         *,
         source_text: str | None = None,
+        allow_partial: bool = False,
     ) -> None:
         """Вызвать контролируемую доменную ошибку, когда квиз не проходит проверки качества."""
 
         validate_quiz(quiz)
         if source_text:
             _ensure_matching_pairs_are_grounded(quiz, source_text)
-        if len(quiz.questions) != expected_question_count:
+        if len(quiz.questions) != expected_question_count and not allow_partial:
             raise GenerationQualityError(
                 "generated quiz question count does not match the requested question count"
             )

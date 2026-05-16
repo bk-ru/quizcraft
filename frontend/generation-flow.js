@@ -53,8 +53,21 @@ function formatFileSize(bytes) {
 }
 
 function hasGenerationWarnings(generationPayload) {
+  const qualityStatus = typeof generationPayload?.quality_status === "string"
+    ? generationPayload.quality_status.trim().toLowerCase()
+    : "ok";
+  if (qualityStatus === "recovered" || qualityStatus === "warning" || qualityStatus === "partial") {
+    return true;
+  }
   return Array.isArray(generationPayload?.warnings)
     && generationPayload.warnings.some((warning) => typeof warning?.message === "string" && warning.message.trim());
+}
+
+function isDisplayableGenerationResult(generationPayload) {
+  const qualityStatus = typeof generationPayload?.quality_status === "string"
+    ? generationPayload.quality_status.trim().toLowerCase()
+    : "ok";
+  return qualityStatus !== "failed";
 }
 
 export function createGenerationFlow({
@@ -616,6 +629,13 @@ export function createGenerationFlow({
       updateOperationSummary(uploadPayload, generationPayload);
       if (quizIdInput) {
         quizIdInput.value = generationPayload.quiz_id ?? "";
+      }
+      if (!isDisplayableGenerationResult(generationPayload)) {
+        setResultState("Результат не показан: квиз не прошёл безопасное восстановление.", "bad", "Результат недоступен");
+        setEditorStatus("Квиз не готов к редактированию: безопасное восстановление не удалось.", "bad");
+        setSubmissionStatus("Генерация завершилась без отображаемого результата.", "bad");
+        setExportAvailability(null);
+        return;
       }
       renderQuizResult(generationPayload);
       const generatedQuiz = generationPayload.quiz ?? {};
