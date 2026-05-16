@@ -158,6 +158,25 @@ def test_user_good_photosynthesis_matching_passes() -> None:
     assert all(is_matching_pair_grounded(pair, source) for pair in pairs)
 
 
+def test_latest_photosynthesis_organoid_matching_pairs_pass() -> None:
+    source = normalize_grounding_text(
+        "В клетках листа находятся хлоропласты — особые органоиды, содержащие зелёный пигмент хлорофилл. "
+        "Световая стадия протекает на мембранах тилакоидов внутри хлоропластов и требует света. "
+        "В это время энергия света превращается в химическую энергию, запасаемую в молекулах АТФ и НАДФН. "
+        "Углекислый газ поступает из воздуха через устьица — маленькие отверстия в кожице листа. "
+        "Через устьица также выходит кислород и испаряется водяной пар. "
+        "Одновременно происходит фотолиз воды: молекулы воды расщепляются, в результате чего образуются электроны, протоны и кислород."
+    )
+    pairs = (
+        MatchingPair(left="хлоропласты", right="органоиды, содержащие хлорофилл"),
+        MatchingPair(left="тилакоиды", right="мембраны, на которых протекает световая стадия и запасается энергия в АТФ и НАДФН"),
+        MatchingPair(left="устьица", right="маленькие отверстия в кожице листа для газообмена"),
+        MatchingPair(left="фотолиз воды", right="расщепление молекул воды под действием света"),
+    )
+
+    assert all(is_matching_pair_grounded(pair, source) for pair in pairs)
+
+
 def test_truly_novel_term_still_fails() -> None:
     source = normalize_grounding_text(
         "Кислородный фотосинтез характерен для высших растений и водорослей."

@@ -10,6 +10,8 @@ MATCHING_GROUNDEDNESS_ERROR_MESSAGE = (
     "Вопрос на соответствие не прошёл проверку: пары должны быть явно основаны на тексте документа."
 )
 _SIGNIFICANT_TERM_MIN_LENGTH = 12
+_CONTENT_TOKEN_MIN_LENGTH = 4
+_MIN_TOKEN_SUPPORT_RATIO = 0.5
 _WORD_PATTERN = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+")
 _SUBSCRIPT_MAP = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 _PUNCTUATION_NORMALIZE = str.maketrans({"→": " ", "/": " ", "−": "-", "–": "-", "—": "-"})
@@ -31,6 +33,32 @@ for _group in _SYNONYM_GROUPS:
     for _term in _group:
         _SYNONYM_LOOKUP[_term] = _group
 
+_STOP_WORDS = frozenset(
+    {
+        "или",
+        "для",
+        "при",
+        "под",
+        "после",
+        "между",
+        "через",
+        "также",
+        "когда",
+        "который",
+        "которая",
+        "которые",
+        "которых",
+        "котором",
+        "из-за",
+        "из",
+        "это",
+        "его",
+        "её",
+        "что",
+        "как",
+    }
+)
+
 
 def normalize_grounding_text(value: str) -> str:
     """Normalize text for conservative source-grounding checks."""
@@ -48,17 +76,67 @@ def is_matching_pair_grounded(pair: MatchingPair, normalized_source_text: str) -
 
     left_present = left in normalized_source_text
     right_present = right in normalized_source_text
-    if not left_present and not right_present:
+    source_tokens = frozenset(_WORD_PATTERN.findall(normalized_source_text))
+    left_supported = left_present or _has_token_support(left, normalized_source_text, source_tokens)
+    right_supported = right_present or _has_token_support(right, normalized_source_text, source_tokens)
+    if not left_supported or not right_supported:
         return False
 
     if left_present and right_present:
         return True
 
-    present_side = left if left_present else right
-    checked_side = right if left_present else left
-    if _has_absent_novel_term(checked_side, normalized_source_text, present_side):
+    if _has_absent_novel_term(left, normalized_source_text, right if right_supported else None):
+        return False
+    if _has_absent_novel_term(right, normalized_source_text, left if left_supported else None):
         return False
     return True
+
+
+def _has_token_support(
+    value: str,
+    normalized_source_text: str,
+    source_tokens: frozenset[str],
+) -> bool:
+    tokens = _content_tokens(value)
+    if not tokens:
+        return value in normalized_source_text
+    supported_count = sum(
+        1 for token in tokens if _token_supported(token, normalized_source_text, source_tokens)
+    )
+    required_count = max(1, int(len(tokens) * _MIN_TOKEN_SUPPORT_RATIO + 0.999))
+    return supported_count >= required_count
+
+
+def _content_tokens(value: str) -> tuple[str, ...]:
+    return tuple(
+        token
+        for token in _WORD_PATTERN.findall(value)
+        if len(token) >= _CONTENT_TOKEN_MIN_LENGTH and not token.isdigit() and token not in _STOP_WORDS
+    )
+
+
+def _token_supported(
+    token: str,
+    normalized_source_text: str,
+    source_tokens: frozenset[str],
+) -> bool:
+    if token in source_tokens:
+        return True
+    synonym_group = _SYNONYM_LOOKUP.get(token)
+    if synonym_group and any(syn in normalized_source_text for syn in synonym_group):
+        return True
+    return any(_tokens_share_stem(token, source_token) for source_token in source_tokens)
+
+
+def _tokens_share_stem(token: str, source_token: str) -> bool:
+    common_length = 0
+    for left_char, right_char in zip(token, source_token):
+        if left_char != right_char:
+            break
+        common_length += 1
+    required_length = min(5, len(token), len(source_token))
+    required_length = max(4, required_length)
+    return common_length >= required_length
 
 
 def _has_absent_novel_term(
