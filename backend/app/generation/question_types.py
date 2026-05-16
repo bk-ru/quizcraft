@@ -55,13 +55,18 @@ def render_question_type_policy(generation_request: GenerationRequest) -> str:
 
     allowed_types = allowed_question_types(generation_request)
     allowed_label = ", ".join(allowed_types)
+    exact_count_rule = f"Return exactly {generation_request.question_count} questions."
     if len(allowed_types) == 1:
         return (
-            f"Allowed question type: {allowed_label}. Every question MUST use question_type={allowed_label}. "
+            f"{exact_count_rule} Allowed question type: {allowed_label}. "
+            f"Every question MUST use question_type={allowed_label}. "
             "Do not create true_false, fill_blank, short_answer, or matching questions unless that exact type is allowed."
         )
     return (
-        f"Allowed question types: {allowed_label}. Every question MUST use only one of these question types. "
+        f"{exact_count_rule} Allowed question types: {allowed_label}. "
+        "Every question MUST use only one of these question types. "
+        "Do not stop after using each allowed question type once; "
+        f"repeat suitable allowed question types until exactly {generation_request.question_count} questions are returned. "
         "Distribute questions across the allowed types when the source content supports them."
     )
 

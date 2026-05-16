@@ -36,6 +36,9 @@ def test_prompt_registry_resolves_versioned_repair_prompt() -> None:
     assert "{validation_error}" in prompt.user_template
     assert "{invalid_json}" in prompt.user_template
     assert "{source_text}" in prompt.user_template
+    assert "If the invalid JSON has fewer questions than requested" in prompt.user_template
+    assert "Add new grounded questions from the source document/context" in prompt.user_template
+    assert "Do not stop after using each allowed question type once" in prompt.user_template
     assert "Never return a matching question with fewer than 4 matching_pairs" in prompt.user_template
     assert "If a matching question uses options or A/B/1/2 values in matching_pairs.right" in prompt.user_template
     assert "Never add external examples or outside knowledge" in prompt.user_template

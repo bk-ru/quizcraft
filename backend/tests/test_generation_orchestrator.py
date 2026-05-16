@@ -335,6 +335,8 @@ def test_direct_generation_orchestrator_uses_repair_prompt_after_quality_failure
     assert "Original generation settings" in provider.requests[1].user_prompt
     assert "Allowed question type: single_choice" in provider.requests[1].user_prompt
     assert "Every question MUST use question_type=single_choice" in provider.requests[1].user_prompt
+    assert "If the invalid JSON has fewer questions than requested" in provider.requests[1].user_prompt
+    assert "Add new grounded questions from the source document/context" in provider.requests[1].user_prompt
     assert "\"questions\"" in provider.requests[1].user_prompt
 
 

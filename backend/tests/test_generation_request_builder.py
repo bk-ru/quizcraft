@@ -75,6 +75,9 @@ def test_request_builder_renders_explicit_matching_rules_for_multi_type_generati
         generation_request=build_multi_type_generation_request(),
     )
 
+    assert "Return exactly 6 questions" in provider_request.user_prompt
+    assert "Do not stop after using each allowed question type once" in provider_request.user_prompt
+    assert "repeat suitable allowed question types until exactly 6 questions" in provider_request.user_prompt
     assert "4 or more pairs" in provider_request.user_prompt
     assert "Never create a matching question with fewer than 4 pairs" in provider_request.user_prompt
     assert "Do not use only two stages as a matching question" in provider_request.user_prompt
