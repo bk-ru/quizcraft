@@ -51,6 +51,8 @@ from backend.app.generation.safe_logging import summarize_model_payload
 from backend.app.generation.status import GenerationPipelineEvent
 from backend.app.generation.status import GenerationPipelineStep
 from backend.app.generation.status import GenerationRunStatus
+from backend.app.generation.orchestrator import _count_questions_in_response
+from backend.app.generation.orchestrator import _repair_response_has_expected_question_count
 from backend.app.parsing.chunking import chunk_text
 from backend.app.parsing.chunking import TextChunk
 from backend.app.prompts.registry import PromptRegistry
@@ -547,6 +549,9 @@ class RagGenerationOrchestrator:
         """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
         repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
+        original_response = response
+        original_prompt_version = initial_prompt_version
+        original_provider_request_summary = initial_provider_request_summary
         current_error: DomainValidationError = initial_error
         current_response = response
         current_prompt_version = initial_prompt_version
@@ -579,7 +584,31 @@ class RagGenerationOrchestrator:
                     source_text=repair_source_text,
                 )
                 current_provider_request_summary = summarize_structured_generation_request(repair_request)
-                current_response = self._provider.generate_structured(repair_request)
+                repair_response = self._provider.generate_structured(repair_request)
+                if not _repair_response_has_expected_question_count(
+                    repair_response, generation_request.question_count
+                ):
+                    logger.warning(
+                        "Rag repair returned %s questions instead of %s — rejecting repair response.",
+                        _count_questions_in_response(repair_response),
+                        generation_request.question_count,
+                    )
+                    self._log_pipeline_step(
+                        status=GenerationRunStatus.FAILED,
+                        step=GenerationPipelineStep.REPAIR,
+                        document_id=document.document_id,
+                        generation_request=generation_request,
+                        metadata={
+                            "attempt": attempt_index,
+                            "repair_question_count": _count_questions_in_response(repair_response),
+                            "expected_question_count": generation_request.question_count,
+                        },
+                        error=DomainValidationError(
+                            "Repair вернул неверное количество вопросов — результат repair отклонён."
+                        ),
+                    )
+                    break
+                current_response = repair_response
                 current_prompt_version = repair_prompt.version
                 repaired_quiz = self._normalize_and_validate(
                     document=document,
@@ -628,9 +657,9 @@ class RagGenerationOrchestrator:
         fallback_result = self._try_matching_fallback(
             document=document,
             generation_request=generation_request,
-            response=current_response,
-            prompt_version=current_prompt_version,
-            provider_request_summary=current_provider_request_summary,
+            response=original_response,
+            prompt_version=original_prompt_version,
+            provider_request_summary=original_provider_request_summary,
         )
         if fallback_result is not None:
             return fallback_result

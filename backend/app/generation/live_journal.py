@@ -246,6 +246,13 @@ def _format_repair_message(status: str, metadata: dict[str, Any]) -> str:
     if status == "done":
         return f"Ответ модели исправлен{attempt_label}."
     if status == "failed":
+        repair_question_count = metadata.get("repair_question_count")
+        expected_question_count = metadata.get("expected_question_count")
+        if isinstance(repair_question_count, int) and isinstance(expected_question_count, int):
+            return (
+                f"Repair вернул {repair_question_count} вопросов вместо "
+                f"{expected_question_count} — результат repair отклонён."
+            )
         initial_error_code = metadata.get("initial_error_code")
         if isinstance(initial_error_code, str) and initial_error_code:
             return f"Ответ модели не прошёл проверку: {initial_error_code}. Исправляем ответ модели{attempt_label}."

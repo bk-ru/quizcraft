@@ -195,4 +195,4 @@ def test_orchestrator_logs_failed_step_when_generation_cannot_be_repaired(caplog
         for record in generation_events(caplog)
         if record.generation_status == "failed"
     ]
-    assert failed_events[-1].generation_error_code == "generation_quality_error"
+    assert failed_events[-1].generation_error_code == "validation_error"

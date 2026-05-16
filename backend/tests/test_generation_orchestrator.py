@@ -374,7 +374,7 @@ def test_direct_generation_fallback_converts_invalid_matching_to_short_answer_af
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
     fallback_question = result.quiz.questions[-1]
-    assert result.prompt_version == "repair-v1"
+    assert result.prompt_version == "direct-v1"
     assert fallback_question.question_type == "short_answer"
     assert fallback_question.matching_pairs == ()
     assert fallback_question.correct_answer is not None
@@ -633,3 +633,124 @@ def test_direct_generation_grounded_matching_passes_without_repair(tmp_path) -> 
 def test_direct_generation_orchestrator_rejects_non_positive_document_limit(tmp_path) -> None:
     with pytest.raises(ValueError, match="max_document_chars"):
         build_orchestrator(tmp_path, StubProvider([]), max_document_chars=0)
+
+
+def _build_short_repair_payload(*, question_count: int = 1) -> dict[str, object]:
+    questions = [
+        {
+            "question_id": "q-repair-1",
+            "prompt": "Что такое фотосинтез?",
+            "options": [
+                {"option_id": "opt-1", "text": "Процесс"},
+                {"option_id": "opt-2", "text": "Вещество"},
+            ],
+            "correct_option_index": 0,
+            "explanation": {"text": "Фотосинтез — это процесс."},
+        }
+    ][:question_count]
+    return {
+        "quiz_id": "quiz-repair",
+        "document_id": "doc-1",
+        "title": "Repaired quiz",
+        "version": 1,
+        "last_edited_at": "2026-04-18T12:00:00Z",
+        "questions": questions,
+    }
+
+
+def test_repair_returns_too_few_questions_fallback_from_original(tmp_path) -> None:
+    bad_payload = build_bad_photosynthesis_type_matching_payload()
+    short_repair_payload = _build_short_repair_payload(question_count=1)
+    provider = StubProvider(
+        [
+            build_response(bad_payload, response_id="resp-1"),
+            build_response(short_repair_payload, response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    assert len(result.quiz.questions) == 6
+    fallback_question = result.quiz.questions[-1]
+    assert fallback_question.question_type == "short_answer"
+    serialized = str(result.quiz.to_dict())
+    assert "Цианобактерии" not in serialized
+    assert "Хемосинтезирующие бактерии" not in serialized
+    assert result_repository.get(result.quiz.quiz_id) == result
+
+
+def test_repair_preserves_count_succeeds(tmp_path) -> None:
+    bad_payload = build_bad_photosynthesis_type_matching_payload()
+    good_payload = build_grounded_photosynthesis_matching_payload()
+    provider = StubProvider(
+        [
+            build_response(bad_payload, response_id="resp-1"),
+            build_response(good_payload, response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    assert len(result.quiz.questions) == 6
+    matching_question = result.quiz.questions[-1]
+    assert matching_question.question_type == "matching"
+    assert len(matching_question.matching_pairs) == 4
+    assert result_repository.get(result.quiz.quiz_id) == result
+
+
+def test_fallback_from_original_quiz_preserves_other_questions(tmp_path) -> None:
+    bad_payload = build_bad_photosynthesis_type_matching_payload()
+    short_repair_payload = _build_short_repair_payload(question_count=1)
+    provider = StubProvider(
+        [
+            build_response(bad_payload, response_id="resp-1"),
+            build_response(short_repair_payload, response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    non_matching_questions = result.quiz.questions[:-1]
+    assert all(q.question_type != "matching" for q in non_matching_questions)
+    assert len(non_matching_questions) == 5
+
+
+def test_good_photosynthesis_matching_passes_quality_check(tmp_path) -> None:
+    good_payload = build_grounded_photosynthesis_matching_payload()
+    provider = StubProvider(
+        [build_response(good_payload, response_id="resp-1")]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    matching_question = result.quiz.questions[-1]
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
+    assert len(matching_question.matching_pairs) == 4
+
+
+def test_ungrounded_external_terms_still_rejected_or_fallbacked(tmp_path) -> None:
+    bad_payload = build_bad_photosynthesis_type_matching_payload()
+    short_repair_payload = _build_short_repair_payload(question_count=1)
+    provider = StubProvider(
+        [
+            build_response(bad_payload, response_id="resp-1"),
+            build_response(short_repair_payload, response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    serialized = str(result.quiz.to_dict())
+    assert "Цианобактерии" not in serialized
+    assert "Хемосинтезирующие бактерии" not in serialized
