@@ -66,6 +66,7 @@ export function createGenerationFlow({
   dropzone,
   quizIdInput,
   liveJournalElement = null,
+  liveJournalContainer = null,
   cancelButton,
   timerElement,
   timerElapsedElement = null,
@@ -212,6 +213,9 @@ export function createGenerationFlow({
     if (liveJournalElement) {
       liveJournalElement.replaceChildren();
     }
+    if (liveJournalContainer) {
+      liveJournalContainer.hidden = true;
+    }
   }
 
   function formatJournalTime(elapsedMs) {
@@ -244,6 +248,9 @@ export function createGenerationFlow({
       text.textContent = message;
       item.append(time, text);
       liveJournalElement.append(item);
+    }
+    if (liveJournalContainer && generationEventIds.size > 0) {
+      liveJournalContainer.hidden = false;
     }
   }
 

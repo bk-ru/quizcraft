@@ -500,6 +500,7 @@ const generationFlow = createGenerationFlow({
   dropzone,
   quizIdInput,
   liveJournalElement: generationLiveJournal,
+  liveJournalContainer: document.querySelector(".generation-live-journal"),
   cancelButton: cancelGenerationButton,
   timerElement: generationTimerElement,
   timerElapsedElement: document.getElementById("timer-elapsed"),
