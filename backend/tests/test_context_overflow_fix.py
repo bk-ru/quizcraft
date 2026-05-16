@@ -260,8 +260,8 @@ class TestMatchingFallbackKeepsMatchingWhenFourGroundedPairsRemain:
         assert actions[0].final_question_type == "matching"
 
 
-class TestMatchingFallbackConvertsThreePairsToNaturalShortAnswer:
-    def test_three_grounded_pairs_become_short_answer(self) -> None:
+class TestMatchingFallbackDoesNotReclassifyMatching:
+    def test_three_grounded_pairs_do_not_become_short_answer(self) -> None:
         source = (
             "Световая стадия фотосинтеза протекает на мембранах тилакоидов.\n\n"
             "Темновая стадия происходит в строме хлоропласта.\n\n"
@@ -274,32 +274,17 @@ class TestMatchingFallbackConvertsThreePairsToNaturalShortAnswer:
         ]
         quiz = _make_quiz_with_matching_question(pairs)
         result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
-        assert result is not None
-        fallback_quiz, actions = result
-        fallback_q = fallback_quiz.questions[0]
-        assert fallback_q.question_type == "short_answer"
-        assert "сравните" not in fallback_q.prompt.casefold()
-        assert "Какие характеристики" in fallback_q.prompt or "Какие соответствия" in fallback_q.prompt
-        assert "Световая стадия" in fallback_q.correct_answer
-        assert "Темновая стадия" in fallback_q.correct_answer
-        assert actions[0].action == "converted_to_short_answer"
+        assert result is None
 
 
-class TestMatchingFallbackConvertsSinglePairToSpecificShortAnswer:
-    def test_single_grounded_pair_becomes_specific_question(self) -> None:
+    def test_single_grounded_pair_does_not_become_short_answer(self) -> None:
         source = "Световая стадия фотосинтеза — фотолиз воды и образование АТФ/НАДФН."
         pairs = [
             ("Световая стадия", "Фотолиз воды и образование АТФ/НАДФН"),
         ]
         quiz = _make_quiz_with_matching_question(pairs)
         result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
-        assert result is not None
-        fallback_quiz, actions = result
-        fallback_q = fallback_quiz.questions[0]
-        assert fallback_q.question_type == "short_answer"
-        assert "световая стадия" in fallback_q.prompt.casefold()
-        assert "Фотолиз воды" in fallback_q.correct_answer
-        assert actions[0].action == "single_pair_short_answer"
+        assert result is None
 
 
 class TestMatchingFallbackDoesNotUseCompareWord:
@@ -311,11 +296,7 @@ class TestMatchingFallbackDoesNotUseCompareWord:
         ]
         quiz = _make_quiz_with_matching_question(pairs)
         result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
-        assert result is not None
-        fallback_quiz, _actions = result
-        fallback_q = fallback_quiz.questions[0]
-        assert "сравните" not in fallback_q.prompt.casefold()
-        assert "сравнени" not in fallback_q.prompt.casefold()
+        assert result is None
 
     def test_english_prompt_no_compare(self) -> None:
         source = "Chlorophyll absorbs light. Chloroplasts contain chlorophyll."
@@ -330,10 +311,7 @@ class TestMatchingFallbackDoesNotUseCompareWord:
             quiz_types=("single_choice", "short_answer", "matching"),
         )
         result = fallback_invalid_matching_questions(quiz, request, source_text=source)
-        assert result is not None
-        fallback_quiz, _actions = result
-        fallback_q = fallback_quiz.questions[0]
-        assert "compare" not in fallback_q.prompt.casefold()
+        assert result is None
 
 
 class TestMatchingFallbackWithNoGroundedPairs:

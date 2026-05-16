@@ -30,6 +30,14 @@ _PLACEHOLDER_ANSWER_FRAGMENTS = (
     "ответ должен опираться только",
     "answer must use only relationships explicitly described",
 )
+_MATCHING_PROMPT_FRAGMENTS = (
+    "соответств",
+    "сопостав",
+    "match",
+    "relationships between",
+    "СЃРѕРѕС‚РІРµС‚СЃС‚РІ",
+    "СЃРѕРїРѕСЃС‚Р°РІ",
+)
 _BAD_SHORT_ANSWERS = frozenset({"листе", "лист", "тексте", "процесс", "вещество"})
 
 
@@ -311,6 +319,8 @@ def _is_methodically_bad_answer_question(question: Question) -> bool:
     prompt = question.prompt.strip().casefold()
     answer = (question.correct_answer or "").strip().casefold()
     if question.question_type == "fill_blank" and not any(blank in question.prompt for blank in ("____", "___", "…")):
+        return True
+    if question.question_type == "short_answer" and any(fragment in prompt for fragment in _MATCHING_PROMPT_FRAGMENTS):
         return True
     if "в какой органоиде" in prompt:
         return True

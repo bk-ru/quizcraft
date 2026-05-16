@@ -112,6 +112,32 @@ def test_display_recovery_replaces_placeholder_question() -> None:
     assert any(warning.code == "replaced_placeholder_question" for warning in warnings)
 
 
+def test_display_recovery_replaces_matching_prompt_in_short_answer() -> None:
+    matching_as_answer = Question(
+        question_id="q-fallback",
+        prompt="Какие соответствия между этими понятиями описаны в тексте: Устьица, Фотолиз воды?",
+        question_type="short_answer",
+        correct_answer=(
+            "Устьица — проводят углекислый газ в лист; "
+            "Фотолиз воды — расщепление молекул воды под действием света"
+        ),
+    )
+
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(matching_as_answer),
+        build_generation_request(question_count=1),
+        PHOTOSYNTHESIS_SOURCE,
+    )
+
+    validate_quiz(recovered)
+    question = recovered.questions[0]
+    assert question.question_id == "q-fallback"
+    assert question.question_type == "short_answer"
+    assert "соответствия" not in question.prompt.casefold()
+    assert "Устьица —" not in question.correct_answer
+    assert any(warning.code == "replaced_placeholder_question" for warning in warnings)
+
+
 def test_display_recovery_returns_structurally_valid_quiz_with_warnings() -> None:
     mixed_choice = replace(
         build_valid_choice(),

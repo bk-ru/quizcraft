@@ -15,7 +15,6 @@ from backend.app.domain.validation import MATCHING_SYMBOLIC_RIGHT_VALUES
 from backend.app.generation.matching_grounding import is_matching_pair_grounded
 from backend.app.generation.matching_grounding import MATCHING_GROUNDEDNESS_ERROR_MESSAGE
 from backend.app.generation.matching_grounding import normalize_grounding_text
-from backend.app.generation.question_types import allowed_question_types
 
 MIN_MATCHING_PAIRS = 4
 MATCHING_PAIR_VALIDATION_MESSAGE = "matching question must have at least four pairs"
@@ -203,10 +202,8 @@ def _apply_matching_fallback(
     *,
     normalized_source_text: str,
 ) -> tuple[Question, FallbackAction]:
-    """Multi-step fallback: clean matching → keep if 4+ pairs → convert otherwise."""
+    """Clean matching questions only when they remain valid matching questions."""
 
-    allowed_types = allowed_question_types(generation_request)
-    can_convert_to_short_answer = "short_answer" in allowed_types and allowed_types != ("matching",)
     original_pair_count = len(question.matching_pairs)
     cleaned_pairs = _clean_matching_pairs(question, normalized_source_text)
     grounded_count = len(cleaned_pairs)
@@ -229,44 +226,11 @@ def _apply_matching_fallback(
             final_question_type="matching",
         )
 
-    if not can_convert_to_short_answer:
-        return question, FallbackAction(
-            action="failed",
-            original_pair_count=original_pair_count,
-            grounded_pair_count=grounded_count,
-            removed_pair_count=removed_count,
-            final_question_type="matching",
-        )
-
-    if grounded_count >= 2:
-        converted = _matching_to_short_answer_multi_pair(
-            cleaned_pairs, generation_request
-        )
-        return converted, FallbackAction(
-            action="converted_to_short_answer",
-            original_pair_count=original_pair_count,
-            grounded_pair_count=grounded_count,
-            removed_pair_count=removed_count,
-            final_question_type="short_answer",
-        )
-
-    if grounded_count == 1:
-        converted = _matching_to_short_answer_single_pair(
-            cleaned_pairs[0], generation_request
-        )
-        return converted, FallbackAction(
-            action="single_pair_short_answer",
-            original_pair_count=original_pair_count,
-            grounded_pair_count=grounded_count,
-            removed_pair_count=removed_count,
-            final_question_type="short_answer",
-        )
-
     return question, FallbackAction(
         action="failed",
         original_pair_count=original_pair_count,
-        grounded_pair_count=0,
-        removed_pair_count=original_pair_count,
+        grounded_pair_count=grounded_count,
+        removed_pair_count=removed_count,
         final_question_type="matching",
     )
 

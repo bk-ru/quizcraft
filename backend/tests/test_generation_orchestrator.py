@@ -340,10 +340,11 @@ def test_direct_generation_orchestrator_uses_repair_prompt_after_quality_failure
     assert "\"questions\"" in provider.requests[1].user_prompt
 
 
-def test_direct_generation_matching_error_uses_fallback_before_repair(tmp_path) -> None:
+def test_direct_generation_matching_pair_count_error_replaces_without_matching_prompt(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_payload_with_matching_pair_count(2), response_id="resp-1"),
+            build_response(build_payload_with_matching_pair_count(2), response_id="resp-2"),
         ]
     )
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
@@ -351,14 +352,15 @@ def test_direct_generation_matching_error_uses_fallback_before_repair(tmp_path) 
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    assert len(provider.requests) == 1
-    assert result.prompt_version == "direct-v1"
+    assert len(provider.requests) == 2
     matching_question = result.quiz.questions[-1]
     assert matching_question.question_type == "short_answer"
     assert matching_question.matching_pairs == ()
+    assert "соответств" not in matching_question.prompt.casefold()
+    assert "СЃРѕРѕС‚РІРµС‚" not in matching_question.prompt
 
 
-def test_direct_generation_fallback_converts_invalid_matching_to_short_answer_after_failed_repair(tmp_path) -> None:
+def test_direct_generation_replaces_invalid_matching_after_failed_repair(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_payload_with_matching_pair_count(2), response_id="resp-1"),
@@ -371,11 +373,12 @@ def test_direct_generation_fallback_converts_invalid_matching_to_short_answer_af
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
     fallback_question = result.quiz.questions[-1]
-    assert result.prompt_version == "direct-v1"
+    assert result.prompt_version == "repair-v1"
     assert fallback_question.question_type == "short_answer"
     assert fallback_question.matching_pairs == ()
     assert fallback_question.correct_answer is not None
-    assert "Световая стадия" in fallback_question.correct_answer
+    assert "соответств" not in fallback_question.prompt.casefold()
+    assert "СЃРѕРѕС‚РІРµС‚" not in fallback_question.prompt
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
@@ -446,10 +449,11 @@ def test_direct_generation_uses_repair_before_fallback_for_ungrounded_matching(t
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
-def test_direct_generation_matching_with_options_uses_fallback_before_repair(tmp_path) -> None:
+def test_direct_generation_matching_with_options_replaces_without_matching_prompt(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_bad_photosynthesis_type_matching_payload(), response_id="resp-1"),
+            build_response(build_bad_photosynthesis_type_matching_payload(), response_id="resp-2"),
         ]
     )
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
@@ -457,10 +461,12 @@ def test_direct_generation_matching_with_options_uses_fallback_before_repair(tmp
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    assert len(provider.requests) == 1
+    assert len(provider.requests) == 2
     matching_question = result.quiz.questions[-1]
     assert matching_question.question_type == "short_answer"
     assert matching_question.matching_pairs == ()
+    assert "соответств" not in matching_question.prompt.casefold()
+    assert "СЃРѕРѕС‚РІРµС‚" not in matching_question.prompt
 
 
 def test_direct_generation_fallback_does_not_save_ungrounded_matching_after_failed_repair(tmp_path) -> None:
@@ -706,6 +712,7 @@ def test_matching_error_fallback_preserves_question_count(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(bad_payload, response_id="resp-1"),
+            build_response(bad_payload, response_id="resp-2"),
         ]
     )
     orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
@@ -717,6 +724,8 @@ def test_matching_error_fallback_preserves_question_count(tmp_path) -> None:
     matching_question = result.quiz.questions[-1]
     assert matching_question.question_type == "short_answer"
     assert matching_question.matching_pairs == ()
+    assert "соответств" not in matching_question.prompt.casefold()
+    assert "СЃРѕРѕС‚РІРµС‚" not in matching_question.prompt
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
@@ -774,11 +783,12 @@ def test_ungrounded_external_terms_still_rejected_or_fallbacked(tmp_path) -> Non
     assert "Хемосинтезирующие бактерии" not in serialized
 
 
-def test_matching_error_fallback_priority_no_llm_call(tmp_path) -> None:
+def test_matching_error_failed_repair_replaces_without_matching_prompt(tmp_path) -> None:
     bad_payload = build_bad_photosynthesis_type_matching_payload()
     provider = StubProvider(
         [
             build_response(bad_payload, response_id="resp-1"),
+            build_response(bad_payload, response_id="resp-2"),
         ]
     )
     orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
@@ -786,10 +796,12 @@ def test_matching_error_fallback_priority_no_llm_call(tmp_path) -> None:
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    assert len(provider.requests) == 1
-    assert result.prompt_version == "direct-v1"
+    assert len(provider.requests) == 2
+    assert result.prompt_version == "repair-v1"
     fallback_question = result.quiz.questions[-1]
     assert fallback_question.question_type == "short_answer"
+    assert "соответств" not in fallback_question.prompt.casefold()
+    assert "СЃРѕРѕС‚РІРµС‚" not in fallback_question.prompt
 
 
 def test_prompt_budget_guard_returns_partial_result_warning_when_repair_is_too_large(tmp_path) -> None:
