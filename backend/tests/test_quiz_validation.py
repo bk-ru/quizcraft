@@ -180,6 +180,125 @@ def test_validate_quiz_rejects_matching_with_fewer_than_four_pairs() -> None:
         validate_quiz(quiz)
 
 
+def test_validate_quiz_rejects_matching_with_options_and_symbolic_right_values() -> None:
+    quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Квиз",
+        version=1,
+        last_edited_at="2026-05-03T09:00:00Z",
+        questions=(
+            Question(
+                question_id="q-match",
+                prompt="Соотнесите тип фотосинтеза с группой организмов.",
+                question_type="matching",
+                options=(
+                    Option(option_id="A", text="Кислородный фотосинтез"),
+                    Option(option_id="B", text="Бескислородный фотосинтез"),
+                ),
+                matching_pairs=(
+                    MatchingPair(left="Высшие растения и водоросли", right="A"),
+                    MatchingPair(left="Некоторые бактерии", right="B"),
+                    MatchingPair(left="Цианобактерии", right="A"),
+                    MatchingPair(left="Хемосинтезирующие бактерии", right="B"),
+                ),
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="matching question must not include options"):
+        validate_quiz(quiz)
+
+
+def test_validate_quiz_rejects_matching_symbolic_right_values_without_options() -> None:
+    quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Квиз",
+        version=1,
+        last_edited_at="2026-05-03T09:00:00Z",
+        questions=(
+            Question(
+                question_id="q-match",
+                prompt="Соотнесите тип фотосинтеза с группой организмов.",
+                question_type="matching",
+                matching_pairs=(
+                    MatchingPair(left="Высшие растения и водоросли", right="A"),
+                    MatchingPair(left="Некоторые бактерии", right="B"),
+                    MatchingPair(left="Световая стадия", right="1"),
+                    MatchingPair(left="Темновая стадия", right="2"),
+                ),
+            ),
+        ),
+    )
+
+    with pytest.raises(DomainValidationError, match="full text"):
+        validate_quiz(quiz)
+
+
+def test_generation_quality_checker_rejects_ungrounded_matching_terms() -> None:
+    checker = GenerationQualityChecker()
+    source_text = (
+        "Кислородный фотосинтез характерен для высших растений и водорослей. "
+        "Бескислородный фотосинтез встречается у некоторых бактерий."
+    )
+    quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Квиз",
+        version=1,
+        last_edited_at="2026-05-03T09:00:00Z",
+        questions=(
+            Question(
+                question_id="q-match",
+                prompt="Соотнесите тип фотосинтеза с группой организмов.",
+                question_type="matching",
+                matching_pairs=(
+                    MatchingPair(left="Высшие растения и водоросли", right="Кислородный фотосинтез"),
+                    MatchingPair(left="Некоторые бактерии", right="Бескислородный фотосинтез"),
+                    MatchingPair(left="Цианобактерии", right="Кислородный фотосинтез"),
+                    MatchingPair(left="Хемосинтезирующие бактерии", right="Бескислородный фотосинтез"),
+                ),
+            ),
+        ),
+    )
+
+    with pytest.raises(GenerationQualityError, match="явно основаны на тексте"):
+        checker.ensure_quality(quiz, expected_question_count=1, source_text=source_text)
+
+
+def test_generation_quality_checker_accepts_grounded_matching_for_photosynthesis() -> None:
+    checker = GenerationQualityChecker()
+    source_text = (
+        "Световая стадия протекает на мембранах тилакоидов. "
+        "Темновая стадия происходит в строме хлоропласта. "
+        "Фотолиз воды приводит к образованию кислорода. "
+        "Цикл Кальвина превращает углекислый газ в углеводы."
+    )
+    quiz = Quiz(
+        quiz_id="quiz-ru",
+        document_id="doc-ru",
+        title="Квиз",
+        version=1,
+        last_edited_at="2026-05-03T09:00:00Z",
+        questions=(
+            Question(
+                question_id="q-match",
+                prompt="Соотнесите понятия фотосинтеза.",
+                question_type="matching",
+                matching_pairs=(
+                    MatchingPair(left="Световая стадия", right="протекает на мембранах тилакоидов"),
+                    MatchingPair(left="Темновая стадия", right="происходит в строме хлоропласта"),
+                    MatchingPair(left="Фотолиз воды", right="приводит к образованию кислорода"),
+                    MatchingPair(left="Цикл Кальвина", right="превращает углекислый газ в углеводы"),
+                ),
+            ),
+        ),
+    )
+
+    checker.ensure_quality(quiz, expected_question_count=1, source_text=source_text)
+
+
 def test_validate_quiz_rejects_blank_short_answer() -> None:
     quiz = replace(
         build_valid_quiz(),

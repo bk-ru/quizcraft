@@ -343,7 +343,13 @@ def _normalize_correct_option_index(raw_payload: dict[str, Any], field_name: str
     """Нормализовать поддерживаемые поля индекса ответа в нумерацию с нуля."""
 
     if "correct_option_number" in raw_payload:
-        return _normalize_integer(raw_payload.get("correct_option_number"), default=1, field_name=field_name) - 1
+        raw_value = raw_payload.get("correct_option_number")
+        if raw_value is None:
+            return None
+        return _normalize_integer(raw_value, default=1, field_name=field_name) - 1
     if "correct_option_index" in raw_payload:
-        return _normalize_integer(raw_payload.get("correct_option_index"), default=0, field_name=field_name)
+        raw_value = raw_payload.get("correct_option_index")
+        if raw_value is None:
+            return None
+        return _normalize_integer(raw_value, default=0, field_name=field_name)
     return None

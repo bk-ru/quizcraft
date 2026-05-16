@@ -79,6 +79,8 @@ def test_request_builder_renders_explicit_matching_rules_for_multi_type_generati
     assert "Never create a matching question with fewer than 4 pairs" in provider_request.user_prompt
     assert "Do not use only two stages as a matching question" in provider_request.user_prompt
     assert "term→definition" in provider_request.user_prompt
+    assert "Do not use options for matching questions" in provider_request.user_prompt
+    assert "Do not use symbolic answers like A/B/1/2" in provider_request.user_prompt
 
 
 def test_request_builder_rejects_unsupported_generation_mode() -> None:

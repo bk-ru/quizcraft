@@ -37,6 +37,8 @@ def test_prompt_registry_resolves_versioned_repair_prompt() -> None:
     assert "{invalid_json}" in prompt.user_template
     assert "{source_text}" in prompt.user_template
     assert "Never return a matching question with fewer than 4 matching_pairs" in prompt.user_template
+    assert "If a matching question uses options or A/B/1/2 values in matching_pairs.right" in prompt.user_template
+    assert "Never add external examples or outside knowledge" in prompt.user_template
 
 
 def test_prompt_registry_guides_matching_generation_without_short_text_claims() -> None:
@@ -44,6 +46,9 @@ def test_prompt_registry_guides_matching_generation_without_short_text_claims() 
 
     assert "Do not use only two stages as a matching question" in direct_prompt.user_template
     assert "term→definition" in direct_prompt.user_template
+    assert "Do not use options for matching questions" in direct_prompt.user_template
+    assert "Do not use symbolic answers like A/B/1/2" in direct_prompt.user_template
+    assert "Do not add terms that are absent from the document/context" in direct_prompt.user_template
     assert "not contain enough distinct concepts" not in direct_prompt.user_template
 
 

@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 CHOICE_QUESTION_TYPES = frozenset({"single_choice", "true_false"})
 ANSWER_QUESTION_TYPES = frozenset({"fill_blank", "short_answer"})
 SUPPORTED_QUESTION_TYPES = CHOICE_QUESTION_TYPES | ANSWER_QUESTION_TYPES | frozenset({"matching"})
+MATCHING_SYMBOLIC_RIGHT_VALUES = frozenset({"a", "b", "c", "d", "1", "2", "3", "4"})
 
 
 def validate_quiz(quiz: Quiz) -> None:
@@ -61,8 +62,16 @@ def validate_quiz(quiz: Quiz) -> None:
                 raise DomainValidationError("correct answer must not be empty")
 
         if question_type == "matching":
+            if question.options:
+                raise DomainValidationError("matching question must not include options")
+            if question.correct_option_index is not None:
+                raise DomainValidationError("matching question correct option index must be empty")
+            if question.correct_answer is not None:
+                raise DomainValidationError("matching question correct answer must be empty")
             if len(question.matching_pairs) < 4:
                 raise DomainValidationError("matching question must have at least four pairs")
             for pair in question.matching_pairs:
                 if not pair.left.strip() or not pair.right.strip():
                     raise DomainValidationError("matching pair values must not be empty")
+                if pair.right.strip().casefold() in MATCHING_SYMBOLIC_RIGHT_VALUES:
+                    raise DomainValidationError("matching pair right must contain full text, not an option id")

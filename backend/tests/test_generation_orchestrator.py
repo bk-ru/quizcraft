@@ -126,6 +126,25 @@ def build_photosynthesis_document() -> DocumentRecord:
     )
 
 
+def build_photosynthesis_types_document() -> DocumentRecord:
+    text = (
+        "Кислородный фотосинтез характерен для высших растений и водорослей. "
+        "Бескислородный фотосинтез встречается у некоторых бактерий. "
+        "Световая стадия протекает на мембранах тилакоидов. "
+        "Темновая стадия происходит в строме хлоропласта. "
+        "Фотолиз воды приводит к образованию кислорода. "
+        "Цикл Кальвина превращает углекислый газ в углеводы."
+    )
+    return DocumentRecord(
+        document_id="doc-1",
+        filename="photosynthesis-types.txt",
+        media_type="text/plain",
+        file_size_bytes=len(text.encode("utf-8")),
+        normalized_text=text,
+        metadata={"text_length": len(text)},
+    )
+
+
 def build_matching_pairs(count: int) -> list[dict[str, str]]:
     pairs = [
         {"left": "Световая стадия", "right": "Протекает на мембранах тилакоидов"},
@@ -134,6 +153,75 @@ def build_matching_pairs(count: int) -> list[dict[str, str]]:
         {"left": "Вода", "right": "Источник электронов и кислорода"},
     ]
     return pairs[:count]
+
+
+def build_bad_photosynthesis_type_matching_payload(*, question_count: int = 6) -> dict[str, object]:
+    payload = build_payload(question_count=question_count)
+    questions = list(payload["questions"])
+    questions[-1] = {
+        "question_id": "q-bad-matching",
+        "question_type": "matching",
+        "prompt": "Соотнесите тип фотосинтеза с группой организмов.",
+        "options": [
+            {"option_id": "A", "text": "Кислородный фотосинтез"},
+            {"option_id": "B", "text": "Бескислородный фотосинтез"},
+        ],
+        "correct_option_index": None,
+        "correct_answer": None,
+        "matching_pairs": [
+            {"left": "Высшие растения и водоросли", "right": "A"},
+            {"left": "Некоторые бактерии", "right": "B"},
+            {"left": "Цианобактерии (сине-зелёные водоросли)", "right": "A"},
+            {"left": "Хемосинтезирующие бактерии", "right": "B"},
+        ],
+        "explanation": {"text": "Типы фотосинтеза сопоставлены с организмами."},
+    }
+    payload["questions"] = questions
+    return payload
+
+
+def build_grounded_photosynthesis_matching_payload(*, question_count: int = 6) -> dict[str, object]:
+    payload = build_payload(question_count=question_count)
+    questions = list(payload["questions"])
+    questions[-1] = {
+        "question_id": "q-good-matching",
+        "question_type": "matching",
+        "prompt": "Соотнесите понятия фотосинтеза с описаниями из текста.",
+        "options": [],
+        "correct_option_index": None,
+        "correct_answer": None,
+        "matching_pairs": [
+            {"left": "Световая стадия", "right": "протекает на мембранах тилакоидов"},
+            {"left": "Темновая стадия", "right": "происходит в строме хлоропласта"},
+            {"left": "Фотолиз воды", "right": "приводит к образованию кислорода"},
+            {"left": "Цикл Кальвина", "right": "превращает углекислый газ в углеводы"},
+        ],
+        "explanation": {"text": "Все пары явно указаны в тексте."},
+    }
+    payload["questions"] = questions
+    return payload
+
+
+def build_ungrounded_full_text_matching_payload(*, question_count: int = 1) -> dict[str, object]:
+    payload = build_payload(question_count=question_count)
+    questions = list(payload["questions"])
+    questions[-1] = {
+        "question_id": "q-ungrounded-matching",
+        "question_type": "matching",
+        "prompt": "Соотнесите тип фотосинтеза с группой организмов.",
+        "options": [],
+        "correct_option_index": None,
+        "correct_answer": None,
+        "matching_pairs": [
+            {"left": "Высшие растения и водоросли", "right": "Кислородный фотосинтез"},
+            {"left": "Некоторые бактерии", "right": "Бескислородный фотосинтез"},
+            {"left": "Цианобактерии", "right": "Кислородный фотосинтез"},
+            {"left": "Хемосинтезирующие бактерии", "right": "Бескислородный фотосинтез"},
+        ],
+        "explanation": {"text": "Типы фотосинтеза сопоставлены с организмами."},
+    }
+    payload["questions"] = questions
+    return payload
 
 
 def build_payload_with_matching_pair_count(pair_count: int, *, question_count: int = 6) -> dict[str, object]:
@@ -310,6 +398,75 @@ def test_direct_generation_matching_only_failure_message_is_specific_after_faile
 
     assert "модель вернула 2 пары, нужно минимум 4" in error_info.value.message
     assert "недостаточно информации" not in error_info.value.message
+
+
+def test_direct_generation_matching_only_ungrounded_failure_message_is_specific(tmp_path) -> None:
+    invalid_payload = build_ungrounded_full_text_matching_payload()
+    provider = StubProvider(
+        [
+            build_response(invalid_payload, response_id="resp-1"),
+            build_response(dict(invalid_payload), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    with pytest.raises(GenerationQualityError) as error_info:
+        orchestrator.generate("doc-1", build_matching_only_generation_request())
+
+    assert (
+        error_info.value.message
+        == "Вопрос на соответствие не прошёл проверку: пары должны быть явно основаны на тексте документа."
+    )
+
+
+def test_direct_generation_repairs_matching_with_options_and_ungrounded_terms(tmp_path) -> None:
+    provider = StubProvider(
+        [
+            build_response(build_bad_photosynthesis_type_matching_payload(), response_id="resp-1"),
+            build_response(build_grounded_photosynthesis_matching_payload(), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    repair_prompt = provider.requests[1].user_prompt
+    matching_question = result.quiz.questions[-1]
+    serialized = str(result.quiz.to_dict())
+    assert "Source document/context:" in repair_prompt
+    assert "Кислородный фотосинтез характерен для высших растений" in repair_prompt
+    assert "If a matching question uses options or A/B/1/2 values" in repair_prompt
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
+    assert len(matching_question.matching_pairs) == 4
+    assert all(pair.right not in {"A", "B", "1", "2"} for pair in matching_question.matching_pairs)
+    assert "Цианобактерии" not in serialized
+    assert "Хемосинтезирующие бактерии" not in serialized
+
+
+def test_direct_generation_fallback_does_not_save_ungrounded_matching_after_failed_repair(tmp_path) -> None:
+    bad_payload = build_bad_photosynthesis_type_matching_payload()
+    provider = StubProvider(
+        [
+            build_response(bad_payload, response_id="resp-1"),
+            build_response(dict(bad_payload), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    fallback_question = result.quiz.questions[-1]
+    serialized = str(result.quiz.to_dict())
+    assert fallback_question.question_type == "short_answer"
+    assert fallback_question.matching_pairs == ()
+    assert "Установите соответствие" not in fallback_question.prompt
+    assert "Цианобактерии" not in serialized
+    assert "Хемосинтезирующие бактерии" not in serialized
+    assert result_repository.get(result.quiz.quiz_id) == result
 
 
 def test_direct_generation_orchestrator_raises_after_repair_is_exhausted(tmp_path) -> None:
