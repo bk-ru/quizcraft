@@ -150,3 +150,7 @@ def test_quiz_json_schema_exposes_expected_structure() -> None:
     assert question_schema["properties"]["correct_option_index"]["oneOf"][1]["type"] == "integer"
     assert question_schema["properties"]["correct_answer"]["oneOf"][1]["type"] == "string"
     assert question_schema["properties"]["matching_pairs"]["type"] == "array"
+    assert question_schema["properties"]["matching_pairs"]["minItems"] == 4
+    matching_pair_schema = question_schema["properties"]["matching_pairs"]["items"]
+    assert matching_pair_schema["properties"]["left"]["minLength"] == 1
+    assert matching_pair_schema["properties"]["right"]["minLength"] == 1

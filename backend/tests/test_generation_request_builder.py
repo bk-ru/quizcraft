@@ -31,6 +31,17 @@ def build_generation_request() -> GenerationRequest:
     )
 
 
+def build_multi_type_generation_request() -> GenerationRequest:
+    return GenerationRequest(
+        question_count=6,
+        language="ru",
+        difficulty="medium",
+        quiz_type="single_choice",
+        generation_mode=GenerationMode.DIRECT,
+        quiz_types=("single_choice", "true_false", "fill_blank", "short_answer", "matching"),
+    )
+
+
 def test_request_builder_creates_structured_provider_request_for_direct_mode() -> None:
     builder = DirectGenerationRequestBuilder(prompt_registry=PromptRegistry)
 
@@ -54,6 +65,20 @@ def test_request_builder_creates_structured_provider_request_for_direct_mode() -
     assert "Every question MUST use question_type=single_choice" in provider_request.user_prompt
     assert "provide exactly four options" in provider_request.user_prompt
     assert "correct_option_index to the zero-based index" in provider_request.user_prompt
+
+
+def test_request_builder_renders_explicit_matching_rules_for_multi_type_generation() -> None:
+    builder = DirectGenerationRequestBuilder(prompt_registry=PromptRegistry)
+
+    provider_request = builder.build(
+        document=build_document(),
+        generation_request=build_multi_type_generation_request(),
+    )
+
+    assert "4 or more pairs" in provider_request.user_prompt
+    assert "Never create a matching question with fewer than 4 pairs" in provider_request.user_prompt
+    assert "Do not use only two stages as a matching question" in provider_request.user_prompt
+    assert "term→definition" in provider_request.user_prompt
 
 
 def test_request_builder_rejects_unsupported_generation_mode() -> None:

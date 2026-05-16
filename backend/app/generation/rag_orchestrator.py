@@ -28,6 +28,10 @@ from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.context import assemble_context
 from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
 from backend.app.generation.diagnostics import summarize_structured_generation_request
+from backend.app.generation.matching_fallback import build_matching_pair_count_error
+from backend.app.generation.matching_fallback import fallback_invalid_matching_questions
+from backend.app.generation.matching_fallback import is_matching_pair_count_error
+from backend.app.generation.matching_fallback import prepare_repair_source_text
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.quality import enrich_generation_error
@@ -158,6 +162,7 @@ class RagGenerationOrchestrator:
                 _,
                 provider_request_summary,
                 rag_metadata,
+                repair_source_text,
             ) = self._run_pipeline_step(
                 step=GenerationPipelineStep.GENERATE,
                 document_id=document.document_id,
@@ -186,6 +191,7 @@ class RagGenerationOrchestrator:
             rag_prompt_version=rag_prompt_version,
             provider_request_summary=provider_request_summary,
             rag_metadata=rag_metadata,
+            repair_source_text=repair_source_text,
         )
         self._log_diagnostic_success(
             document=document,
@@ -361,6 +367,7 @@ class RagGenerationOrchestrator:
             len(scored),
             summarize_structured_generation_request(provider_request),
             rag_metadata,
+            context,
         )
 
     def _load_or_embed_chunks(
@@ -422,6 +429,7 @@ class RagGenerationOrchestrator:
         rag_prompt_version: str,
         provider_request_summary: dict[str, Any],
         rag_metadata: dict[str, Any],
+        repair_source_text: str,
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
         """Нормализовать и проверить RAG-ответ, затем при необходимости попробовать repair."""
 
@@ -443,6 +451,7 @@ class RagGenerationOrchestrator:
                 initial_prompt_version=rag_prompt_version,
                 initial_provider_request_summary=provider_request_summary,
                 rag_metadata=rag_metadata,
+                repair_source_text=repair_source_text,
             )
         return quiz, response, rag_prompt_version, provider_request_summary
 
@@ -529,6 +538,7 @@ class RagGenerationOrchestrator:
         initial_prompt_version: str,
         initial_provider_request_summary: dict[str, Any],
         rag_metadata: dict[str, Any],
+        repair_source_text: str,
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]]:
         """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
@@ -562,6 +572,7 @@ class RagGenerationOrchestrator:
                     current_response,
                     current_error,
                     generation_request,
+                    source_text=repair_source_text,
                 )
                 current_provider_request_summary = summarize_structured_generation_request(repair_request)
                 current_response = self._provider.generate_structured(repair_request)
@@ -610,11 +621,57 @@ class RagGenerationOrchestrator:
             )
             return repaired_quiz, current_response, repair_prompt.version, current_provider_request_summary
 
+        fallback_result = self._try_matching_fallback(
+            document=document,
+            generation_request=generation_request,
+            response=current_response,
+            prompt_version=current_prompt_version,
+            provider_request_summary=current_provider_request_summary,
+        )
+        if fallback_result is not None:
+            return fallback_result
+
+        if is_matching_pair_count_error(current_error) and isinstance(current_response.content, dict):
+            raise build_matching_pair_count_error(current_response.content)
         raise enrich_generation_error(
             current_error,
             len(document.normalized_text),
             requested_question_count=generation_request.question_count,
         )
+
+    def _try_matching_fallback(
+        self,
+        *,
+        document: DocumentRecord,
+        generation_request: GenerationRequest,
+        response: StructuredGenerationResponse,
+        prompt_version: str,
+        provider_request_summary: dict[str, Any],
+    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]] | None:
+        if not isinstance(response.content, dict):
+            return None
+        try:
+            quiz = replace(
+                self._normalizer(response.content),
+                quiz_id=f"quiz-{uuid4().hex}",
+                document_id=document.document_id,
+            )
+        except DomainValidationError:
+            return None
+        fallback_quiz = fallback_invalid_matching_questions(quiz, generation_request)
+        if fallback_quiz is None:
+            return None
+        fallback_quiz = fit_generated_question_count(fallback_quiz, generation_request.question_count)
+        fallback_quiz = replace(
+            fallback_quiz,
+            title=resolve_readable_quiz_title(
+                fallback_quiz.title,
+                document.filename,
+                len(fallback_quiz.questions),
+            ),
+        )
+        self._quality_checker.ensure_quality(fallback_quiz, generation_request.question_count)
+        return fallback_quiz, response, prompt_version, provider_request_summary
 
     def _log_diagnostic_success(
         self,
@@ -794,6 +851,8 @@ class RagGenerationOrchestrator:
         response: StructuredGenerationResponse,
         validation_error: DomainValidationError,
         generation_request: GenerationRequest,
+        *,
+        source_text: str,
     ) -> StructuredGenerationRequest:
         """Сформировать repair-запрос к провайдеру из некорректного структурированного вывода."""
 
@@ -808,6 +867,7 @@ class RagGenerationOrchestrator:
                 quiz_type=generation_request.quiz_type,
                 question_type_policy=render_question_type_policy(generation_request),
                 question_type_rules=render_question_type_rules(generation_request),
+                source_text=prepare_repair_source_text(source_text),
                 invalid_json=invalid_json,
             ),
             schema_name=repair_prompt.schema_name,

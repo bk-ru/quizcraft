@@ -20,7 +20,13 @@ QUESTION_TYPE_RULES = {
         "short_answer: set question_type to short_answer, omit options, and provide a non-empty correct_answer."
     ),
     "matching": (
-        "matching: set question_type to matching and provide at least four matching_pairs with left and right text."
+        "matching: set question_type to matching and provide at least four matching_pairs.\n"
+        "  A valid matching question MUST contain 4 or more pairs.\n"
+        "  Each pair must be based on an explicit relationship from the document.\n"
+        "  Good relationship types: term→definition, stage→location, process→result, factor→effect, "
+        "substance→role, organoid→function.\n"
+        "  Never create a matching question with fewer than 4 pairs.\n"
+        "  If you cannot create 4 pairs, do not create a matching question; use another allowed question type."
     ),
 }
 

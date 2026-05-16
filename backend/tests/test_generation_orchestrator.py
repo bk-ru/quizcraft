@@ -61,6 +61,28 @@ def build_generation_request(question_count: int = 2) -> GenerationRequest:
     )
 
 
+def build_multi_type_generation_request(question_count: int = 6) -> GenerationRequest:
+    return GenerationRequest(
+        question_count=question_count,
+        language="ru",
+        difficulty="medium",
+        quiz_type="single_choice",
+        generation_mode=GenerationMode.DIRECT,
+        quiz_types=("single_choice", "true_false", "fill_blank", "short_answer", "matching"),
+    )
+
+
+def build_matching_only_generation_request(question_count: int = 1) -> GenerationRequest:
+    return GenerationRequest(
+        question_count=question_count,
+        language="ru",
+        difficulty="medium",
+        quiz_type="matching",
+        generation_mode=GenerationMode.DIRECT,
+        quiz_types=("matching",),
+    )
+
+
 def build_payload(question_count: int = 2) -> dict[str, object]:
     questions = [
         {
@@ -83,6 +105,52 @@ def build_payload(question_count: int = 2) -> dict[str, object]:
         "last_edited_at": "2026-04-18T12:00:00Z",
         "questions": questions,
     }
+
+
+def build_photosynthesis_document() -> DocumentRecord:
+    text = (
+        "Фотосинтез происходит в хлоропластах растений. Хлорофилл поглощает световую энергию. "
+        "Световая стадия протекает на мембранах тилакоидов и требует света. "
+        "Темновая стадия, или цикл Кальвина, происходит в строме хлоропласта и использует АТФ и НАДФН. "
+        "Вода служит источником электронов и выделяет кислород. "
+        "Углекислый газ используется для синтеза глюкозы. "
+        "АТФ запасает энергию, а НАДФН переносит восстановительные эквиваленты."
+    )
+    return DocumentRecord(
+        document_id="doc-1",
+        filename="photosynthesis.txt",
+        media_type="text/plain",
+        file_size_bytes=len(text.encode("utf-8")),
+        normalized_text=text,
+        metadata={"text_length": len(text)},
+    )
+
+
+def build_matching_pairs(count: int) -> list[dict[str, str]]:
+    pairs = [
+        {"left": "Световая стадия", "right": "Протекает на мембранах тилакоидов"},
+        {"left": "Темновая стадия", "right": "Использует АТФ и НАДФН"},
+        {"left": "Хлорофилл", "right": "Поглощает световую энергию"},
+        {"left": "Вода", "right": "Источник электронов и кислорода"},
+    ]
+    return pairs[:count]
+
+
+def build_payload_with_matching_pair_count(pair_count: int, *, question_count: int = 6) -> dict[str, object]:
+    payload = build_payload(question_count=question_count)
+    questions = list(payload["questions"])
+    questions[-1] = {
+        "question_id": "q-matching",
+        "question_type": "matching",
+        "prompt": "Установите соответствие между объектами фотосинтеза и их ролью.",
+        "options": [],
+        "correct_option_index": None,
+        "correct_answer": None,
+        "matching_pairs": build_matching_pairs(pair_count),
+        "explanation": {"text": "Соответствия взяты из описания фотосинтеза."},
+    }
+    payload["questions"] = questions
+    return payload
 
 
 def build_response(
@@ -180,6 +248,68 @@ def test_direct_generation_orchestrator_uses_repair_prompt_after_quality_failure
     assert "Allowed question type: single_choice" in provider.requests[1].user_prompt
     assert "Every question MUST use question_type=single_choice" in provider.requests[1].user_prompt
     assert "\"questions\"" in provider.requests[1].user_prompt
+
+
+def test_direct_generation_repair_receives_source_text_and_fixes_matching_pairs(tmp_path) -> None:
+    provider = StubProvider(
+        [
+            build_response(build_payload_with_matching_pair_count(2), response_id="resp-1"),
+            build_response(build_payload_with_matching_pair_count(4), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    repair_prompt = provider.requests[1].user_prompt
+    matching_question = result.quiz.questions[-1]
+    assert result.prompt_version == "repair-v1"
+    assert len(provider.requests) == 2
+    assert "Source document/context:" in repair_prompt
+    assert "Хлорофилл поглощает световую энергию" in repair_prompt
+    assert "Never return a matching question with fewer than 4 matching_pairs" in repair_prompt
+    assert matching_question.question_type == "matching"
+    assert len(matching_question.matching_pairs) == 4
+
+
+def test_direct_generation_fallback_converts_invalid_matching_to_short_answer_after_failed_repair(tmp_path) -> None:
+    provider = StubProvider(
+        [
+            build_response(build_payload_with_matching_pair_count(2), response_id="resp-1"),
+            build_response(build_payload_with_matching_pair_count(2), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    fallback_question = result.quiz.questions[-1]
+    assert result.prompt_version == "repair-v1"
+    assert fallback_question.question_type == "short_answer"
+    assert fallback_question.matching_pairs == ()
+    assert fallback_question.correct_answer is not None
+    assert "Световая стадия" in fallback_question.correct_answer
+    assert result_repository.get(result.quiz.quiz_id) == result
+
+
+def test_direct_generation_matching_only_failure_message_is_specific_after_failed_repair(tmp_path) -> None:
+    invalid_payload = build_payload_with_matching_pair_count(2, question_count=1)
+    provider = StubProvider(
+        [
+            build_response(invalid_payload, response_id="resp-1"),
+            build_response(dict(invalid_payload), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, _ = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_document())
+
+    with pytest.raises(GenerationQualityError) as error_info:
+        orchestrator.generate("doc-1", build_matching_only_generation_request())
+
+    assert "модель вернула 2 пары, нужно минимум 4" in error_info.value.message
+    assert "недостаточно информации" not in error_info.value.message
 
 
 def test_direct_generation_orchestrator_raises_after_repair_is_exhausted(tmp_path) -> None:

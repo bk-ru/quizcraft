@@ -62,12 +62,13 @@ QUIZ_JSON_SCHEMA = {
                     },
                     "matching_pairs": {
                         "type": "array",
+                        "minItems": 4,
                         "items": {
                             "type": "object",
                             "required": ["left", "right"],
                             "properties": {
-                                "left": {"type": "string"},
-                                "right": {"type": "string"},
+                                "left": {"type": "string", "minLength": 1},
+                                "right": {"type": "string", "minLength": 1},
                             },
                         },
                     },

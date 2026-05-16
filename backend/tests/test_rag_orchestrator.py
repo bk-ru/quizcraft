@@ -434,6 +434,10 @@ def test_rag_orchestrator_uses_repair_prompt_after_quality_failure(tmp_path) -> 
     assert "Repair" in provider.structured_requests[1].user_prompt or "repair" in provider.structured_requests[1].user_prompt.lower()
     assert "Original generation settings" in provider.structured_requests[1].user_prompt
     assert "Allowed question type: single_choice" in provider.structured_requests[1].user_prompt
+    assert "Source document/context:" in provider.structured_requests[1].user_prompt
+    source_block = provider.structured_requests[1].user_prompt.split("Source document/context:\n", 1)[1]
+    source_block = source_block.split("\nInvalid JSON:", 1)[0]
+    assert source_block.strip()
 
 
 def test_rag_orchestrator_raises_after_repair_is_exhausted(tmp_path) -> None:

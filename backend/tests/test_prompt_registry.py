@@ -35,6 +35,16 @@ def test_prompt_registry_resolves_versioned_repair_prompt() -> None:
     assert "repair" in prompt.system_template.casefold()
     assert "{validation_error}" in prompt.user_template
     assert "{invalid_json}" in prompt.user_template
+    assert "{source_text}" in prompt.user_template
+    assert "Never return a matching question with fewer than 4 matching_pairs" in prompt.user_template
+
+
+def test_prompt_registry_guides_matching_generation_without_short_text_claims() -> None:
+    direct_prompt = PromptRegistry.resolve(DIRECT_GENERATION_PROMPT_KEY)
+
+    assert "Do not use only two stages as a matching question" in direct_prompt.user_template
+    assert "term→definition" in direct_prompt.user_template
+    assert "not contain enough distinct concepts" not in direct_prompt.user_template
 
 
 def test_prompt_registry_resolves_versioned_single_question_regeneration_prompt() -> None:

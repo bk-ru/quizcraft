@@ -34,6 +34,9 @@ def test_rag_prompt_user_template_references_retrieved_context_and_request_field
     assert "{quiz_type}" in prompt.user_template
     assert "{document_id}" in prompt.user_template
     assert "{document_text}" not in prompt.user_template
+    assert "Do not use only two stages as a matching question" in prompt.user_template
+    assert "term→definition" in prompt.user_template
+    assert "not contain enough distinct concepts" not in prompt.user_template
 
 
 def test_rag_prompt_user_template_renders_cyrillic_context() -> None:

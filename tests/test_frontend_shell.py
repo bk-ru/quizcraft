@@ -672,6 +672,9 @@ def test_frontend_app_translates_common_pydantic_and_domain_messages() -> None:
             f"Russian translation for common validation message is missing: {russian_fragment}"
         )
 
+    assert "Модель не смогла корректно оформить вопрос на соответствие" in content
+    assert "недостаточно информации в тексте" not in content
+
 
 def test_frontend_app_routes_422_through_russian_mapper_in_editor_save() -> None:
     content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
