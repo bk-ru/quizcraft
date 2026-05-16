@@ -248,7 +248,13 @@ def _format_repair_message(status: str, metadata: dict[str, Any]) -> str:
         return f"Исправляем ответ модели{attempt_label}."
     if status == "done":
         if phase == "matching_fallback_success":
-            return "Fallback: вопрос на соответствие заменён на открытый вопрос."
+            fallback_action = metadata.get("fallback_action", "")
+            if fallback_action == "cleaned_matching":
+                removed = metadata.get("removed_pair_count", 0)
+                return f"Вопрос на соответствие очищен: удалены неподтверждённые пары ({removed})."
+            if fallback_action in ("converted_to_short_answer", "single_pair_short_answer"):
+                return "Вопрос на соответствие заменён на короткий ответ: осталось недостаточно подтверждённых пар."
+            return "Fallback: вопрос на соответствие обработан."
         return f"Ответ модели исправлен{attempt_label}."
     if status == "failed":
         reason = metadata.get("reason", "")

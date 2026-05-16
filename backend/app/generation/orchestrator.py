@@ -26,6 +26,7 @@ from backend.app.generation.diagnostics import summarize_structured_generation_r
 from backend.app.generation.matching_fallback import build_matching_pair_count_error
 from backend.app.generation.matching_fallback import build_repair_source_excerpt
 from backend.app.generation.matching_fallback import estimate_repair_prompt_chars
+from backend.app.generation.matching_fallback import FallbackAction
 from backend.app.generation.matching_fallback import fallback_invalid_matching_questions
 from backend.app.generation.matching_fallback import is_matching_error
 from backend.app.generation.matching_fallback import is_matching_pair_count_error
@@ -395,15 +396,24 @@ class DirectGenerationOrchestrator:
                 provider_request_summary=original_provider_request_summary,
             )
             if fallback_result is not None:
+                fallback_actions = fallback_result[4]
+                primary_action = fallback_actions[0] if fallback_actions else None
+                fallback_meta: dict[str, Any] = {"phase": "matching_fallback_success"}
+                if primary_action is not None:
+                    fallback_meta["fallback_action"] = primary_action.action
+                    fallback_meta["original_pair_count"] = primary_action.original_pair_count
+                    fallback_meta["grounded_pair_count"] = primary_action.grounded_pair_count
+                    fallback_meta["removed_pair_count"] = primary_action.removed_pair_count
+                    fallback_meta["final_question_type"] = primary_action.final_question_type
                 self._log_pipeline_step(
                     status=GenerationRunStatus.DONE,
                     step=GenerationPipelineStep.REPAIR,
                     document_id=document.document_id,
                     generation_request=generation_request,
                     quiz_id=fallback_result[0].quiz_id,
-                    metadata={"phase": "matching_fallback_success"},
+                    metadata=fallback_meta,
                 )
-                return fallback_result
+                return fallback_result[:4]
 
         repair_prompt = self._prompt_registry.resolve(REPAIR_GENERATION_PROMPT_KEY)
         current_response = response
@@ -546,7 +556,7 @@ class DirectGenerationOrchestrator:
             provider_request_summary=original_provider_request_summary,
         )
         if fallback_result is not None:
-            return fallback_result
+            return fallback_result[:4]
 
         if is_matching_pair_count_error(current_error) and isinstance(current_response.content, dict):
             raise build_matching_pair_count_error(current_response.content)
@@ -564,7 +574,7 @@ class DirectGenerationOrchestrator:
         response: StructuredGenerationResponse,
         prompt_version: str,
         provider_request_summary: dict[str, Any],
-    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any]] | None:
+    ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any], tuple[FallbackAction, ...]] | None:
         if not isinstance(response.content, dict):
             return None
         try:
@@ -575,13 +585,14 @@ class DirectGenerationOrchestrator:
             )
         except DomainValidationError:
             return None
-        fallback_quiz = fallback_invalid_matching_questions(
+        fallback_result = fallback_invalid_matching_questions(
             quiz,
             generation_request,
             source_text=document.normalized_text,
         )
-        if fallback_quiz is None:
+        if fallback_result is None:
             return None
+        fallback_quiz, fallback_actions = fallback_result
         fallback_quiz = fit_generated_question_count(fallback_quiz, generation_request.question_count)
         fallback_quiz = replace(
             fallback_quiz,
@@ -601,6 +612,7 @@ class DirectGenerationOrchestrator:
             response,
             prompt_version,
             provider_request_summary,
+            fallback_actions,
         )
 
     def _log_diagnostic_success(

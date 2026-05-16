@@ -1,15 +1,22 @@
-"""Regression tests for LM Studio context overflow fix."""
+"""Regression tests for LM Studio context overflow fix and matching fallback strategy."""
 
 from __future__ import annotations
 
+from backend.app.domain.errors import DomainValidationError
+from backend.app.domain.models import GenerationRequest
+from backend.app.domain.models import MatchingPair
+from backend.app.domain.models import Option
+from backend.app.domain.models import Question
+from backend.app.domain.models import Quiz
+from backend.app.core.modes import GenerationMode
 from backend.app.generation.matching_fallback import (
     REPAIR_SOURCE_TEXT_MAX_CHARS,
     build_repair_source_excerpt,
     estimate_repair_prompt_chars,
+    fallback_invalid_matching_questions,
     is_matching_error,
     _extract_matching_terms,
 )
-from backend.app.domain.errors import DomainValidationError
 from backend.app.llm.lm_studio import _is_context_overflow_error
 
 
@@ -179,3 +186,185 @@ class TestEstimateRepairPromptChars:
 class TestRepairSourceTextMaxChars:
     def test_max_chars_reduced(self) -> None:
         assert REPAIR_SOURCE_TEXT_MAX_CHARS == 2_500
+
+
+def _make_quiz_with_matching_question(
+    pairs: list[tuple[str, str]],
+    *,
+    options: tuple[Option, ...] = (),
+    correct_option_index: int | None = None,
+    correct_answer: str | None = None,
+) -> Quiz:
+    matching_pairs = tuple(MatchingPair(left=left, right=right) for left, right in pairs)
+    question = Question(
+        question_id="q-match",
+        prompt="Соотнесите понятия",
+        options=options,
+        correct_option_index=correct_option_index,
+        explanation=None,
+        question_type="matching",
+        correct_answer=correct_answer,
+        matching_pairs=matching_pairs,
+    )
+    return Quiz(
+        quiz_id="quiz-test",
+        document_id="doc-test",
+        title="Test Quiz",
+        version=1,
+        last_edited_at="2024-01-01T00:00:00Z",
+        questions=(question,),
+    )
+
+
+def _multi_type_request() -> GenerationRequest:
+    return GenerationRequest(
+        question_count=1,
+        language="ru",
+        difficulty="medium",
+        quiz_type="matching",
+        generation_mode=GenerationMode.DIRECT,
+        quiz_types=("single_choice", "short_answer", "matching"),
+    )
+
+
+class TestMatchingFallbackKeepsMatchingWhenFourGroundedPairsRemain:
+    def test_removes_one_ungrounded_keeps_matching(self) -> None:
+        source = (
+            "Фотосинтез — процесс преобразования энергии.\n\n"
+            "Световая стадия протекает на мембранах тилакоидов.\n\n"
+            "Темновая стадия происходит в строме хлоропласта.\n\n"
+            "Хлорофилл поглощает свет.\n\n"
+            "Фотолиз воды расщепляет молекулы воды."
+        )
+        pairs = [
+            ("Световая стадия", "протекает на мембранах тилакоидов"),
+            ("Темновая стадия", "происходит в строме хлоропласта"),
+            ("Хлорофилл", "поглощает свет"),
+            ("Фотолиз воды", "расщепляет молекулы воды"),
+            ("Цианобактерии", "фотосинтезируют без хлоропластов"),
+        ]
+        quiz = _make_quiz_with_matching_question(pairs)
+        result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
+        assert result is not None
+        fallback_quiz, actions = result
+        fallback_q = fallback_quiz.questions[0]
+        assert fallback_q.question_type == "matching"
+        assert len(fallback_q.matching_pairs) == 4
+        assert fallback_q.options == ()
+        assert fallback_q.correct_option_index is None
+        assert fallback_q.correct_answer is None
+        assert actions[0].action == "cleaned_matching"
+        assert actions[0].original_pair_count == 5
+        assert actions[0].grounded_pair_count == 4
+        assert actions[0].removed_pair_count == 1
+        assert actions[0].final_question_type == "matching"
+
+
+class TestMatchingFallbackConvertsThreePairsToNaturalShortAnswer:
+    def test_three_grounded_pairs_become_short_answer(self) -> None:
+        source = (
+            "Световая стадия фотосинтеза протекает на мембранах тилакоидов.\n\n"
+            "Темновая стадия происходит в строме хлоропласта.\n\n"
+            "Фотосинтез высших растений сопровождается выделением кислорода."
+        )
+        pairs = [
+            ("Световая стадия фотосинтеза", "протекает на мембранах тилакоидов"),
+            ("Темновая стадия", "происходит в строме хлоропласта"),
+            ("Фотосинтез высших растений", "сопровождается выделением кислорода"),
+        ]
+        quiz = _make_quiz_with_matching_question(pairs)
+        result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
+        assert result is not None
+        fallback_quiz, actions = result
+        fallback_q = fallback_quiz.questions[0]
+        assert fallback_q.question_type == "short_answer"
+        assert "сравните" not in fallback_q.prompt.casefold()
+        assert "Какие характеристики" in fallback_q.prompt or "Какие соответствия" in fallback_q.prompt
+        assert "Световая стадия" in fallback_q.correct_answer
+        assert "Темновая стадия" in fallback_q.correct_answer
+        assert actions[0].action == "converted_to_short_answer"
+
+
+class TestMatchingFallbackConvertsSinglePairToSpecificShortAnswer:
+    def test_single_grounded_pair_becomes_specific_question(self) -> None:
+        source = "Световая стадия фотосинтеза — фотолиз воды и образование АТФ/НАДФН."
+        pairs = [
+            ("Световая стадия", "Фотолиз воды и образование АТФ/НАДФН"),
+        ]
+        quiz = _make_quiz_with_matching_question(pairs)
+        result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
+        assert result is not None
+        fallback_quiz, actions = result
+        fallback_q = fallback_quiz.questions[0]
+        assert fallback_q.question_type == "short_answer"
+        assert "световая стадия" in fallback_q.prompt.casefold()
+        assert "Фотолиз воды" in fallback_q.correct_answer
+        assert actions[0].action == "single_pair_short_answer"
+
+
+class TestMatchingFallbackDoesNotUseCompareWord:
+    def test_russian_prompt_no_compare(self) -> None:
+        source = "Хлорофилл поглощает свет.\n\nХлоропласты содержат хлорофилл."
+        pairs = [
+            ("Хлорофилл", "поглощает свет"),
+            ("Хлоропласты", "содержат хлорофилл"),
+        ]
+        quiz = _make_quiz_with_matching_question(pairs)
+        result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
+        assert result is not None
+        fallback_quiz, _actions = result
+        fallback_q = fallback_quiz.questions[0]
+        assert "сравните" not in fallback_q.prompt.casefold()
+        assert "сравнени" not in fallback_q.prompt.casefold()
+
+    def test_english_prompt_no_compare(self) -> None:
+        source = "Chlorophyll absorbs light. Chloroplasts contain chlorophyll."
+        pairs = [
+            ("Chlorophyll", "absorbs light"),
+            ("Chloroplasts", "contain chlorophyll"),
+        ]
+        quiz = _make_quiz_with_matching_question(pairs)
+        request = GenerationRequest(
+            question_count=1, language="en", difficulty="medium",
+            quiz_type="matching", generation_mode=GenerationMode.DIRECT,
+            quiz_types=("single_choice", "short_answer", "matching"),
+        )
+        result = fallback_invalid_matching_questions(quiz, request, source_text=source)
+        assert result is not None
+        fallback_quiz, _actions = result
+        fallback_q = fallback_quiz.questions[0]
+        assert "compare" not in fallback_q.prompt.casefold()
+
+
+class TestMatchingFallbackReplacesSymbolicOptionsAndKeepsMatching:
+    def test_symbolic_right_resolved_and_matching_kept(self) -> None:
+        source = (
+            "Фотосинтез — процесс преобразования энергии.\n\n"
+            "Световая стадия протекает на мембранах тилакоидов.\n\n"
+            "Темновая стадия происходит в строме хлоропласта.\n\n"
+            "Хлорофилл поглощает свет.\n\n"
+            "Фотолиз воды расщепляет молекулы воды."
+        )
+        options = (
+            Option(option_id="A", text="протекает на мембранах тилакоидов"),
+            Option(option_id="B", text="происходит в строме хлоропласта"),
+            Option(option_id="C", text="поглощает свет"),
+            Option(option_id="D", text="расщепляет молекулы воды"),
+        )
+        pairs = [
+            ("Световая стадия", "A"),
+            ("Темновая стадия", "B"),
+            ("Хлорофилл", "C"),
+            ("Фотолиз воды", "D"),
+        ]
+        quiz = _make_quiz_with_matching_question(pairs, options=options)
+        result = fallback_invalid_matching_questions(quiz, _multi_type_request(), source_text=source)
+        assert result is not None
+        fallback_quiz, actions = result
+        fallback_q = fallback_quiz.questions[0]
+        assert fallback_q.question_type == "matching"
+        assert len(fallback_q.matching_pairs) == 4
+        assert fallback_q.options == ()
+        for pair in fallback_q.matching_pairs:
+            assert pair.right not in ("A", "B", "C", "D")
+        assert actions[0].action == "cleaned_matching"

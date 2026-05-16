@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from dataclasses import replace
 from typing import Any
 
@@ -30,6 +31,17 @@ _MATCHING_ERROR_SUBSTRINGS = (
 )
 
 
+@dataclass(frozen=True, slots=True)
+class FallbackAction:
+    """Metadata about what fallback did to a single matching question."""
+
+    action: str
+    original_pair_count: int
+    grounded_pair_count: int
+    removed_pair_count: int
+    final_question_type: str
+
+
 def is_matching_pair_count_error(error: Exception) -> bool:
     return MATCHING_PAIR_VALIDATION_MESSAGE in str(getattr(error, "message", str(error)))
 
@@ -56,15 +68,15 @@ def fallback_invalid_matching_questions(
     generation_request: GenerationRequest,
     *,
     source_text: str | None = None,
-) -> Quiz | None:
-    """Convert invalid matching questions to short_answer when that is explicitly allowed."""
+) -> tuple[Quiz, tuple[FallbackAction, ...]] | None:
+    """Try to clean matching questions first; convert to short_answer only when necessary.
 
-    allowed_types = allowed_question_types(generation_request)
-    if "short_answer" not in allowed_types or allowed_types == ("matching",):
-        return None
+    Returns ``(cleaned_quiz, actions)`` or ``None`` when nothing changed.
+    """
 
     normalized_source_text = normalize_grounding_text(source_text or "")
     repaired_questions: list[Question] = []
+    actions: list[FallbackAction] = []
     changed = False
     for question in quiz.questions:
         if question.question_type != "matching":
@@ -73,18 +85,19 @@ def fallback_invalid_matching_questions(
         if not _matching_question_needs_fallback(question, normalized_source_text):
             repaired_questions.append(question)
             continue
-        repaired_questions.append(
-            _matching_question_to_short_answer(
-                question,
-                generation_request,
-                normalized_source_text=normalized_source_text,
-            )
+        cleaned, action = _apply_matching_fallback(
+            question,
+            generation_request,
+            normalized_source_text=normalized_source_text,
         )
-        changed = True
+        repaired_questions.append(cleaned)
+        actions.append(action)
+        if cleaned is not question:
+            changed = True
 
     if not changed:
         return None
-    return replace(quiz, questions=tuple(repaired_questions))
+    return replace(quiz, questions=tuple(repaired_questions)), tuple(actions)
 
 
 def prepare_repair_source_text(source_text: str) -> str:
@@ -169,63 +182,232 @@ def _matching_question_needs_fallback(question: Question, normalized_source_text
     return False
 
 
-def _matching_question_to_short_answer(
+def _apply_matching_fallback(
     question: Question,
     generation_request: GenerationRequest,
     *,
     normalized_source_text: str,
-) -> Question:
-    grounded_pairs = _grounded_matching_pairs(question, normalized_source_text)
-    answer = _short_answer_value(grounded_pairs, generation_request)
-    prompt = _short_answer_prompt(grounded_pairs, generation_request)
-    return replace(
-        question,
-        question_type="short_answer",
-        prompt=prompt,
-        options=(),
-        correct_option_index=None,
-        correct_answer=answer,
-        matching_pairs=(),
+) -> tuple[Question, FallbackAction]:
+    """Multi-step fallback: clean matching → keep if 4+ pairs → convert otherwise."""
+
+    allowed_types = allowed_question_types(generation_request)
+    can_convert_to_short_answer = "short_answer" in allowed_types and allowed_types != ("matching",)
+    original_pair_count = len(question.matching_pairs)
+    cleaned_pairs = _clean_matching_pairs(question, normalized_source_text)
+    grounded_count = len(cleaned_pairs)
+    removed_count = original_pair_count - grounded_count
+
+    if grounded_count >= MIN_MATCHING_PAIRS:
+        cleaned_question = replace(
+            question,
+            question_type="matching",
+            options=(),
+            correct_option_index=None,
+            correct_answer=None,
+            matching_pairs=cleaned_pairs,
+        )
+        return cleaned_question, FallbackAction(
+            action="cleaned_matching",
+            original_pair_count=original_pair_count,
+            grounded_pair_count=grounded_count,
+            removed_pair_count=removed_count,
+            final_question_type="matching",
+        )
+
+    if not can_convert_to_short_answer:
+        return question, FallbackAction(
+            action="failed",
+            original_pair_count=original_pair_count,
+            grounded_pair_count=grounded_count,
+            removed_pair_count=removed_count,
+            final_question_type="matching",
+        )
+
+    if grounded_count >= 2:
+        converted = _matching_to_short_answer_multi_pair(
+            cleaned_pairs, generation_request
+        )
+        return converted, FallbackAction(
+            action="converted_to_short_answer",
+            original_pair_count=original_pair_count,
+            grounded_pair_count=grounded_count,
+            removed_pair_count=removed_count,
+            final_question_type="short_answer",
+        )
+
+    if grounded_count == 1:
+        converted = _matching_to_short_answer_single_pair(
+            cleaned_pairs[0], generation_request
+        )
+        return converted, FallbackAction(
+            action="single_pair_short_answer",
+            original_pair_count=original_pair_count,
+            grounded_pair_count=grounded_count,
+            removed_pair_count=removed_count,
+            final_question_type="short_answer",
+        )
+
+    converted = _matching_to_short_answer_no_pairs(question, generation_request)
+    return converted, FallbackAction(
+        action="failed",
+        original_pair_count=original_pair_count,
+        grounded_pair_count=0,
+        removed_pair_count=original_pair_count,
+        final_question_type="short_answer",
     )
 
 
-def _grounded_matching_pairs(question: Question, normalized_source_text: str) -> tuple[MatchingPair, ...]:
-    option_text_by_id = {option.option_id.strip().casefold(): option.text for option in question.options}
+def _clean_matching_pairs(
+    question: Question, normalized_source_text: str
+) -> tuple[MatchingPair, ...]:
+    """Remove ungrounded pairs, resolve symbolic right values, strip invalid entries."""
+
+    option_text_by_id = {
+        option.option_id.strip().casefold(): option.text
+        for option in question.options
+    }
     grounded_pairs: list[MatchingPair] = []
     for pair in question.matching_pairs:
-        repaired_pair = MatchingPair(
-            left=pair.left,
-            right=option_text_by_id.get(pair.right.strip().casefold(), pair.right),
+        resolved_right = option_text_by_id.get(
+            pair.right.strip().casefold(), pair.right
         )
+        repaired_pair = MatchingPair(left=pair.left, right=resolved_right)
         if not repaired_pair.left.strip() or not repaired_pair.right.strip():
             continue
         if _is_symbolic_right_value(repaired_pair.right):
             continue
-        if normalized_source_text and not is_matching_pair_grounded(repaired_pair, normalized_source_text):
+        if normalized_source_text and not is_matching_pair_grounded(
+            repaired_pair, normalized_source_text
+        ):
             continue
         grounded_pairs.append(repaired_pair)
     return tuple(grounded_pairs)
 
 
-def _short_answer_value(grounded_pairs: tuple[MatchingPair, ...], generation_request: GenerationRequest) -> str:
-    if grounded_pairs:
-        return "; ".join(f"{pair.left} — {pair.right}" for pair in grounded_pairs)
-    if generation_request.language.strip().casefold().startswith("ru"):
-        return "Ответ должен опираться только на явно описанные в тексте соответствия."
-    return "The answer must use only relationships explicitly described in the source text."
+def _matching_to_short_answer_multi_pair(
+    grounded_pairs: tuple[MatchingPair, ...],
+    generation_request: GenerationRequest,
+) -> Question:
+    """Convert 2-3 grounded pairs to a natural short_answer question."""
+
+    language = generation_request.language.strip().casefold()
+    prompt = _multi_pair_prompt(grounded_pairs, language)
+    answer = _multi_pair_answer(grounded_pairs)
+    return Question(
+        question_id="q-fallback",
+        prompt=prompt,
+        options=(),
+        correct_option_index=None,
+        explanation=None,
+        question_type="short_answer",
+        correct_answer=answer,
+        matching_pairs=(),
+    )
 
 
-def _short_answer_prompt(grounded_pairs: tuple[MatchingPair, ...], generation_request: GenerationRequest) -> str:
+def _matching_to_short_answer_single_pair(
+    pair: MatchingPair,
+    generation_request: GenerationRequest,
+) -> Question:
+    """Convert 1 grounded pair to a specific short_answer question."""
+
+    language = generation_request.language.strip().casefold()
+    prompt = _single_pair_prompt(pair, language)
+    answer = pair.right
+    return Question(
+        question_id="q-fallback",
+        prompt=prompt,
+        options=(),
+        correct_option_index=None,
+        explanation=None,
+        question_type="short_answer",
+        correct_answer=answer,
+        matching_pairs=(),
+    )
+
+
+def _matching_to_short_answer_no_pairs(
+    original_question: Question,
+    generation_request: GenerationRequest,
+) -> Question:
+    """Convert a matching question with 0 grounded pairs to a generic short_answer."""
+
     language = generation_request.language.strip().casefold()
     if language.startswith("ru"):
-        if 2 <= len(grounded_pairs) <= 3:
-            concepts = ", ".join(pair.left for pair in grounded_pairs)
-            return f"Кратко сравните связанные понятия из текста: {concepts}."
+        prompt = "Какие соответствия между понятиями описаны в тексте?"
+        answer = "Ответ должен опираться только на явно описанные в тексте соответствия."
+    else:
+        prompt = "Which relationships between concepts are described in the text?"
+        answer = "The answer must use only relationships explicitly described in the source text."
+    return Question(
+        question_id=original_question.question_id,
+        prompt=prompt,
+        options=(),
+        correct_option_index=None,
+        explanation=original_question.explanation,
+        question_type="short_answer",
+        correct_answer=answer,
+        matching_pairs=(),
+    )
+
+
+def _multi_pair_prompt(
+    grounded_pairs: tuple[MatchingPair, ...], language: str
+) -> str:
+    """Natural prompt for 2-3 grounded matching pairs."""
+
+    left_terms = [pair.left for pair in grounded_pairs]
+    if language.startswith("ru"):
+        stage_terms = [t for t in left_terms if "стадия" in t.casefold()]
+        if stage_terms and len(stage_terms) == len(grounded_pairs):
+            concepts_str = ", ".join(left_terms)
+            return f"Какие характеристики указаны в тексте для: {concepts_str}?"
+        if len(grounded_pairs) >= 2:
+            concepts_str = ", ".join(left_terms)
+            return f"Какие соответствия между этими понятиями описаны в тексте: {concepts_str}?"
         return "Какие соответствия между понятиями описаны в тексте?"
-    if 2 <= len(grounded_pairs) <= 3:
-        concepts = ", ".join(pair.left for pair in grounded_pairs)
-        return f"Briefly compare the related concepts from the text: {concepts}."
+    stage_terms = [t for t in left_terms if "stage" in t.casefold()]
+    if stage_terms and len(stage_terms) == len(grounded_pairs):
+        concepts_str = ", ".join(left_terms)
+        return f"Which characteristics are described in the text for: {concepts_str}?"
+    if len(grounded_pairs) >= 2:
+        concepts_str = ", ".join(left_terms)
+        return f"Which relationships between these concepts are described in the text: {concepts_str}?"
     return "Which relationships between concepts are described in the text?"
+
+
+def _multi_pair_answer(grounded_pairs: tuple[MatchingPair, ...]) -> str:
+    """Natural answer string for 2-3 grounded pairs."""
+
+    return "; ".join(f"{pair.left} — {pair.right}" for pair in grounded_pairs)
+
+
+def _single_pair_prompt(pair: MatchingPair, language: str) -> str:
+    """Specific prompt for a single grounded matching pair."""
+
+    left = pair.left.strip()
+    right = pair.right.strip()
+    if language.startswith("ru"):
+        if "стадия" in left.casefold():
+            return f"Что в тексте сказано о {left.lower()}?"
+        if len(right) < len(left) or _looks_like_term(left):
+            return f"Что в тексте связано с понятием «{left}»?"
+        return f"Какое соответствие для понятия «{left}» указано в тексте?"
+    if "stage" in left.casefold():
+        return f"What happens during the {left.lower()}?"
+    if len(right) < len(left) or _looks_like_term(left):
+        return f"What is associated with the concept «{left}» in the text?"
+    return f"What correspondence for the concept «{left}» is indicated in the text?"
+
+
+def _looks_like_term(text: str) -> bool:
+    """Heuristic: text looks like a named term (capitalized, not a full sentence)."""
+    stripped = text.strip()
+    if not stripped:
+        return False
+    if stripped[0].isupper() and "." not in stripped and "?" not in stripped:
+        return True
+    return False
 
 
 def _is_symbolic_right_value(value: str) -> bool:
