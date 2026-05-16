@@ -2,9 +2,28 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from backend.app.domain.models import MatchingPair
 from backend.app.generation.matching_grounding import is_matching_pair_grounded
 from backend.app.generation.matching_grounding import normalize_grounding_text
+
+
+def test_matching_grounding_has_no_local_text_dictionaries() -> None:
+    source = Path("backend/app/generation/matching_grounding.py").read_text(encoding="utf-8").casefold()
+    forbidden_fragments = (
+        "_synonym_groups",
+        "_stop_words",
+        "углекислый газ",
+        "двуокись углерода",
+        "диоксид углерода",
+        "хлоропласт",
+        "тилакоид",
+        "строма",
+        "фотосинтез",
+    )
+
+    assert all(fragment not in source for fragment in forbidden_fragments)
 
 
 def test_normalize_grounding_text_collapses_whitespace_and_casefolds() -> None:
@@ -54,6 +73,12 @@ def test_ungrounded_pair_both_sides_absent() -> None:
 def test_grounded_pair_short_terms_pass() -> None:
     source = normalize_grounding_text("АТФ запасает энергию в клетке.")
     pair = MatchingPair(left="АТФ", right="запасает энергию")
+    assert is_matching_pair_grounded(pair, source)
+
+
+def test_grounded_pair_supports_unicode_word_tokens() -> None:
+    source = normalize_grounding_text("L'élève décrit l'énergie renouvelable.")
+    pair = MatchingPair(left="élève", right="décrit l'énergie renouvelable")
     assert is_matching_pair_grounded(pair, source)
 
 
@@ -108,19 +133,19 @@ def test_empty_source_text_not_grounded() -> None:
     assert not is_matching_pair_grounded(pair, "")
 
 
-def test_synonym_co2_passes_when_uglekislyj_gaz_in_source() -> None:
+def test_short_formula_token_does_not_block_supported_phrase() -> None:
     source = normalize_grounding_text("Цикл Кальвина превращает углекислый газ в углеводы.")
     pair = MatchingPair(left="Цикл Кальвина", right="превращает co₂ в углеводы")
     assert is_matching_pair_grounded(pair, source)
 
 
-def test_synonym_uglevody_passes_when_sahara_in_source() -> None:
+def test_partial_token_support_allows_supported_russian_phrase() -> None:
     source = normalize_grounding_text("Цикл Кальвина превращает углекислый газ в сахара.")
     pair = MatchingPair(left="Цикл Кальвина", right="превращает углекислый газ в углеводы")
     assert is_matching_pair_grounded(pair, source)
 
 
-def test_synonym_kislorod_passes_when_o2_in_source() -> None:
+def test_symbol_token_in_source_does_not_block_supported_phrase() -> None:
     source = normalize_grounding_text("Фотолиз воды приводит к образованию o₂.")
     pair = MatchingPair(left="Фотолиз воды", right="приводит к образованию кислорода")
     assert is_matching_pair_grounded(pair, source)

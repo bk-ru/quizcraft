@@ -12,52 +12,9 @@ MATCHING_GROUNDEDNESS_ERROR_MESSAGE = (
 _SIGNIFICANT_TERM_MIN_LENGTH = 12
 _CONTENT_TOKEN_MIN_LENGTH = 4
 _MIN_TOKEN_SUPPORT_RATIO = 0.5
-_WORD_PATTERN = re.compile(r"[0-9A-Za-zА-Яа-яЁё]+")
+_WORD_PATTERN = re.compile(r"[^\W_]+")
 _SUBSCRIPT_MAP = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 _PUNCTUATION_NORMALIZE = str.maketrans({"→": " ", "/": " ", "−": "-", "–": "-", "—": "-"})
-
-_SYNONYM_GROUPS: tuple[frozenset[str], ...] = (
-    frozenset({"co2", "углекислый газ", "двуокись углерода", "диоксид углерода"}),
-    frozenset({"o2", "кислород"}),
-    frozenset({"атф", "atp", "аденозинтрифосфат"}),
-    frozenset({"надфн", "nadph", "никотинамидадениндинуклеотидфосфат"}),
-    frozenset({"сахара", "углеводы", "глюкоза"}),
-    frozenset({"фотосинтез", "фотосинтетический"}),
-    frozenset({"хлоропласт", "хлоропласты"}),
-    frozenset({"тилакоид", "тилакоиды", "тилакоидный"}),
-    frozenset({"строма", "стромы"}),
-)
-
-_SYNONYM_LOOKUP: dict[str, frozenset[str]] = {}
-for _group in _SYNONYM_GROUPS:
-    for _term in _group:
-        _SYNONYM_LOOKUP[_term] = _group
-
-_STOP_WORDS = frozenset(
-    {
-        "или",
-        "для",
-        "при",
-        "под",
-        "после",
-        "между",
-        "через",
-        "также",
-        "когда",
-        "который",
-        "которая",
-        "которые",
-        "которых",
-        "котором",
-        "из-за",
-        "из",
-        "это",
-        "его",
-        "её",
-        "что",
-        "как",
-    }
-)
 
 
 def normalize_grounding_text(value: str) -> str:
@@ -100,9 +57,7 @@ def _has_token_support(
     tokens = _content_tokens(value)
     if not tokens:
         return value in normalized_source_text
-    supported_count = sum(
-        1 for token in tokens if _token_supported(token, normalized_source_text, source_tokens)
-    )
+    supported_count = sum(1 for token in tokens if _token_supported(token, source_tokens))
     required_count = max(1, int(len(tokens) * _MIN_TOKEN_SUPPORT_RATIO + 0.999))
     return supported_count >= required_count
 
@@ -111,19 +66,15 @@ def _content_tokens(value: str) -> tuple[str, ...]:
     return tuple(
         token
         for token in _WORD_PATTERN.findall(value)
-        if len(token) >= _CONTENT_TOKEN_MIN_LENGTH and not token.isdigit() and token not in _STOP_WORDS
+        if len(token) >= _CONTENT_TOKEN_MIN_LENGTH and not token.isdigit()
     )
 
 
 def _token_supported(
     token: str,
-    normalized_source_text: str,
     source_tokens: frozenset[str],
 ) -> bool:
     if token in source_tokens:
-        return True
-    synonym_group = _SYNONYM_LOOKUP.get(token)
-    if synonym_group and any(syn in normalized_source_text for syn in synonym_group):
         return True
     return any(_tokens_share_stem(token, source_token) for source_token in source_tokens)
 
@@ -151,9 +102,6 @@ def _has_absent_novel_term(
     }
     for term in terms:
         if term in normalized_source_text:
-            continue
-        synonym_group = _SYNONYM_LOOKUP.get(term)
-        if synonym_group and any(syn in normalized_source_text for syn in synonym_group):
             continue
         if present_value and term in present_value:
             continue
