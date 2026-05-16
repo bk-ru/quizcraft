@@ -611,6 +611,25 @@ def test_direct_generation_orchestrator_accepts_document_within_limit(tmp_path) 
     assert len(provider.requests) == 1
 
 
+def test_direct_generation_grounded_matching_passes_without_repair(tmp_path) -> None:
+    provider = StubProvider(
+        [build_response(build_grounded_photosynthesis_matching_payload(), response_id="resp-1")]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request())
+
+    matching_question = result.quiz.questions[-1]
+    assert result.prompt_version == "direct-v1"
+    assert len(provider.requests) == 1
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
+    assert len(matching_question.matching_pairs) == 4
+    assert all(pair.right not in {"A", "B", "1", "2"} for pair in matching_question.matching_pairs)
+    assert result_repository.get(result.quiz.quiz_id) == result
+
+
 def test_direct_generation_orchestrator_rejects_non_positive_document_limit(tmp_path) -> None:
     with pytest.raises(ValueError, match="max_document_chars"):
         build_orchestrator(tmp_path, StubProvider([]), max_document_chars=0)

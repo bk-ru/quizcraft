@@ -513,7 +513,11 @@ class RagGenerationOrchestrator:
             metadata={"phase": "quality_check"},
         )
         try:
-            self._quality_checker.ensure_quality(quiz, generation_request.question_count)
+            self._quality_checker.ensure_quality(
+                quiz,
+                generation_request.question_count,
+                source_text=document.normalized_text,
+            )
         except DomainValidationError as error:
             self._log_diagnostic_validation_failure(
                 document=document,
@@ -658,7 +662,11 @@ class RagGenerationOrchestrator:
             )
         except DomainValidationError:
             return None
-        fallback_quiz = fallback_invalid_matching_questions(quiz, generation_request)
+        fallback_quiz = fallback_invalid_matching_questions(
+            quiz,
+            generation_request,
+            source_text=document.normalized_text,
+        )
         if fallback_quiz is None:
             return None
         fallback_quiz = fit_generated_question_count(fallback_quiz, generation_request.question_count)
@@ -670,7 +678,11 @@ class RagGenerationOrchestrator:
                 len(fallback_quiz.questions),
             ),
         )
-        self._quality_checker.ensure_quality(fallback_quiz, generation_request.question_count)
+        self._quality_checker.ensure_quality(
+            fallback_quiz,
+            generation_request.question_count,
+            source_text=document.normalized_text,
+        )
         return fallback_quiz, response, prompt_version, provider_request_summary
 
     def _log_diagnostic_success(
