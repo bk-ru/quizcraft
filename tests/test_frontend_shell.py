@@ -1799,7 +1799,6 @@ def test_frontend_quiz_renderer_describes_generation_mode_from_prompt_version() 
 def test_frontend_p3_visual_tokens() -> None:
     tokens = (FRONTEND_DIR / "tokens.css").read_text(encoding="utf-8")
     layout = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
-    forms = FORMS_CSS.read_text(encoding="utf-8")
 
     assert "--radius-xs: 6px" in tokens
     assert "--radius-sm: 10px" in tokens
