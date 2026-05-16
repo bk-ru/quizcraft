@@ -29,9 +29,9 @@ from backend.app.generation.matching_fallback import build_repair_source_excerpt
 from backend.app.generation.matching_fallback import estimate_repair_prompt_chars
 from backend.app.generation.matching_fallback import FallbackAction
 from backend.app.generation.matching_fallback import fallback_invalid_matching_questions
-from backend.app.generation.matching_fallback import is_matching_error
 from backend.app.generation.matching_fallback import is_matching_pair_count_error
 from backend.app.generation.matching_fallback import prepare_repair_source_text
+from backend.app.generation.matching_fallback import should_try_matching_fallback_before_repair
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.partial import build_partial_generation_warning
 from backend.app.generation.quality import GenerationQualityChecker
@@ -415,7 +415,7 @@ class DirectGenerationOrchestrator:
         original_provider_request_summary = initial_provider_request_summary
         current_error: DomainValidationError = initial_error
 
-        if is_matching_error(current_error):
+        if should_try_matching_fallback_before_repair(current_error):
             self._log_pipeline_step(
                 status=GenerationRunStatus.RUNNING,
                 step=GenerationPipelineStep.REPAIR,
@@ -843,7 +843,12 @@ class DirectGenerationOrchestrator:
     ) -> StructuredGenerationRequest:
         """Сформировать repair-запрос к провайдеру из некорректного структурированного вывода."""
 
-        invalid_json = json.dumps(response.content, ensure_ascii=False, indent=2, sort_keys=True)
+        invalid_json = json.dumps(
+            response.content,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
         return StructuredGenerationRequest(
             system_prompt=repair_prompt.system_template,
             user_prompt=repair_prompt.user_template.format(

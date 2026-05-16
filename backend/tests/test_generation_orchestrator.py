@@ -420,6 +420,28 @@ def test_direct_generation_matching_only_ungrounded_failure_returns_partial_resu
     )
 
 
+def test_direct_generation_uses_repair_before_fallback_for_ungrounded_matching(tmp_path) -> None:
+    provider = StubProvider(
+        [
+            build_response(build_ungrounded_full_text_matching_payload(question_count=5), response_id="resp-1"),
+            build_response(build_grounded_photosynthesis_matching_payload(question_count=5), response_id="resp-2"),
+        ]
+    )
+    orchestrator, document_repository, result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_photosynthesis_types_document())
+
+    result = orchestrator.generate("doc-1", build_multi_type_generation_request(question_count=5))
+
+    assert len(provider.requests) == 2
+    assert result.prompt_version == "repair-v1"
+    assert result.warnings
+    matching_question = result.quiz.questions[-1]
+    assert matching_question.question_type == "matching"
+    assert len(matching_question.matching_pairs) == 4
+    assert "Source document/context:" in provider.requests[1].user_prompt
+    assert result_repository.get(result.quiz.quiz_id) == result
+
+
 def test_direct_generation_matching_with_options_uses_fallback_before_repair(tmp_path) -> None:
     provider = StubProvider(
         [

@@ -30,6 +30,14 @@ _MATCHING_ERROR_SUBSTRINGS = (
     "matching question correct option index must be empty",
 )
 
+_MATCHING_FALLBACK_BEFORE_REPAIR_SUBSTRINGS = (
+    MATCHING_PAIR_VALIDATION_MESSAGE,
+    "matching question must not include options",
+    "matching pair right must contain full text, not an option id",
+    "matching question correct answer must be empty",
+    "matching question correct option index must be empty",
+)
+
 
 @dataclass(frozen=True, slots=True)
 class FallbackAction:
@@ -50,6 +58,13 @@ def is_matching_error(error: Exception) -> bool:
     """Вернуть True, если ошибка связана с matching-вопросом."""
     message = str(getattr(error, "message", str(error)))
     return any(sub in message for sub in _MATCHING_ERROR_SUBSTRINGS)
+
+
+def should_try_matching_fallback_before_repair(error: Exception) -> bool:
+    """Return True for structural matching errors that local fallback can handle deterministically."""
+
+    message = str(getattr(error, "message", str(error)))
+    return any(sub in message for sub in _MATCHING_FALLBACK_BEFORE_REPAIR_SUBSTRINGS)
 
 
 def build_matching_pair_count_error(response_content: dict[str, Any]) -> GenerationQualityError:
