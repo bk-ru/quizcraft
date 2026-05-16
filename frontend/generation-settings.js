@@ -29,6 +29,7 @@ export function createGenerationSettingsController({
   modelSelect,
   profileSelect,
   setLogMessage,
+  enableModelPicker = false,
   documentRef = (typeof document !== "undefined" ? document : null),
 } = {}) {
   const state = {
@@ -109,7 +110,7 @@ export function createGenerationSettingsController({
 
   function getGenerationOverrides() {
     const overrides = {};
-    if (modelSelect && typeof modelSelect.value === "string" && modelSelect.value.trim()) {
+    if (enableModelPicker && modelSelect && typeof modelSelect.value === "string" && modelSelect.value.trim()) {
       overrides.model_name = modelSelect.value.trim();
     }
     if (profileSelect && typeof profileSelect.value === "string" && profileSelect.value.trim()) {

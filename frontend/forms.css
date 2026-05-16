@@ -799,3 +799,7 @@ button {
   color: var(--ink);
   word-break: break-word;
 }
+
+.field-model-picker[hidden] {
+  display: none;
+}

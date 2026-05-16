@@ -431,11 +431,19 @@ const quizHistory = createQuizHistory({
   datalistElement: document.getElementById("quiz-history-options"),
 });
 quizHistory.renderHistoryDatalist();
+const enableModelPicker = Boolean(config.enableModelPicker);
+const modelPickerField = document.getElementById("model-picker-field");
+
+if (enableModelPicker && modelPickerField) {
+  modelPickerField.hidden = false;
+}
+
 const generationSettings = createGenerationSettingsController({
   client,
   modelSelect,
   profileSelect,
   setLogMessage,
+  enableModelPicker,
 });
 
 const quizRenderer = createQuizRenderer({

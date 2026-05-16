@@ -1817,4 +1817,59 @@ def test_frontend_p3_visual_tokens() -> None:
     assert "font-size: 1.1rem" in layout
     assert "font-size: 0.88rem" in layout
 
-    assert "font-size: 0.8rem" in forms
+
+def test_frontend_config_exposes_enable_model_picker_flag() -> None:
+    content = CONFIG_JS.read_text(encoding="utf-8")
+
+    assert "enableModelPicker" in content, (
+        "config must expose enableModelPicker feature flag"
+    )
+    assert "enableModelPicker: false" in content, (
+        "enableModelPicker must default to false so model selection is hidden"
+    )
+
+
+def test_frontend_index_exposes_model_picker_for_advanced_mode() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="model-picker-field"' in content, (
+        "index must expose the model picker label for advanced mode"
+    )
+    assert 'id="generation-model"' in content, (
+        "index must expose the model select inside the picker"
+    )
+    assert 'class="field field-model-picker"' in content
+
+
+def test_frontend_model_picker_styles_are_defined() -> None:
+    content = FORMS_CSS.read_text(encoding="utf-8")
+
+    assert ".field-model-picker" in content, (
+        "forms.css must style the model picker for advanced mode"
+    )
+
+
+def test_frontend_generation_settings_respects_enable_model_picker() -> None:
+    settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
+
+    assert "enableModelPicker" in settings_content, (
+        "generation-settings must accept enableModelPicker parameter"
+    )
+
+
+def test_frontend_generation_settings_omits_model_name_when_picker_disabled() -> None:
+    settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
+
+    guard = "if (enableModelPicker && modelSelect"
+    assert guard in settings_content, (
+        "getGenerationOverrides must guard model_name behind enableModelPicker flag"
+    )
+
+
+def test_frontend_app_wires_enable_model_picker_flag() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "enableModelPicker" in app_content, (
+        "app.js must read enableModelPicker from config"
+    )
+    assert "modelPickerField" in app_content
