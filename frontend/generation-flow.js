@@ -82,6 +82,7 @@ export function createGenerationFlow({
   setSubmissionStatus,
   setResultState,
   setLogMessage,
+  enableModelPicker = false,
   setEditorStatus,
   setExportAvailability,
   clearQuizResult,
@@ -481,9 +482,11 @@ export function createGenerationFlow({
     payload.quiz_type = quizTypes[0];
     payload.quiz_types = quizTypes;
 
-    const modelName = String(formData.get("model_name") ?? "").trim();
-    if (modelName) {
-      payload.model_name = modelName;
+    if (enableModelPicker) {
+      const modelName = String(formData.get("model_name") ?? "").trim();
+      if (modelName) {
+        payload.model_name = modelName;
+      }
     }
     const profileName = String(formData.get("profile_name") ?? "").trim();
     if (profileName) {

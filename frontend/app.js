@@ -141,13 +141,13 @@ const PROVIDER_DISPLAY_NAMES = Object.freeze({
 const LM_STUDIO_CONNECTION_STORAGE_KEY = "quizcraft.lmStudioConnection";
 
 const PROVIDER_UNAVAILABLE_INSTRUCTION =
-  "Провайдер недоступен. Проверьте активный провайдер, загрузите выбранную модель и повторите проверку подключения.";
+  "Провайдер недоступен. Проверьте активный провайдер, загрузите настроенную модель и повторите проверку подключения.";
 const BACKEND_AVAILABLE_INSTRUCTION =
-  "Backend отвечает. Если генерация не запускается, проверьте активный провайдер и выбранную модель.";
+  "Backend отвечает. Если генерация не запускается, проверьте активный провайдер и настроенную модель.";
 const BACKEND_CHECK_FAILED_INSTRUCTION =
   "Backend недоступен. Запустите сервер командой .\\run-backend.ps1 из корня проекта и проверьте, что порт 8000 свободен.";
 const PROVIDER_AVAILABLE_INSTRUCTION =
-  "Активный провайдер отвечает через backend. Если генерация падает, проверьте загруженную модель и поддержку structured output.";
+  "Активный провайдер отвечает через backend. Если генерация падает, проверьте модель по умолчанию / настроенную модель и поддержку structured output.";
 const PROVIDER_CHECK_FAILED_INSTRUCTION =
   "Провайдер не удалось проверить через backend. Убедитесь, что backend запущен, активный провайдер доступен и модель загружена.";
 const PROVIDER_CHECK_BLOCKED_INSTRUCTION =
@@ -534,6 +534,7 @@ const generationFlow = createGenerationFlow({
   saveQuizToHistory: quizHistory.saveQuizToHistory,
   refreshGenerationDefaults: generationSettings.refreshAfterGeneration,
   getGenerationReadiness: createGenerationReadinessChecker(),
+  enableModelPicker,
 });
 
 const quizExporter = createQuizExporter({

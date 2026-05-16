@@ -1383,15 +1383,20 @@ def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
     generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
 
+    assert 'id="model-picker-field"' in index_content, (
+        "index must expose a model picker field for advanced mode"
+    )
+    assert "model-picker-field" in index_content and "hidden" in index_content.split("model-picker-field", 1)[1][:20], (
+        "model picker field must be hidden by default"
+    )
     assert 'id="generation-model"' in index_content, (
-        "upload form must expose a model selector"
+        "index must contain the model select element inside the picker"
     )
     assert 'id="generation-profile"' in index_content, (
         "upload form must expose a generation profile selector"
     )
     assert 'name="model_name"' in index_content
     assert 'name="profile_name"' in index_content
-    assert "Модель" in index_content
     assert "Профиль" in index_content
     assert ">Авто<" in index_content, (
         "selectors must default to Russian auto-mode when no override is picked"
@@ -1413,13 +1418,15 @@ def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
     )
     assert '"/generation/settings"' in client_content
 
+    assert "enableModelPicker" in generation_content, (
+        "generation flow must accept enableModelPicker to decide whether to send model_name"
+    )
     assert 'formData.get("model_name")' in generation_content, (
-        "generation payload must pick up the model_name override from the form"
+        "generation payload must still be able to pick up model_name when picker is enabled"
     )
     assert 'formData.get("profile_name")' in generation_content, (
         "generation payload must pick up the profile_name override from the form"
     )
-    assert "payload.model_name = modelName" in generation_content
     assert "payload.profile_name = profileName" in generation_content
 
     assert "generationSettings.loadSettings()" in app_content, (
