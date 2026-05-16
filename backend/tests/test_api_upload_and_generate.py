@@ -334,8 +334,10 @@ def test_generation_live_journal_exposes_sanitized_pipeline_events(tmp_path) -> 
     assert payload["complete"] is True
     messages = [event["message"] for event in payload["events"]]
     assert "Загружаем документ и проверяем ограничения." in messages
+    assert "Формируем запрос для модели." in messages
     assert "Отправляем запрос провайдеру." in messages
-    assert "Провайдер ответил: модель local-model." in messages
+    assert "Провайдер ответил, проверяем структуру результата." in messages
+    assert "Проверяем качество квиза." in messages
     assert "Квиз сохранён: 2 вопросов." in messages
     assert all("user_prompt" not in json.dumps(event, ensure_ascii=False) for event in payload["events"])
 

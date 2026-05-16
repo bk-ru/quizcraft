@@ -138,7 +138,11 @@ def test_orchestrator_logs_success_pipeline_steps_with_redacted_russian_payloads
         ("parse", "running"),
         ("parse", "done"),
         ("generate", "running"),
+        ("generate", "running"),
+        ("generate", "running"),
         ("generate", "done"),
+        ("generate", "running"),
+        ("generate", "running"),
         ("persist", "running"),
         ("persist", "done"),
     ]

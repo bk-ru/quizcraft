@@ -654,7 +654,7 @@ async function checkProviderConnection() {
       setPreflightStatus("", null);
       setStatus(
         "provider",
-        `${providerName} · ${providerHealth.message}`,
+        `${providerName}`,
         statusMap[providerHealth.status] ?? "warn",
         PROVIDER_AVAILABLE_INSTRUCTION,
       );

@@ -247,6 +247,13 @@ class RagGenerationOrchestrator:
     ) -> tuple[StructuredGenerationResponse, str, int, int, dict[str, Any], dict[str, Any]]:
         """Выполнить chunk -> embed -> retrieve -> assemble -> generate и вернуть метрики контекста."""
 
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "rag_chunking"},
+        )
         chunks = chunk_text(
             document.normalized_text,
             chunk_size=self._chunk_size,
@@ -257,6 +264,13 @@ class RagGenerationOrchestrator:
                 f"document '{document.document_id}' has no content for retrieval"
             )
 
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "rag_embedding", "chunk_count": len(chunks)},
+        )
         embedded = self._load_or_embed_chunks(
             document=document,
             chunks=chunks,
@@ -275,12 +289,33 @@ class RagGenerationOrchestrator:
         query_vector = query_response.vectors[0]
 
         scored = index.search(query_vector, top_k=self._top_k)
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "rag_retrieval", "retrieved_chunks": len(scored)},
+        )
         context = assemble_context(scored, max_chars=self._max_context_chars)
         if not context:
             raise DomainValidationError(
                 f"retrieved context is empty for document '{document.document_id}'"
             )
 
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "rag_context", "context_chars": len(context)},
+        )
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "rag_request"},
+        )
         rag_prompt = self._prompt_registry.resolve(RAG_GENERATION_PROMPT_KEY)
         provider_request = StructuredGenerationRequest(
             system_prompt=rag_prompt.system_template,
@@ -301,6 +336,13 @@ class RagGenerationOrchestrator:
                 **generation_request.inference_parameters,
             },
             model_name=generation_request.model_name,
+        )
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "awaiting_provider"},
         )
         response = self._provider.generate_structured(provider_request)
         rag_metadata = {
@@ -417,6 +459,13 @@ class RagGenerationOrchestrator:
     ) -> Quiz:
         """Нормализовать и проверить структурированный RAG-ответ."""
 
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "validation"},
+        )
         logger.info(
             "Received provider response model=%s payload=%s",
             response.model_name,
@@ -447,6 +496,13 @@ class RagGenerationOrchestrator:
             len(quiz.questions),
         )
         quiz = replace(quiz, title=readable_title)
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "quality_check"},
+        )
         try:
             self._quality_checker.ensure_quality(quiz, generation_request.question_count)
         except DomainValidationError as error:

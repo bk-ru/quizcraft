@@ -179,9 +179,23 @@ class DirectGenerationOrchestrator:
     ) -> tuple[StructuredGenerationResponse, str, dict[str, Any]]:
         """Сформировать и отправить запрос провайдеру для direct-генерации."""
 
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "prompt_preparation"},
+        )
         direct_request = self._request_builder.build(document, generation_request)
         direct_prompt = self._prompt_registry.resolve(
             self._request_builder.resolve_prompt_key(generation_request)
+        )
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "awaiting_provider"},
         )
         return (
             self._provider.generate_structured(direct_request),
@@ -262,6 +276,13 @@ class DirectGenerationOrchestrator:
     ) -> Quiz:
         """Нормализовать и проверить структурированный ответ провайдера."""
 
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "validation"},
+        )
         logger.info(
             "Received provider response model=%s payload=%s",
             response.model_name,
@@ -291,6 +312,13 @@ class DirectGenerationOrchestrator:
             len(quiz.questions),
         )
         quiz = replace(quiz, title=readable_title)
+        self._log_pipeline_step(
+            status=GenerationRunStatus.RUNNING,
+            step=GenerationPipelineStep.GENERATE,
+            document_id=document.document_id,
+            generation_request=generation_request,
+            metadata={"phase": "quality_check"},
+        )
         try:
             self._quality_checker.ensure_quality(quiz, generation_request.question_count)
         except DomainValidationError as error:
