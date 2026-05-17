@@ -51,7 +51,8 @@ QUESTION_TYPE_RULES = {
         "process→result, factor→effect, or field→description. "
         "Do not mix unrelated categories in one matching question. "
         "Never create a matching question with fewer than 4 pairs. "
-        "If you cannot create 4 pairs, do not create a matching question; use another allowed question type."
+        "If matching is required by the selected type policy, create exactly one matching question with 4 or more pairs before repeating any other question type. "
+        "If matching is not required because question_count is smaller than the selected type count, use another suitable allowed type."
     ),
 }
 
@@ -70,33 +71,46 @@ def render_question_type_policy(generation_request: GenerationRequest) -> str:
     exact_count_rule = f"Return exactly {generation_request.question_count} questions."
     if len(allowed_types) == 1:
         return (
-            f"{exact_count_rule} Allowed question type: {allowed_label}. "
-            f"Every question MUST use question_type={allowed_label}. "
+            f"{exact_count_rule} Selected question type: {allowed_label}. "
+            f"This type is REQUIRED. Every question MUST use question_type={allowed_label}. "
             "Do not create true_false, fill_blank, short_answer, or matching questions unless that exact type is allowed."
         )
     base_policy = (
-        f"{exact_count_rule} Allowed question types: {allowed_label}. "
+        f"{exact_count_rule} Selected question types: {allowed_label}. "
+        "ALL selected question types are REQUIRED. "
         "Use only these question types. "
     )
     if generation_request.question_count == len(allowed_types):
         return (
             base_policy +
-            "If question_count equals the number of allowed question types: "
-            "Return exactly one question for each allowed question type. "
-            "Do not replace an allowed type with a repeated type unless that type is impossible from the source. "
-            "If matching is allowed and the document supports 4 grounded pairs, include exactly one matching question."
+            "Because question_count equals the number of selected types: "
+            "Return exactly one question for each selected question type. "
+            "Do not omit any selected type. "
+            "Do not repeat any type. "
+            "Each selected type must appear exactly once."
         )
     if generation_request.question_count > len(allowed_types):
+        has_matching = "matching" in allowed_types
+        matching_clause = ""
+        if has_matching:
+            matching_clause = (
+                "matching is REQUIRED because it was selected. "
+                "Include at least one matching question with 4 or more matching_pairs. "
+                "Create the required matching question BEFORE repeating any other selected type. "
+            )
         return (
             base_policy +
-            "If question_count > number of allowed question types: "
-            "Use every allowed question type at least once. "
-            f"Then repeat suitable allowed types until exactly {generation_request.question_count} questions are returned. "
+            "Because question_count is greater than the number of selected types: "
+            "Use EVERY selected question type at least once. "
+            "Do not omit any selected type. "
+            + matching_clause +
+            f"Then repeat suitable selected types until exactly {generation_request.question_count} questions are returned. "
+            "Prefer repeating types that are easier to ground in the source text."
         )
     return (
         base_policy +
-        "If question_count is less than the number of allowed question types: "
-        "Use the most suitable subset of allowed types. "
+        "Because question_count is less than the number of selected types: "
+        "Use the most suitable subset of selected types. "
         "Prefer structurally reliable types in this order: "
         "single_choice, true_false, fill_blank, short_answer, matching."
     )
