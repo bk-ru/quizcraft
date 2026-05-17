@@ -8,20 +8,31 @@ QUESTION_TYPE_RULES = {
     "single_choice": (
         "single_choice: set question_type to single_choice, provide exactly four options, "
         "and set correct_option_index to the zero-based index of the correct option. "
+        "All four options must be the same semantic category, such as all years, all names, "
+        "all terms, all places, or all organizations. "
+        "Avoid meta-options such as \"not specified\", \"all of the above\", or \"none of the above\". "
         "Do not include correct_answer or matching_pairs."
     ),
     "true_false": (
         "true_false: set question_type to true_false, provide two options, "
         "and set correct_option_index to the zero-based index of the correct option. "
+        "The statement must be directly verifiable from the document/context. "
+        "Avoid ambiguous or compound statements. "
         "Do not include correct_answer or matching_pairs."
     ),
     "fill_blank": (
         "fill_blank: set question_type to fill_blank, omit options, and provide a non-empty correct_answer. "
+        "The blank must replace a short phrase explicitly present in the source. "
+        "correct_answer must be the exact missing phrase or the minimal source phrase needed to fill the blank. "
         "Do not include options, correct_option_index, or matching_pairs. "
         "Use a blank-style prompt with a missing word/phrase."
     ),
     "short_answer": (
         "short_answer: set question_type to short_answer, omit options, and provide a non-empty correct_answer. "
+        "Ask a specific answerable question. "
+        "correct_answer must directly answer the prompt. "
+        "Avoid vague prompts like \"What fact is stated in the text?\". "
+        "Do not ask for one semantic category while providing an answer from another category. "
         "Do not include options, correct_option_index, or matching_pairs. "
         "Ask a direct answerable question, not a matching/list placeholder."
     ),
@@ -34,12 +45,10 @@ QUESTION_TYPE_RULES = {
         "  matching_pairs.right must contain the full matching text.\n"
         "  A valid matching question MUST contain 4 or more pairs.\n"
         "  All pairs in one matching question must use one coherent relationship type only.\n"
-        "  Each pair must be based on an explicit relationship from the document.\n"
-        "  Every left and right value must be directly supported by the source document/context.\n"
-        "  Do not introduce entities, organisms, terms, or examples that are not explicitly present in the source document/context.\n"
-        "  Good coherent relationship types: term→definition, stage→location, process→result, factor→effect, "
-        "substance→role, organoid→function.\n"
-        "  Do not mix unrelated categories in one matching question, such as stage→location, gas→source, and product→role together.\n"
+        "  Use only the source document/context for left and right values.\n"
+        "  Prefer one coherent relationship type, such as term→definition, stage→location, process→result, "
+        "factor→effect, source→output, organization→role, or field→description.\n"
+        "  Do not mix unrelated categories in one matching question.\n"
         "  Prefer short source-grounded values copied or minimally rephrased from the document.\n"
         "  Example format: Concept A→description copied from the source; "
         "Concept B→role copied from the source; Concept C→result copied from the source; "
