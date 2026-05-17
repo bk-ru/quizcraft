@@ -88,7 +88,7 @@ def test_generation_quality_checker_rejects_duplicate_question_prompts() -> None
         )
 
 
-def test_generation_quality_checker_rejects_methodically_bad_chloroplast_choice() -> None:
+def test_generation_quality_checker_does_not_block_methodical_chloroplast_choice() -> None:
     checker = GenerationQualityChecker()
     quiz = Quiz(
         quiz_id="quiz-methodical",
@@ -112,8 +112,7 @@ def test_generation_quality_checker_rejects_methodically_bad_chloroplast_choice(
         ),
     )
 
-    with pytest.raises(GenerationQualityError, match="methodically inconsistent"):
-        checker.ensure_quality(quiz, expected_question_count=1)
+    checker.ensure_quality(quiz, expected_question_count=1)
 
 
 def test_generation_quality_checker_accepts_valid_quiz() -> None:

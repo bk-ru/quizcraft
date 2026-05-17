@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterator
 from dataclasses import dataclass
 from dataclasses import replace
 
-from backend.app.domain.errors import GenerationQualityError
 from backend.app.domain.models import Question
-from backend.app.domain.models import Quiz
 
 RECOVERED_QUESTION_PROMPT_WARNING_CODE = "recovered_question_prompt"
 RECOVERED_QUESTION_PROMPT_WARNING_MESSAGE = (
@@ -87,23 +84,6 @@ class QuestionQualityIssue:
 
     code: str
     message: str
-
-
-def ensure_methodical_quality(quiz: Quiz) -> None:
-    """Raise when a quiz contains a known methodically inconsistent question."""
-
-    issue = next(iter_question_quality_issues(quiz), None)
-    if issue is not None:
-        raise GenerationQualityError(issue.message)
-
-
-def iter_question_quality_issues(quiz: Quiz) -> Iterator[QuestionQualityIssue]:
-    """Yield known methodical issues for generated questions."""
-
-    for question in quiz.questions:
-        issue = find_question_quality_issue(question)
-        if issue is not None:
-            yield issue
 
 
 def find_question_quality_issue(question: Question) -> QuestionQualityIssue | None:
