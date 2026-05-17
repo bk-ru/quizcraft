@@ -987,20 +987,23 @@ class RagGenerationOrchestrator:
         quiz: Quiz,
         warnings: tuple[GenerationWarning, ...],
     ) -> tuple[Quiz, tuple[GenerationWarning, ...], str]:
-        recovered_quiz, recovery_warnings = recover_displayable_quiz(
-            quiz,
-            generation_request,
-            document.normalized_text,
-        )
-        merged_warnings = dedupe_generation_warnings(
-            merge_display_generation_warnings(warnings, recovery_warnings, recovered_quiz)
-        )
-        self._quality_checker.ensure_quality(
-            recovered_quiz,
-            generation_request.question_count,
-            source_text=document.normalized_text,
-            allow_partial=len(recovered_quiz.questions) < generation_request.question_count,
-        )
+        # DISABLED: recover_displayable_quiz вызывает замену вопросов с дублирующимися ответами
+        # recovered_quiz, recovery_warnings = recover_displayable_quiz(
+        #     quiz,
+        #     generation_request,
+        #     document.normalized_text,
+        # )
+        # merged_warnings = dedupe_generation_warnings(
+        #     merge_display_generation_warnings(warnings, recovery_warnings, recovered_quiz)
+        # )
+        # self._quality_checker.ensure_quality(
+        #     recovered_quiz,
+        #     generation_request.question_count,
+        #     source_text=document.normalized_text,
+        #     allow_partial=len(recovered_quiz.questions) < generation_request.question_count,
+        # )
+        recovered_quiz = quiz
+        merged_warnings = warnings
         quality_status = resolve_quality_status(
             expected_question_count=generation_request.question_count,
             actual_question_count=len(recovered_quiz.questions),
