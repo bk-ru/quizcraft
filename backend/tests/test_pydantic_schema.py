@@ -11,12 +11,8 @@ from pydantic import ValidationError
 from backend.app.domain.pydantic_models import (
     FillBlankQuestion,
     MatchingQuestion,
-    MatchingPairPayload,
-    OptionPayload,
     QuizPayload,
     SingleChoiceQuestion,
-    ShortAnswerQuestion,
-    TrueFalseQuestion,
 )
 from backend.app.domain.normalization import normalize_quiz_output
 

@@ -11,9 +11,6 @@ from backend.app.domain.models import MatchingPair
 from backend.app.domain.models import Option
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
-from backend.app.domain.pydantic_models import quiz_payload_to_domain
-from backend.app.domain.pydantic_models import QuizPayload
-
 DEFAULT_QUIZ_ID = "quiz-generated"
 DEFAULT_DOCUMENT_ID = "document-generated"
 DEFAULT_QUIZ_TITLE = "Сгенерированный квиз"
@@ -75,136 +72,39 @@ def _resolve_question_count_suffix(question_count: int) -> str:
 def normalize_quiz_output(raw_payload: dict[str, Any]) -> Quiz:
     """Нормализовать raw JSON модели в каноническую структуру квиза.
 
-    Использует Pydantic model_validate для строгой валидации с сохранением
-    совместимости для известных ошибок структуры от LLM.
+    Сохраняет совместимость с известными структурными ошибками LLM.
     """
 
     if not isinstance(raw_payload, dict):
         raise DomainValidationError("quiz payload must be an object")
 
-    # Apply compatibility fixes for known LLM output errors
-    normalized_payload = _apply_compatibility_fixes(raw_payload)
-
-    # Use Pydantic for strict validation
-    try:
-        validated = QuizPayload.model_validate(normalized_payload)
-    except Exception as error:
-        raise DomainValidationError(f"quiz validation failed: {error}") from error
-
-    # Convert back to domain dataclass for backward compatibility
-    return quiz_payload_to_domain(validated)
-
-
-def _apply_compatibility_fixes(raw_payload: dict[str, Any]) -> dict[str, Any]:
-    """Apply minimal compatibility fixes for known LLM output errors."""
-
-    payload = dict(raw_payload)
-
-    # Convert snake_case to camelCase for Pydantic compatibility
-    quiz_field_mapping = {
-        "quiz_id": "quizId",
-        "document_id": "documentId",
-        "last_edited_at": "lastEditedAt",
-    }
-    for snake, camel in quiz_field_mapping.items():
-        if snake in payload and camel not in payload:
-            payload[camel] = payload.pop(snake)
-
-    # Ensure required fields have defaults
-    payload.setdefault("quizId", DEFAULT_QUIZ_ID)
-    payload.setdefault("documentId", DEFAULT_DOCUMENT_ID)
-    payload.setdefault("title", DEFAULT_QUIZ_TITLE)
-    payload.setdefault("version", DEFAULT_VERSION)
-    payload.setdefault("lastEditedAt", DEFAULT_LAST_EDITED_AT)
-
-    # Normalize questions
-    raw_questions = payload.get("questions", [])
+    raw_questions = _read_payload_value(raw_payload, "questions", default=[])
     if not isinstance(raw_questions, list):
         raw_questions = []
-
-    fixed_questions = [_fix_question_payload(q, i) for i, q in enumerate(raw_questions)]
-    payload["questions"] = fixed_questions
-
-    return payload
-
-
-def _fix_question_payload(raw: Any, index: int) -> dict[str, Any]:
-    """Apply compatibility fixes to a single question payload."""
-
-    if not isinstance(raw, dict):
-        raw = {}
-
-    fixed = dict(raw)
-
-    # Convert snake_case to camelCase for Pydantic alias matching
-    field_mapping = {
-        "question_id": "questionId",
-        "question_type": "questionType",
-        "correct_option_index": "correctOptionIndex",
-        "correct_answer": "correctAnswer",
-        "matching_pairs": "matchingPairs",
-    }
-    for snake, camel in field_mapping.items():
-        if snake in fixed and camel not in fixed:
-            fixed[camel] = fixed.pop(snake)
-
-    # Handle nested matching_pairs
-    if "matchingPairs" in fixed and isinstance(fixed["matchingPairs"], list):
-        fixed["matchingPairs"] = [
-            {"left": p.get("left", ""), "right": p.get("right", "")}
-            for p in fixed["matchingPairs"]
-            if isinstance(p, dict)
-        ]
-
-    # Handle nested explanation
-    if "explanation" in fixed and isinstance(fixed["explanation"], dict):
-        if "text" in fixed["explanation"]:
-            fixed["explanation"] = {"text": fixed["explanation"]["text"]}
-
-    # Ensure required fields
-    fixed.setdefault("questionId", f"question-{index + 1}")
-    fixed.setdefault("questionType", DEFAULT_QUESTION_TYPE)
-    fixed.setdefault("prompt", "")
-
-    # Handle inlined correct_option_index in options
-    options = fixed.get("options", [])
-    if isinstance(options, list):
-        fixed["options"] = _fix_options_list(options)
-
-    # Handle correct_option_number -> correctOptionIndex conversion
-    if "correct_option_number" in fixed:
-        try:
-            fixed["correctOptionIndex"] = int(fixed.pop("correct_option_number", 0)) - 1
-        except (ValueError, TypeError):
-            fixed["correctOptionIndex"] = 0
-
-    # Normalize explanation
-    explanation = fixed.get("explanation")
-    if isinstance(explanation, str):
-        fixed["explanation"] = {"text": explanation} if explanation.strip() else None
-    elif explanation is None or (isinstance(explanation, dict) and not explanation.get("text", "").strip()):
-        fixed["explanation"] = None
-
-    return fixed
-
-
-def _fix_options_list(options: list[Any]) -> list[dict[str, Any]]:
-    """Fix common issues in options list."""
-
-    # Remove pseudo-option with option_id == "correct_option_index"
-    filtered = [
-        o for o in options
-        if isinstance(o, dict) and o.get("option_id") != "correct_option_index"
-    ]
-
-    # Remove empty options
-    cleaned = [
-        {"optionId": o.get("option_id", f"option-{i + 1}"), "text": o.get("text", "").strip()}
-        for i, o in enumerate(filtered)
-        if isinstance(o, dict) and o.get("text", "").strip()
-    ]
-
-    return cleaned
+    return Quiz(
+        quiz_id=_normalize_required_string(
+            _read_payload_value(raw_payload, "quiz_id", "quizId"),
+            default=DEFAULT_QUIZ_ID,
+        ),
+        document_id=_normalize_required_string(
+            _read_payload_value(raw_payload, "document_id", "documentId"),
+            default=DEFAULT_DOCUMENT_ID,
+        ),
+        title=_normalize_required_string(
+            _read_payload_value(raw_payload, "title"),
+            default=DEFAULT_QUIZ_TITLE,
+        ),
+        version=_normalize_integer(
+            _read_payload_value(raw_payload, "version"),
+            default=DEFAULT_VERSION,
+            field_name="version",
+        ),
+        last_edited_at=_normalize_required_string(
+            _read_payload_value(raw_payload, "last_edited_at", "lastEditedAt"),
+            default=DEFAULT_LAST_EDITED_AT,
+        ),
+        questions=tuple(_normalize_question(question, index) for index, question in enumerate(raw_questions)),
+    )
 
 
 def normalize_question_output(raw_payload: dict[str, Any]) -> Question:
@@ -219,12 +119,23 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
     if not isinstance(raw_payload, dict):
         raise DomainValidationError("question payload must be an object")
 
-    question_type = _normalize_required_string(raw_payload.get("question_type"), default=DEFAULT_QUESTION_TYPE)
-    raw_options = raw_payload.get("options", [])
+    question_type = _normalize_required_string(
+        _read_payload_value(raw_payload, "question_type", "questionType"),
+        default=DEFAULT_QUESTION_TYPE,
+    )
+    raw_options = _read_payload_value(raw_payload, "options", default=[])
     if not isinstance(raw_options, list):
         raise DomainValidationError("question options must be a list")
 
-    has_explicit_index = "correct_option_number" in raw_payload or "correct_option_index" in raw_payload
+    has_explicit_index = any(
+        key in raw_payload
+        for key in (
+            "correct_option_number",
+            "correctOptionNumber",
+            "correct_option_index",
+            "correctOptionIndex",
+        )
+    )
     inlined_index = _extract_inlined_correct_option_index(raw_options)
     if not has_explicit_index and inlined_index is not None and _has_trailing_duplicate_option(raw_options):
         raw_options = raw_options[:-1]
@@ -236,8 +147,10 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
     )
 
     if question_type in {"single_choice", "true_false"} and not options:
-        has_answer = bool(_normalize_optional_string(raw_payload.get("correct_answer")))
-        has_pairs = bool(raw_payload.get("matching_pairs"))
+        has_answer = bool(
+            _normalize_optional_string(_read_payload_value(raw_payload, "correct_answer", "correctAnswer"))
+        )
+        has_pairs = bool(_read_payload_value(raw_payload, "matching_pairs", "matchingPairs", default=[]))
         if has_pairs:
             question_type = "matching"
         elif has_answer and question_type != "true_false":
@@ -248,18 +161,26 @@ def _normalize_question(raw_payload: Any, question_index: int) -> Question:
         if inlined_index is None:
             inlined_index = _resolve_true_false_index(raw_payload)
 
-    explicit_index = _normalize_correct_option_index(raw_payload, field_name="correct option")
+    explicit_index = _normalize_correct_option_index(raw_payload, field_name="correctOptionIndex")
     resolved_index = explicit_index if explicit_index is not None else inlined_index
+    correct_answer = _normalize_optional_string(_read_payload_value(raw_payload, "correct_answer", "correctAnswer"))
+    if question_type in {"single_choice", "true_false"}:
+        correct_answer = None
 
     return Question(
-        question_id=_normalize_required_string(raw_payload.get("question_id"), default=f"question-{question_index + 1}"),
+        question_id=_normalize_required_string(
+            _read_payload_value(raw_payload, "question_id", "questionId"),
+            default=f"question-{question_index + 1}",
+        ),
         question_type=question_type,
-        prompt=_normalize_required_string(raw_payload.get("prompt"), default=""),
+        prompt=_normalize_required_string(_read_payload_value(raw_payload, "prompt"), default=""),
         options=options,
         correct_option_index=resolved_index,
-        correct_answer=_normalize_optional_string(raw_payload.get("correct_answer")),
-        matching_pairs=_normalize_matching_pairs(raw_payload.get("matching_pairs", [])),
-        explanation=_normalize_explanation(raw_payload.get("explanation")),
+        correct_answer=correct_answer,
+        matching_pairs=_normalize_matching_pairs(
+            _read_payload_value(raw_payload, "matching_pairs", "matchingPairs", default=[])
+        ),
+        explanation=_normalize_explanation(_read_payload_value(raw_payload, "explanation")),
     )
 
 
@@ -269,15 +190,16 @@ def _normalize_option(raw_payload: Any, option_index: int) -> Option | None:
     if not isinstance(raw_payload, dict):
         return None
 
-    if raw_payload.get("option_id") == "correct_option_index":
+    option_id = _read_payload_value(raw_payload, "option_id", "optionId")
+    if option_id == "correct_option_index":
         return None
 
-    text = _normalize_required_string(raw_payload.get("text"), default="")
+    text = _normalize_required_string(_read_payload_value(raw_payload, "text"), default="")
     if not text:
         return None
 
     return Option(
-        option_id=_normalize_required_string(raw_payload.get("option_id"), default=f"option-{option_index + 1}"),
+        option_id=_normalize_required_string(option_id, default=f"option-{option_index + 1}"),
         text=text,
     )
 
@@ -297,9 +219,9 @@ def _extract_inlined_correct_option_index(raw_options: list[Any]) -> int | None:
     for item in raw_options:
         if not isinstance(item, dict):
             continue
-        if item.get("option_id") != "correct_option_index":
+        if _read_payload_value(item, "option_id", "optionId") != "correct_option_index":
             continue
-        raw_text = (item.get("text") or "").strip().lower()
+        raw_text = (_read_payload_value(item, "text") or "").strip().lower()
         if raw_text in option_ids:
             return option_ids.index(raw_text)
         try:
@@ -309,18 +231,18 @@ def _extract_inlined_correct_option_index(raw_options: list[Any]) -> int | None:
 
     real_options = [
         item for item in raw_options
-        if isinstance(item, dict) and item.get("option_id") != "correct_option_index"
+        if isinstance(item, dict) and _read_payload_value(item, "option_id", "optionId") != "correct_option_index"
     ]
     if len(real_options) < 2:
         return None
     last = real_options[-1]
-    last_text = (last.get("text") or "").strip().casefold()
-    last_id = str(last.get("option_id") or "").strip()
+    last_text = (_read_payload_value(last, "text") or "").strip().casefold()
+    last_id = str(_read_payload_value(last, "option_id", "optionId") or "").strip()
     for i, option in enumerate(real_options[:-1]):
         if not isinstance(option, dict):
             continue
-        option_text = (option.get("text") or "").strip().casefold()
-        option_id = str(option.get("option_id") or "").strip()
+        option_text = (_read_payload_value(option, "text") or "").strip().casefold()
+        option_id = str(_read_payload_value(option, "option_id", "optionId") or "").strip()
         if last_text and last_text == option_text:
             return i
         if last_id and last_id == option_id:
@@ -337,19 +259,19 @@ def _has_trailing_duplicate_option(raw_options: list[Any]) -> bool:
 
     real_options = [
         item for item in raw_options
-        if isinstance(item, dict) and item.get("option_id") != "correct_option_index"
+        if isinstance(item, dict) and _read_payload_value(item, "option_id", "optionId") != "correct_option_index"
     ]
     if len(real_options) < 2:
         return False
     last = real_options[-1]
-    last_text = (last.get("text") or "").strip().casefold()
-    last_id = str(last.get("option_id") or "").strip()
+    last_text = (_read_payload_value(last, "text") or "").strip().casefold()
+    last_id = str(_read_payload_value(last, "option_id", "optionId") or "").strip()
     for option in real_options[:-1]:
         if not isinstance(option, dict):
             continue
-        if last_text and last_text == (option.get("text") or "").strip().casefold():
+        if last_text and last_text == (_read_payload_value(option, "text") or "").strip().casefold():
             return True
-        if last_id and last_id == str(option.get("option_id") or "").strip():
+        if last_id and last_id == str(_read_payload_value(option, "option_id", "optionId") or "").strip():
             return True
     return False
 
@@ -370,7 +292,7 @@ def _resolve_true_false_index(raw_payload: dict[str, Any]) -> int | None:
     Индекс 0 = Да (True), индекс 1 = Нет (False).
     """
 
-    raw = (raw_payload.get("correct_answer") or "").strip().lower()
+    raw = (_read_payload_value(raw_payload, "correct_answer", "correctAnswer") or "").strip().lower()
     if raw in {"да", "true", "yes", "1"}:
         return 0
     if raw in {"нет", "false", "no", "0"}:
@@ -389,7 +311,7 @@ def _normalize_explanation(raw_payload: Any) -> Explanation | None:
         return None if not normalized_text else Explanation(text=normalized_text)
 
     if isinstance(raw_payload, dict):
-        normalized_text = _normalize_required_string(raw_payload.get("text"), default="")
+        normalized_text = _normalize_required_string(_read_payload_value(raw_payload, "text"), default="")
         return None if not normalized_text else Explanation(text=normalized_text)
 
     raise DomainValidationError("explanation must be null, string, or object")
@@ -406,8 +328,8 @@ def _normalize_matching_pairs(raw_payload: Any) -> tuple[MatchingPair, ...]:
     for pair_payload in raw_payload:
         if not isinstance(pair_payload, dict):
             continue
-        left = _normalize_required_string(pair_payload.get("left"), default="")
-        right = _normalize_required_string(pair_payload.get("right"), default="")
+        left = _normalize_required_string(_read_payload_value(pair_payload, "left"), default="")
+        right = _normalize_required_string(_read_payload_value(pair_payload, "right"), default="")
         if left and right:
             pairs.append(MatchingPair(left=left, right=right))
     return tuple(pairs)
@@ -437,6 +359,15 @@ def _normalize_required_string(raw_value: Any, default: str) -> str:
     return default if not normalized_value and default else normalized_value
 
 
+def _read_payload_value(raw_payload: dict[str, Any], *keys: str, default: Any = None) -> Any:
+    """Прочитать значение из payload с поддержкой snake_case и camelCase ключей."""
+
+    for key in keys:
+        if key in raw_payload:
+            return raw_payload[key]
+    return default
+
+
 def _normalize_integer(raw_value: Any, default: int, field_name: str) -> int:
     """Нормализовать целочисленные поля из raw значений payload."""
 
@@ -458,13 +389,13 @@ def _normalize_integer(raw_value: Any, default: int, field_name: str) -> int:
 def _normalize_correct_option_index(raw_payload: dict[str, Any], field_name: str) -> int | None:
     """Нормализовать поддерживаемые поля индекса ответа в нумерацию с нуля."""
 
-    if "correct_option_number" in raw_payload:
-        raw_value = raw_payload.get("correct_option_number")
+    if "correct_option_number" in raw_payload or "correctOptionNumber" in raw_payload:
+        raw_value = _read_payload_value(raw_payload, "correct_option_number", "correctOptionNumber")
         if raw_value is None:
             return None
         return _normalize_integer(raw_value, default=1, field_name=field_name) - 1
-    if "correct_option_index" in raw_payload:
-        raw_value = raw_payload.get("correct_option_index")
+    if "correct_option_index" in raw_payload or "correctOptionIndex" in raw_payload:
+        raw_value = _read_payload_value(raw_payload, "correct_option_index", "correctOptionIndex")
         if raw_value is None:
             return None
         return _normalize_integer(raw_value, default=0, field_name=field_name)
