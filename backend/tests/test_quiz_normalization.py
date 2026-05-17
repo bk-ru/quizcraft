@@ -68,7 +68,7 @@ def test_normalize_quiz_output_rejects_non_numeric_answer_index() -> None:
         ],
     }
 
-    with pytest.raises(DomainValidationError, match="correct option"):
+    with pytest.raises(DomainValidationError, match="correctOptionIndex"):
         normalize_quiz_output(raw_payload)
 
 

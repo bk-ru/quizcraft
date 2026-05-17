@@ -1,91 +1,18 @@
-"""Артефакты JSON Schema для сохраняемых доменных payload'ов."""
+"""JSON Schema artifacts generated from Pydantic models for LLM structured generation."""
 
 from __future__ import annotations
 
-QUIZ_JSON_SCHEMA = {
-    "type": "object",
-    "required": [
-        "quiz_id",
-        "document_id",
-        "title",
-        "version",
-        "last_edited_at",
-        "questions",
-    ],
-    "properties": {
-        "quiz_id": {"type": "string"},
-        "document_id": {"type": "string"},
-        "title": {"type": "string"},
-        "version": {"type": "integer", "minimum": 1},
-        "last_edited_at": {"type": "string", "format": "date-time"},
-        "questions": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-                "type": "object",
-                "required": [
-                    "question_id",
-                    "question_type",
-                    "prompt",
-                    "explanation",
-                ],
-                "properties": {
-                    "question_id": {"type": "string"},
-                    "question_type": {
-                        "type": "string",
-                        "enum": ["single_choice", "true_false", "fill_blank", "short_answer", "matching"],
-                    },
-                    "prompt": {"type": "string"},
-                    "options": {
-                        "type": "array",
-                        "minItems": 0,
-                        "items": {
-                            "type": "object",
-                            "required": ["option_id", "text"],
-                            "properties": {
-                                "option_id": {"type": "string"},
-                                "text": {"type": "string"},
-                            },
-                        },
-                    },
-                    "correct_option_index": {
-                        "oneOf": [
-                            {"type": "null"},
-                            {"type": "integer", "minimum": 0},
-                        ],
-                    },
-                    "correct_answer": {
-                        "oneOf": [
-                            {"type": "null"},
-                            {"type": "string"},
-                        ],
-                    },
-                    "matching_pairs": {
-                        "type": "array",
-                        "minItems": 4,
-                        "items": {
-                            "type": "object",
-                            "required": ["left", "right"],
-                            "properties": {
-                                "left": {"type": "string", "minLength": 1},
-                                "right": {"type": "string", "minLength": 1},
-                            },
-                        },
-                    },
-                    "explanation": {
-                        "oneOf": [
-                            {"type": "null"},
-                            {
-                                "type": "object",
-                                "required": ["text"],
-                                "properties": {"text": {"type": "string"}},
-                            },
-                        ],
-                    },
-                },
-            },
-        },
-    },
-}
+from typing import Any
 
-QUESTION_JSON_SCHEMA = QUIZ_JSON_SCHEMA["properties"]["questions"]["items"]
+from backend.app.domain.pydantic_models import get_quiz_json_schema as _get_quiz_schema
+
+
+def _build_question_schema() -> dict[str, Any]:
+    """Extract question schema from full quiz schema."""
+    full = _get_quiz_schema()
+    return full["properties"]["questions"]["items"]
+
+
+# Lazily-evaluated schemas for backward compatibility
+QUIZ_JSON_SCHEMA: dict[str, Any] = _get_quiz_schema()
+QUESTION_JSON_SCHEMA: dict[str, Any] = _build_question_schema()

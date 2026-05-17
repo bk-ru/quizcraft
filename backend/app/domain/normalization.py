@@ -11,6 +11,8 @@ from backend.app.domain.models import MatchingPair
 from backend.app.domain.models import Option
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
+from backend.app.domain.pydantic_models import quiz_payload_to_domain
+from backend.app.domain.pydantic_models import QuizPayload
 
 DEFAULT_QUIZ_ID = "quiz-generated"
 DEFAULT_DOCUMENT_ID = "document-generated"
@@ -71,24 +73,138 @@ def _resolve_question_count_suffix(question_count: int) -> str:
 
 
 def normalize_quiz_output(raw_payload: dict[str, Any]) -> Quiz:
-    """Нормализовать raw JSON модели в каноническую структуру квиза."""
+    """Нормализовать raw JSON модели в каноническую структуру квиза.
+
+    Использует Pydantic model_validate для строгой валидации с сохранением
+    совместимости для известных ошибок структуры от LLM.
+    """
 
     if not isinstance(raw_payload, dict):
         raise DomainValidationError("quiz payload must be an object")
 
-    raw_questions = raw_payload.get("questions")
-    if not isinstance(raw_questions, list):
-        raise DomainValidationError("quiz payload must contain a questions list")
+    # Apply compatibility fixes for known LLM output errors
+    normalized_payload = _apply_compatibility_fixes(raw_payload)
 
-    questions = tuple(_normalize_question(question_payload, question_index) for question_index, question_payload in enumerate(raw_questions))
-    return Quiz(
-        quiz_id=_normalize_required_string(raw_payload.get("quiz_id"), default=DEFAULT_QUIZ_ID),
-        document_id=_normalize_required_string(raw_payload.get("document_id"), default=DEFAULT_DOCUMENT_ID),
-        title=_normalize_required_string(raw_payload.get("title"), default=DEFAULT_QUIZ_TITLE),
-        version=_normalize_integer(raw_payload.get("version"), default=DEFAULT_VERSION, field_name="version"),
-        last_edited_at=_normalize_required_string(raw_payload.get("last_edited_at"), default=DEFAULT_LAST_EDITED_AT),
-        questions=questions,
-    )
+    # Use Pydantic for strict validation
+    try:
+        validated = QuizPayload.model_validate(normalized_payload)
+    except Exception as error:
+        raise DomainValidationError(f"quiz validation failed: {error}") from error
+
+    # Convert back to domain dataclass for backward compatibility
+    return quiz_payload_to_domain(validated)
+
+
+def _apply_compatibility_fixes(raw_payload: dict[str, Any]) -> dict[str, Any]:
+    """Apply minimal compatibility fixes for known LLM output errors."""
+
+    payload = dict(raw_payload)
+
+    # Convert snake_case to camelCase for Pydantic compatibility
+    quiz_field_mapping = {
+        "quiz_id": "quizId",
+        "document_id": "documentId",
+        "last_edited_at": "lastEditedAt",
+    }
+    for snake, camel in quiz_field_mapping.items():
+        if snake in payload and camel not in payload:
+            payload[camel] = payload.pop(snake)
+
+    # Ensure required fields have defaults
+    payload.setdefault("quizId", DEFAULT_QUIZ_ID)
+    payload.setdefault("documentId", DEFAULT_DOCUMENT_ID)
+    payload.setdefault("title", DEFAULT_QUIZ_TITLE)
+    payload.setdefault("version", DEFAULT_VERSION)
+    payload.setdefault("lastEditedAt", DEFAULT_LAST_EDITED_AT)
+
+    # Normalize questions
+    raw_questions = payload.get("questions", [])
+    if not isinstance(raw_questions, list):
+        raw_questions = []
+
+    fixed_questions = [_fix_question_payload(q, i) for i, q in enumerate(raw_questions)]
+    payload["questions"] = fixed_questions
+
+    return payload
+
+
+def _fix_question_payload(raw: Any, index: int) -> dict[str, Any]:
+    """Apply compatibility fixes to a single question payload."""
+
+    if not isinstance(raw, dict):
+        raw = {}
+
+    fixed = dict(raw)
+
+    # Convert snake_case to camelCase for Pydantic alias matching
+    field_mapping = {
+        "question_id": "questionId",
+        "question_type": "questionType",
+        "correct_option_index": "correctOptionIndex",
+        "correct_answer": "correctAnswer",
+        "matching_pairs": "matchingPairs",
+    }
+    for snake, camel in field_mapping.items():
+        if snake in fixed and camel not in fixed:
+            fixed[camel] = fixed.pop(snake)
+
+    # Handle nested matching_pairs
+    if "matchingPairs" in fixed and isinstance(fixed["matchingPairs"], list):
+        fixed["matchingPairs"] = [
+            {"left": p.get("left", ""), "right": p.get("right", "")}
+            for p in fixed["matchingPairs"]
+            if isinstance(p, dict)
+        ]
+
+    # Handle nested explanation
+    if "explanation" in fixed and isinstance(fixed["explanation"], dict):
+        if "text" in fixed["explanation"]:
+            fixed["explanation"] = {"text": fixed["explanation"]["text"]}
+
+    # Ensure required fields
+    fixed.setdefault("questionId", f"question-{index + 1}")
+    fixed.setdefault("questionType", DEFAULT_QUESTION_TYPE)
+    fixed.setdefault("prompt", "")
+
+    # Handle inlined correct_option_index in options
+    options = fixed.get("options", [])
+    if isinstance(options, list):
+        fixed["options"] = _fix_options_list(options)
+
+    # Handle correct_option_number -> correctOptionIndex conversion
+    if "correct_option_number" in fixed:
+        try:
+            fixed["correctOptionIndex"] = int(fixed.pop("correct_option_number", 0)) - 1
+        except (ValueError, TypeError):
+            fixed["correctOptionIndex"] = 0
+
+    # Normalize explanation
+    explanation = fixed.get("explanation")
+    if isinstance(explanation, str):
+        fixed["explanation"] = {"text": explanation} if explanation.strip() else None
+    elif explanation is None or (isinstance(explanation, dict) and not explanation.get("text", "").strip()):
+        fixed["explanation"] = None
+
+    return fixed
+
+
+def _fix_options_list(options: list[Any]) -> list[dict[str, Any]]:
+    """Fix common issues in options list."""
+
+    # Remove pseudo-option with option_id == "correct_option_index"
+    filtered = [
+        o for o in options
+        if isinstance(o, dict) and o.get("option_id") != "correct_option_index"
+    ]
+
+    # Remove empty options
+    cleaned = [
+        {"optionId": o.get("option_id", f"option-{i + 1}"), "text": o.get("text", "").strip()}
+        for i, o in enumerate(filtered)
+        if isinstance(o, dict) and o.get("text", "").strip()
+    ]
+
+    return cleaned
 
 
 def normalize_question_output(raw_payload: dict[str, Any]) -> Question:

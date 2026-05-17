@@ -141,10 +141,11 @@ def test_configuration_error_inherits_from_backend_error() -> None:
 
 def test_quiz_json_schema_exposes_expected_structure() -> None:
     assert QUIZ_JSON_SCHEMA["type"] == "object"
-    assert QUIZ_JSON_SCHEMA["required"] == ["quiz_id", "document_id", "title", "version", "last_edited_at", "questions"]
+    # Pydantic-generated schema uses camelCase aliases
+    assert QUIZ_JSON_SCHEMA["required"] == ["quizId", "documentId", "title", "version", "lastEditedAt", "questions"]
     assert QUIZ_JSON_SCHEMA["properties"]["questions"]["type"] == "array"
     question_schema = QUIZ_JSON_SCHEMA["properties"]["questions"]["items"]
-    assert question_schema["properties"]["question_type"]["enum"] == [
+    assert question_schema["properties"]["questionType"]["enum"] == [
         "single_choice",
         "true_false",
         "fill_blank",
@@ -152,10 +153,10 @@ def test_quiz_json_schema_exposes_expected_structure() -> None:
         "matching",
     ]
     assert question_schema["properties"]["options"]["type"] == "array"
-    assert question_schema["properties"]["correct_option_index"]["oneOf"][1]["type"] == "integer"
-    assert question_schema["properties"]["correct_answer"]["oneOf"][1]["type"] == "string"
-    assert question_schema["properties"]["matching_pairs"]["type"] == "array"
-    assert question_schema["properties"]["matching_pairs"]["minItems"] == 4
-    matching_pair_schema = question_schema["properties"]["matching_pairs"]["items"]
+    assert question_schema["properties"]["correctOptionIndex"]["oneOf"][1]["type"] == "integer"
+    assert question_schema["properties"]["correctAnswer"]["oneOf"][1]["type"] == "string"
+    assert question_schema["properties"]["matchingPairs"]["type"] == "array"
+    assert question_schema["properties"]["matchingPairs"]["minItems"] == 4
+    matching_pair_schema = question_schema["properties"]["matchingPairs"]["items"]
     assert matching_pair_schema["properties"]["left"]["minLength"] == 1
     assert matching_pair_schema["properties"]["right"]["minLength"] == 1
