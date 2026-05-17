@@ -417,3 +417,52 @@ def test_deterministic_short_answer_builder_uses_source_sentence() -> None:
     assert question.question_id == "q-safe"
     assert question.correct_answer == "Российские исследователи описали новый метод очистки воды."
     assert question.matching_pairs == ()
+
+
+def test_display_recovery_replaces_multiple_invalid_questions_with_distinct_specific_fallbacks() -> None:
+    source_text = (
+        "МИИГАиК — это Московский государственный университет геодезии и картографии. "
+        "Константиновская землемерная школа была открыта в 1779 году. "
+        "([МГИКа][1]) Геоинформационные системы позволяют собирать и визуализировать данные о территории."
+    )
+    invalid_fill_blank = Question(
+        question_id="q3",
+        prompt="Геоинформационные системы позволяют собирать данные о \t",
+        question_type="fill_blank",
+    )
+    invalid_short_answer = Question(
+        question_id="q4",
+        prompt="Назовите одну из ключевых дисциплин, связанных с МИИГАиК.",
+        question_type="short_answer",
+    )
+    invalid_matching = Question(
+        question_id="q5",
+        prompt="Соотнесите понятие и его описание:",
+        question_type="matching",
+        matching_pairs=(
+            MatchingPair(left="Геодезия", right="A"),
+            MatchingPair(left="Картография", right="B"),
+            MatchingPair(left="Кадастр", right="C"),
+            MatchingPair(left="ГИС", right="D"),
+        ),
+    )
+
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(build_valid_choice("q1"), invalid_fill_blank, invalid_short_answer, invalid_matching),
+        build_generation_request(question_count=4),
+        source_text,
+    )
+
+    validate_quiz(recovered)
+    fallback_questions = recovered.questions[1:]
+    fallback_prompts = {question.prompt for question in fallback_questions}
+    fallback_answers = {question.correct_answer for question in fallback_questions}
+    assert len(fallback_prompts) == 3
+    assert len(fallback_answers) == 3
+    assert all("Какой факт приведён в тексте?" != question.prompt for question in fallback_questions)
+    assert all("Какое утверждение содержится в тексте?" != question.prompt for question in fallback_questions)
+    assert all("Какая информация указана в тексте?" != question.prompt for question in fallback_questions)
+    assert all("[1]" not in question.prompt for question in fallback_questions)
+    assert recovered.questions[1].prompt == "Что такое МИИГАиК?"
+    assert recovered.questions[1].correct_answer.startswith("МИИГАиК")
+    assert warnings

@@ -42,6 +42,37 @@ _MATCHING_PROMPT_FRAGMENTS = (
     "СЃРѕРїРѕСЃС‚Р°РІ",
 )
 _BAD_SHORT_ANSWERS = frozenset({"листе", "лист", "тексте", "процесс", "вещество"})
+_DEFINITION_ANSWER_PATTERN = re.compile(r"^\s*(?P<term>[^.!?:;]{2,80}?)\s*[-—–]\s*это\b", re.IGNORECASE)
+_SENTENCE_SUBJECT_PATTERN = re.compile(
+    r"\b(?:"
+    r"является|называется|начинается|занимается|изучает|изучают|"
+    r"позволяет|позволяют|использует|используют|помогает|помогают|"
+    r"включает|включают|содержит|содержат|состоит|состоят|"
+    r"происходит|происходят|протекает|протекают|"
+    r"описал|описали|описывает|описывают|снижает|снижают|"
+    r"создает|создают|создаёт|создают|работает|работают|"
+    r"была|был|были|будет|"
+    r"is|are|was|were|allows|allow|uses|use|includes|include|"
+    r"contains|contain|studies|study|happens|occurred|occurs|describes|describe"
+    r")\b",
+    re.IGNORECASE,
+)
+_AMBIGUOUS_SUBJECT_STARTS = frozenset(
+    {
+        "его",
+        "её",
+        "ее",
+        "она",
+        "он",
+        "они",
+        "это",
+        "this",
+        "it",
+        "they",
+        "he",
+        "she",
+    }
+)
 _REPLACED_QUESTION_WARNING_MESSAGE = (
     "Квиз был автоматически исправлен. Один некачественный вопрос был заменён безопасным вопросом из текста."
 )
@@ -66,14 +97,17 @@ def recover_displayable_quiz(
     recovered_questions: list[Question] = []
     warnings: list[GenerationWarning] = []
     used_prompts: set[str] = set()
+    used_answers: set[str] = set()
 
     for question in quiz.questions:
         recovered_question, question_warnings = _recover_question(
             question,
             generation_request,
+            source_text,
             normalized_source,
             allowed_types,
             used_prompts,
+            used_answers,
         )
         warnings.extend(question_warnings)
         if recovered_question is None:
@@ -86,6 +120,8 @@ def recover_displayable_quiz(
             continue
         recovered_questions.append(recovered_question)
         used_prompts.add(recovered_question.prompt.strip().casefold())
+        if recovered_question.correct_answer is not None:
+            used_answers.add(_answer_key(recovered_question.correct_answer))
 
     recovered_quiz = replace(quiz, questions=tuple(recovered_questions))
     if len(recovered_quiz.questions) < generation_request.question_count:
@@ -107,23 +143,27 @@ def build_deterministic_short_answer_question(
     question_id: str,
     language: str,
     used_prompts: set[str],
+    used_answers: set[str] | None = None,
 ) -> Question | None:
     """Build a deterministic source-grounded short-answer question."""
 
+    existing_answers = set() if used_answers is None else used_answers
     for answer in _candidate_source_sentences(source_text):
-        for prompt in _generic_short_answer_prompts(language):
-            if prompt.casefold() in used_prompts:
-                continue
-            return Question(
-                question_id=question_id,
-                prompt=prompt,
-                options=(),
-                correct_option_index=None,
-                explanation=None,
-                question_type="short_answer",
-                correct_answer=answer,
-                matching_pairs=(),
-            )
+        if _answer_key(answer) in existing_answers:
+            continue
+        prompt = _specific_short_answer_prompt(answer, language)
+        if prompt is None or prompt.strip().casefold() in used_prompts:
+            continue
+        return Question(
+            question_id=question_id,
+            prompt=prompt,
+            options=(),
+            correct_option_index=None,
+            explanation=None,
+            question_type="short_answer",
+            correct_answer=answer,
+            matching_pairs=(),
+        )
     return None
 
 
@@ -161,15 +201,17 @@ def dedupe_generation_warnings(warnings: tuple[GenerationWarning, ...]) -> tuple
 def _recover_question(
     question: Question,
     generation_request: GenerationRequest,
+    source_text: str,
     normalized_source: str,
     allowed_types: tuple[str, ...],
     used_prompts: set[str],
+    used_answers: set[str],
 ) -> tuple[Question | None, tuple[GenerationWarning, ...]]:
     warnings: list[GenerationWarning] = []
     recovered = question
 
     if _is_placeholder_question(recovered):
-        return _replacement_question(recovered, generation_request, normalized_source, used_prompts), (
+        return _replacement_question(recovered, generation_request, source_text, used_prompts, used_answers), (
             _replaced_question_warning(),
         )
 
@@ -199,7 +241,7 @@ def _recover_question(
     if recovered.question_type == "matching":
         recovered, matching_cleaned = _recover_matching_question(recovered, normalized_source)
         if recovered is None:
-            return _replacement_question(question, generation_request, normalized_source, used_prompts), (
+            return _replacement_question(question, generation_request, source_text, used_prompts, used_answers), (
                 _matching_replaced_warning(),
             )
         if matching_cleaned:
@@ -210,7 +252,7 @@ def _recover_question(
         warnings.append(_recovered_question_prompt_warning())
 
     if _is_methodically_bad_answer_question(recovered):
-        return _replacement_question(recovered, generation_request, normalized_source, used_prompts), tuple(
+        return _replacement_question(recovered, generation_request, source_text, used_prompts, used_answers), tuple(
             warnings
             + [
                 _replaced_question_warning()
@@ -220,21 +262,25 @@ def _recover_question(
     try:
         validate_quiz(_single_question_quiz(recovered))
     except DomainValidationError:
-        return _replacement_question(recovered, generation_request, normalized_source, used_prompts), tuple(warnings)
+        return _replacement_question(recovered, generation_request, source_text, used_prompts, used_answers), tuple(
+            warnings
+        )
     return recovered, tuple(warnings)
 
 
 def _replacement_question(
     question: Question,
     generation_request: GenerationRequest,
-    normalized_source: str,
+    source_text: str,
     used_prompts: set[str],
+    used_answers: set[str],
 ) -> Question | None:
     return build_deterministic_short_answer_question(
-        normalized_source,
+        source_text,
         question_id=question.question_id,
         language=generation_request.language,
         used_prompts=used_prompts,
+        used_answers=used_answers,
     )
 
 
@@ -355,11 +401,19 @@ def _single_question_quiz(question: Question) -> Quiz:
 def _candidate_source_sentences(source_text: str) -> tuple[str, ...]:
     sentences: list[str] = []
     for sentence in re.split(r"(?<=[.!?。！？])\s+", source_text.strip()):
-        normalized = " ".join(sentence.strip().split())
+        normalized = _clean_candidate_sentence(sentence)
         if not _is_safe_fallback_answer(normalized):
             continue
         sentences.append(normalized)
     return tuple(sentences)
+
+
+def _clean_candidate_sentence(sentence: str) -> str:
+    cleaned = " ".join(sentence.strip().split())
+    cleaned = re.sub(r"^\(\[[^\]]+\]\[\d+\]\)\s*", "", cleaned)
+    cleaned = re.sub(r"\s*\(\[[^\]]+\]\[\d+\]\)", "", cleaned)
+    cleaned = re.sub(r"^\[\d+\]:\s+\S+.*$", "", cleaned)
+    return " ".join(cleaned.split())
 
 
 def _is_safe_fallback_answer(answer: str) -> bool:
@@ -373,18 +427,58 @@ def _is_safe_fallback_answer(answer: str) -> bool:
     return True
 
 
-def _generic_short_answer_prompts(language: str) -> tuple[str, ...]:
+def _specific_short_answer_prompt(answer: str, language: str) -> str | None:
+    definition_prompt = _definition_short_answer_prompt(answer, language)
+    if definition_prompt is not None:
+        return definition_prompt
+    subject = _sentence_subject(answer)
+    if subject is None:
+        return None
     if language.strip().casefold().startswith("ru"):
-        return (
-            "Какой факт приведён в тексте?",
-            "Какое утверждение содержится в тексте?",
-            "Какая информация указана в тексте?",
-        )
-    return (
-        "What fact is stated in the text?",
-        "What statement appears in the text?",
-        "What information is given in the text?",
-    )
+        return f"Что сказано в тексте о теме «{subject}»?"
+    return f'What does the text say about "{subject}"?'
+
+
+def _definition_short_answer_prompt(answer: str, language: str) -> str | None:
+    match = _DEFINITION_ANSWER_PATTERN.match(answer)
+    if not match:
+        return None
+    term = match.group("term").strip()
+    if not term:
+        return None
+    if language.strip().casefold().startswith("ru"):
+        return f"Что такое {term}?"
+    return f"What is {term}?"
+
+
+def _sentence_subject(answer: str) -> str | None:
+    sentence = answer.strip()
+    match = _SENTENCE_SUBJECT_PATTERN.search(sentence)
+    if match is None:
+        return None
+    subject = _clean_sentence_subject(sentence[: match.start()])
+    if subject is None:
+        return None
+    return subject
+
+
+def _clean_sentence_subject(subject: str) -> str | None:
+    cleaned = re.sub(r"^\s*(?:в|in)\s+\d{3,4}\s+(?:году|year)?\s+", "", subject, flags=re.IGNORECASE)
+    cleaned = cleaned.strip(" \t\r\n,.;:!?-—–()[]«»\"'")
+    cleaned = " ".join(cleaned.split())
+    if not 2 <= len(cleaned) <= 80:
+        return None
+    normalized = cleaned.casefold().replace("ё", "е")
+    first_word = normalized.split()[0] if normalized.split() else ""
+    if first_word in _AMBIGUOUS_SUBJECT_STARTS:
+        return None
+    if len(cleaned.split()) > 8:
+        return None
+    return cleaned
+
+
+def _answer_key(answer: str) -> str:
+    return normalize_grounding_text(answer)
 
 
 def _dedupe_warnings(warnings: tuple[GenerationWarning, ...]) -> tuple[GenerationWarning, ...]:
