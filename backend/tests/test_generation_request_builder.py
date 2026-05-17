@@ -76,14 +76,31 @@ def test_request_builder_renders_explicit_matching_rules_for_multi_type_generati
     )
 
     assert "Return exactly 6 questions" in provider_request.user_prompt
-    assert "Do not stop after using each allowed question type once" in provider_request.user_prompt
-    assert "repeat suitable allowed question types until exactly 6 questions" in provider_request.user_prompt
+    assert "Use every allowed question type at least once" in provider_request.user_prompt
+    assert "Then repeat suitable allowed types until exactly 6 questions" in provider_request.user_prompt
     assert "4 or more pairs" in provider_request.user_prompt
     assert "Never create a matching question with fewer than 4 pairs" in provider_request.user_prompt
-    assert "Do not use only two stages as a matching question" in provider_request.user_prompt
     assert "term→definition" in provider_request.user_prompt
-    assert "Do not use options for matching questions" in provider_request.user_prompt
-    assert "Do not use symbolic answers like A/B/1/2" in provider_request.user_prompt
+    assert "Do not use `options`" in provider_request.user_prompt
+    assert "IDs like \"A\", \"B\", \"1\", \"2\"" in provider_request.user_prompt
+
+
+def test_request_builder_requires_each_type_when_count_matches_allowed_types() -> None:
+    builder = DirectGenerationRequestBuilder(prompt_registry=PromptRegistry)
+    request = GenerationRequest(
+        question_count=5,
+        language="ru",
+        difficulty="medium",
+        quiz_type="single_choice",
+        generation_mode=GenerationMode.DIRECT,
+        quiz_types=("single_choice", "true_false", "fill_blank", "short_answer", "matching"),
+    )
+
+    provider_request = builder.build(document=build_document(), generation_request=request)
+
+    assert "Return exactly one question for each allowed question type" in provider_request.user_prompt
+    assert "Do not replace an allowed type with a repeated type" in provider_request.user_prompt
+    assert "include exactly one matching question" in provider_request.user_prompt
 
 
 def test_request_builder_rejects_unsupported_generation_mode() -> None:

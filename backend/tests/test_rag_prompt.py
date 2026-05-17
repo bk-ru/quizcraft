@@ -34,11 +34,10 @@ def test_rag_prompt_user_template_references_retrieved_context_and_request_field
     assert "{quiz_type}" in prompt.user_template
     assert "{document_id}" in prompt.user_template
     assert "{document_text}" not in prompt.user_template
-    assert "Do not use only two stages as a matching question" in prompt.user_template
-    assert "term→definition" in prompt.user_template
-    assert "Do not use options for matching questions" in prompt.user_template
-    assert "Do not use symbolic answers like A/B/1/2" in prompt.user_template
-    assert "Do not add terms that are absent from the document/context" in prompt.user_template
+    assert "Quality rules:" in prompt.user_template
+    assert "same semantic category" in prompt.user_template
+    assert "For matching questions, follow the matching rules above" in prompt.user_template
+    assert "If you cannot create 4 grounded pairs, use another allowed type" in prompt.user_template
     assert "not contain enough distinct concepts" not in prompt.user_template
 
 

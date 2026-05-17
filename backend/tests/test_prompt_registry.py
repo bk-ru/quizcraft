@@ -47,11 +47,10 @@ def test_prompt_registry_resolves_versioned_repair_prompt() -> None:
 def test_prompt_registry_guides_matching_generation_without_short_text_claims() -> None:
     direct_prompt = PromptRegistry.resolve(DIRECT_GENERATION_PROMPT_KEY)
 
-    assert "Do not use only two stages as a matching question" in direct_prompt.user_template
-    assert "term→definition" in direct_prompt.user_template
-    assert "Do not use options for matching questions" in direct_prompt.user_template
-    assert "Do not use symbolic answers like A/B/1/2" in direct_prompt.user_template
-    assert "Do not add terms that are absent from the document/context" in direct_prompt.user_template
+    assert "Quality rules:" in direct_prompt.user_template
+    assert "same semantic category" in direct_prompt.user_template
+    assert "For matching questions, follow the matching rules above" in direct_prompt.user_template
+    assert "If you cannot create 4 grounded pairs, use another allowed type" in direct_prompt.user_template
     assert "not contain enough distinct concepts" not in direct_prompt.user_template
 
 

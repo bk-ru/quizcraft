@@ -8,53 +8,48 @@ QUESTION_TYPE_RULES = {
     "single_choice": (
         "single_choice: set question_type to single_choice, provide exactly four options, "
         "and set correct_option_index to the zero-based index of the correct option. "
-        "All four options must be the same semantic category, such as all years, all names, "
-        "all terms, all places, or all organizations. "
+        "All options must share one semantic category: years, names, terms, places, or organizations. "
         "Avoid meta-options such as \"not specified\", \"all of the above\", or \"none of the above\". "
+        "Avoid negative questions such as \"which is NOT mentioned\" unless necessary. "
+        "Prefer asking about directly stated facts. "
         "Do not include correct_answer or matching_pairs."
     ),
     "true_false": (
         "true_false: set question_type to true_false, provide two options, "
         "and set correct_option_index to the zero-based index of the correct option. "
-        "The statement must be directly verifiable from the document/context. "
-        "Avoid ambiguous or compound statements. "
+        "Use one clear statement directly verifiable from the document/context; avoid ambiguous or compound statements. "
         "Do not include correct_answer or matching_pairs."
     ),
     "fill_blank": (
         "fill_blank: set question_type to fill_blank, omit options, and provide a non-empty correct_answer. "
-        "The blank must replace a short phrase explicitly present in the source. "
-        "correct_answer must be the exact missing phrase or the minimal source phrase needed to fill the blank. "
+        "The blank must replace a short phrase explicitly present in the source; "
+        "correct_answer must be the exact missing phrase or minimal source phrase. "
         "Do not include options, correct_option_index, or matching_pairs. "
         "Use a blank-style prompt with a missing word/phrase."
     ),
     "short_answer": (
         "short_answer: set question_type to short_answer, omit options, and provide a non-empty correct_answer. "
-        "Ask a specific answerable question. "
-        "correct_answer must directly answer the prompt. "
+        "Ask a specific answerable question; correct_answer must directly answer the prompt. "
         "Avoid vague prompts like \"What fact is stated in the text?\". "
-        "Do not ask for one semantic category while providing an answer from another category. "
+        "Do not ask for one semantic category while answering with another. "
+        "If the document says \"снимки, полученные со спутников, самолётов и беспилотников\", "
+        "ask for \"источники снимков\" or \"платформы получения снимков\", not "
+        "\"типы изображений\" or \"типы данных\". "
         "Do not include options, correct_option_index, or matching_pairs. "
         "Ask a direct answerable question, not a matching/list placeholder."
     ),
     "matching": (
-        "matching: set question_type to matching and provide at least four matching_pairs.\n"
-        "  For matching questions:\n"
-        "  Create a table-style correspondence task, not a comparison or short-answer task.\n"
-        "  Do not use `options`.\n"
-        "  Do not put option IDs such as \"A\", \"B\", \"1\", \"2\" into matching_pairs.right.\n"
-        "  matching_pairs.right must contain the full matching text.\n"
-        "  A valid matching question MUST contain 4 or more pairs.\n"
-        "  All pairs in one matching question must use one coherent relationship type only.\n"
-        "  Use only the source document/context for left and right values.\n"
-        "  Prefer one coherent relationship type, such as term→definition, stage→location, process→result, "
-        "factor→effect, source→output, organization→role, or field→description.\n"
-        "  Do not mix unrelated categories in one matching question.\n"
-        "  Prefer short source-grounded values copied or minimally rephrased from the document.\n"
-        "  Example format: Concept A→description copied from the source; "
-        "Concept B→role copied from the source; Concept C→result copied from the source; "
-        "Concept D→location copied from the source.\n"
-        "  Never create a matching question with fewer than 4 pairs.\n"
-        "  If you cannot create 4 pairs, do not create a matching question; use another allowed question type."
+        "matching: set question_type to matching and provide 4 or more pairs in matching_pairs. "
+        "Create a correspondence task, not comparison or short answer. "
+        "Do not use `options`. "
+        "Do not put IDs like \"A\", \"B\", \"1\", \"2\" into matching_pairs.right; "
+        "matching_pairs.right must contain the full matching text. "
+        "Use only the source document/context for left and right values. "
+        "Prefer one coherent relationship type, such as term→definition, stage→location, "
+        "process→result, factor→effect, or field→description. "
+        "Do not mix unrelated categories in one matching question. "
+        "Never create a matching question with fewer than 4 pairs. "
+        "If you cannot create 4 pairs, do not create a matching question; use another allowed question type."
     ),
 }
 
@@ -77,12 +72,31 @@ def render_question_type_policy(generation_request: GenerationRequest) -> str:
             f"Every question MUST use question_type={allowed_label}. "
             "Do not create true_false, fill_blank, short_answer, or matching questions unless that exact type is allowed."
         )
-    return (
+    base_policy = (
         f"{exact_count_rule} Allowed question types: {allowed_label}. "
-        "Every question MUST use only one of these question types. "
-        "Do not stop after using each allowed question type once; "
-        f"repeat suitable allowed question types until exactly {generation_request.question_count} questions are returned. "
-        "Distribute questions across the allowed types when the source content supports them."
+        "Use only these question types. "
+    )
+    if generation_request.question_count == len(allowed_types):
+        return (
+            base_policy +
+            "If question_count equals the number of allowed question types: "
+            "Return exactly one question for each allowed question type. "
+            "Do not replace an allowed type with a repeated type unless that type is impossible from the source. "
+            "If matching is allowed and the document supports 4 grounded pairs, include exactly one matching question."
+        )
+    if generation_request.question_count > len(allowed_types):
+        return (
+            base_policy +
+            "If question_count > number of allowed question types: "
+            "Use every allowed question type at least once. "
+            f"Then repeat suitable allowed types until exactly {generation_request.question_count} questions are returned. "
+        )
+    return (
+        base_policy +
+        "If question_count is less than the number of allowed question types: "
+        "Use the most suitable subset of allowed types. "
+        "Prefer structurally reliable types in this order: "
+        "single_choice, true_false, fill_blank, short_answer, matching."
     )
 
 
