@@ -15,9 +15,11 @@ QUESTION_TYPE_RULES = {
         "Do not include correct_answer or matching_pairs."
     ),
     "true_false": (
-        "true_false: set question_type to true_false, provide two options, "
-        "and set correct_option_index to the zero-based index of the correct option. "
-        "Use one clear statement directly verifiable from the document/context; avoid ambiguous or compound statements. "
+        "true_false: set question_type to true_false. "
+        "Provide exactly two options: option 1 must be 'Верно' (or 'Да'), option 2 must be 'Неверно' (or 'Нет'). "
+        "The prompt must contain ONE clear statement directly verifiable from the document. "
+        "Do NOT provide two different statements in options; options are only for True/False labels. "
+        "Set correct_option_index to 0 if the statement is true, or 1 if the statement is false. "
         "Do not include correct_answer or matching_pairs."
     ),
     "fill_blank": (
