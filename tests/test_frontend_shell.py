@@ -1813,8 +1813,8 @@ def test_frontend_surfaces_generation_warnings_as_partial_result() -> None:
     assert "generationPayload.warnings" in renderer_content
     assert "generationPayload.quality_status" in renderer_content
     assert "qualityStatus === \"failed\"" in renderer_content
-    assert "Квиз показан после автоматического исправления" in renderer_content
     assert "Квиз показан с предупреждениями" in renderer_content
+    assert "formatWarningSummary(warnings)" in renderer_content
     assert "Результат частичный" in renderer_content
     assert "hasGenerationWarnings" in flow_content
     assert "isDisplayableGenerationResult" in flow_content

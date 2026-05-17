@@ -161,6 +161,29 @@ def test_recovery_generalizes_mixed_matching_prompt() -> None:
     assert any(warning.code == "recovered_question_prompt" for warning in warnings)
 
 
+def test_recovery_warns_when_matching_pairs_are_cleaned() -> None:
+    matching_question = replace(
+        build_mixed_matching_question(),
+        matching_pairs=(
+            *build_mixed_matching_question().matching_pairs,
+            MatchingPair(left="Цианобактерии", right="неподтверждённое описание"),
+        ),
+    )
+
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(matching_question),
+        build_generation_request(question_count=1),
+        PHOTOSYNTHESIS_SOURCE,
+    )
+
+    validate_quiz(recovered)
+    assert len(recovered.questions[0].matching_pairs) == 4
+    warning = next(warning for warning in warnings if warning.code == "matching_fallback_applied")
+    assert warning.message == (
+        "Квиз был автоматически исправлен. В вопросе на соответствие были удалены неподтверждённые пары."
+    )
+
+
 def test_valid_matching_prompt_not_changed() -> None:
     valid_matching = Question(
         question_id="q4",
@@ -254,10 +277,10 @@ def test_display_recovery_replaces_placeholder_question() -> None:
     assert "соответствия между понятиями" not in question.prompt.casefold()
     assert "Ответ должен опираться" not in question.correct_answer
     replacement_warning = next(warning for warning in warnings if warning.code == "replaced_placeholder_question")
-    assert "Модель вернула один вопрос" in replacement_warning.message
-    assert "смешивал типы вопросов" in replacement_warning.message
-    assert "заменили только этот вопрос" in replacement_warning.message
-    assert replacement_warning.recommendations == ("Проверьте заменённый вопрос и ответ перед использованием квиза.",)
+    assert replacement_warning.message == (
+        "Квиз был автоматически исправлен. Один некачественный вопрос был заменён безопасным вопросом из текста."
+    )
+    assert replacement_warning.recommendations == ()
 
 
 def test_display_recovery_replaces_matching_prompt_in_short_answer() -> None:
@@ -284,8 +307,28 @@ def test_display_recovery_replaces_matching_prompt_in_short_answer() -> None:
     assert "соответствия" not in question.prompt.casefold()
     assert "Устьица —" not in question.correct_answer
     replacement_warning = next(warning for warning in warnings if warning.code == "replaced_placeholder_question")
-    assert "служебную заготовку" in replacement_warning.message
-    assert replacement_warning.recommendations
+    assert replacement_warning.message == (
+        "Квиз был автоматически исправлен. Один некачественный вопрос был заменён безопасным вопросом из текста."
+    )
+
+
+def test_display_recovery_specializes_generic_definition_short_answer() -> None:
+    question = Question(
+        question_id="q5",
+        prompt="Какой факт приведён в тексте?",
+        question_type="short_answer",
+        correct_answer="МИИГАиК - это Московский государственный университет геодезии и картографии.",
+    )
+
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(question),
+        build_generation_request(question_count=1),
+        "МИИГАиК - это Московский государственный университет геодезии и картографии.",
+    )
+
+    validate_quiz(recovered)
+    assert recovered.questions[0].prompt == "Что такое МИИГАиК?"
+    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
 
 
 def test_display_recovery_returns_structurally_valid_quiz_with_warnings() -> None:

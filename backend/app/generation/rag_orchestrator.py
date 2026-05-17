@@ -38,7 +38,9 @@ from backend.app.generation.matching_fallback import fallback_invalid_matching_q
 from backend.app.generation.matching_fallback import is_matching_pair_count_error
 from backend.app.generation.matching_fallback import prepare_repair_source_text
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
+from backend.app.generation.partial import build_matching_fallback_warning
 from backend.app.generation.partial import build_partial_generation_warning
+from backend.app.generation.partial import merge_display_generation_warnings
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.quality import enrich_generation_error
 from backend.app.generation.quality import fit_generated_question_count
@@ -647,7 +649,7 @@ class RagGenerationOrchestrator:
                     quiz_id=fallback_result[0].quiz_id,
                     metadata=fallback_meta,
                 )
-                warning = build_partial_generation_warning(
+                warning = build_matching_fallback_warning(fallback_actions) or build_partial_generation_warning(
                     current_error,
                     expected_question_count=generation_request.question_count,
                     actual_question_count=len(fallback_result[0].questions),
@@ -805,7 +807,8 @@ class RagGenerationOrchestrator:
             current_error = error
             fallback_result = None
         if fallback_result is not None:
-            warning = build_partial_generation_warning(
+            fallback_actions = fallback_result[4]
+            warning = build_matching_fallback_warning(fallback_actions) or build_partial_generation_warning(
                 current_error,
                 expected_question_count=generation_request.question_count,
                 actual_question_count=len(fallback_result[0].questions),
@@ -989,7 +992,9 @@ class RagGenerationOrchestrator:
             generation_request,
             document.normalized_text,
         )
-        merged_warnings = dedupe_generation_warnings((*warnings, *recovery_warnings))
+        merged_warnings = dedupe_generation_warnings(
+            merge_display_generation_warnings(warnings, recovery_warnings, recovered_quiz)
+        )
         self._quality_checker.ensure_quality(
             recovered_quiz,
             generation_request.question_count,

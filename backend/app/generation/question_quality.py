@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from dataclasses import dataclass
 from dataclasses import replace
@@ -12,15 +13,24 @@ from backend.app.domain.models import Quiz
 
 RECOVERED_QUESTION_PROMPT_WARNING_CODE = "recovered_question_prompt"
 RECOVERED_QUESTION_PROMPT_WARNING_MESSAGE = (
-    "Один вопрос был автоматически переформулирован для согласованности с ответами."
+    "Квиз был автоматически исправлен. Один вопрос был переформулирован для согласованности с ответами."
 )
 METHODICAL_QUALITY_ERROR_MESSAGE = "generated quiz contains methodically inconsistent question"
 
 _BAD_CHLOROPLAST_PROMPT = "bad_chloroplast_single_choice"
 _MIXED_MATCHING_PROMPT = "mixed_matching_prompt"
+_GENERIC_DEFINITION_SHORT_ANSWER = "generic_definition_short_answer"
 _CHLOROPLAST_PROMPT = "Какой органоид содержит зелёный пигмент хлорофилл?"
 _RU_GENERIC_MATCHING_PROMPT = "Соотнесите понятие и его характеристику:"
 _EN_GENERIC_MATCHING_PROMPT = "Match each concept with its description:"
+_GENERIC_RU_SHORT_ANSWER_PROMPTS = frozenset(
+    {
+        "какой факт приведен в тексте?",
+        "какое утверждение содержится в тексте?",
+        "какая информация указана в тексте?",
+    }
+)
+_DEFINITION_ANSWER_PATTERN = re.compile(r"^\s*(?P<term>[^.!?:;]{2,80}?)\s*[-—–]\s*это\b", re.IGNORECASE)
 
 _NARROW_PROMPT_CATEGORY_FRAGMENTS: dict[str, tuple[str, ...]] = {
     "organelle": ("органоид", "organelle"),
@@ -109,6 +119,11 @@ def find_question_quality_issue(question: Question) -> QuestionQualityIssue | No
             code=_MIXED_MATCHING_PROMPT,
             message=METHODICAL_QUALITY_ERROR_MESSAGE,
         )
+    if _definition_short_answer_prompt(question) is not None:
+        return QuestionQualityIssue(
+            code=_GENERIC_DEFINITION_SHORT_ANSWER,
+            message=METHODICAL_QUALITY_ERROR_MESSAGE,
+        )
     return None
 
 
@@ -122,6 +137,10 @@ def recover_question_quality(question: Question, language: str) -> tuple[Questio
         return replace(question, prompt=_CHLOROPLAST_PROMPT), issue
     if issue.code == _MIXED_MATCHING_PROMPT:
         return replace(question, prompt=_generic_matching_prompt(language)), issue
+    if issue.code == _GENERIC_DEFINITION_SHORT_ANSWER:
+        prompt = _definition_short_answer_prompt(question)
+        if prompt is not None:
+            return replace(question, prompt=prompt), issue
     return question, issue
 
 
@@ -177,6 +196,22 @@ def _generic_matching_prompt(language: str) -> str:
     if language.strip().casefold().startswith("ru"):
         return _RU_GENERIC_MATCHING_PROMPT
     return _EN_GENERIC_MATCHING_PROMPT
+
+
+def _definition_short_answer_prompt(question: Question) -> str | None:
+    if question.question_type != "short_answer":
+        return None
+    prompt = _normalize_text(question.prompt)
+    if prompt not in _GENERIC_RU_SHORT_ANSWER_PROMPTS:
+        return None
+    answer = question.correct_answer or ""
+    match = _DEFINITION_ANSWER_PATTERN.match(answer)
+    if not match:
+        return None
+    term = match.group("term").strip()
+    if not term:
+        return None
+    return f"Что такое {term}?"
 
 
 def _normalize_text(value: str) -> str:

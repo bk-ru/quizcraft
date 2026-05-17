@@ -400,8 +400,11 @@ def test_direct_generation_matching_only_pair_count_failure_returns_partial_resu
     assert result.quiz.questions[0].matching_pairs == ()
     assert result.warnings
     assert result.quality_status == "recovered"
-    assert "модель вернула 2 пары, нужно минимум 4" in result.warnings[0].message
-    assert "недостаточно информации" not in result.warnings[0].message
+    assert result.warnings[0].message == (
+        "Квиз был автоматически исправлен. Вопрос на соответствие был заменён другим типом вопроса, "
+        "потому что часть пар не подтверждалась текстом."
+    )
+    assert not any("проверьте пары" in recommendation.casefold() for recommendation in result.warnings[0].recommendations)
 
 
 def test_direct_generation_matching_only_ungrounded_failure_returns_partial_result_warning(tmp_path) -> None:
@@ -422,8 +425,8 @@ def test_direct_generation_matching_only_ungrounded_failure_returns_partial_resu
     assert result.quiz.questions[0].matching_pairs == ()
     assert result.quality_status == "recovered"
     assert result.warnings[0].message == (
-        "Квиз показан с предупреждением: "
-        "Вопрос на соответствие не прошёл проверку: пары должны быть явно основаны на тексте документа."
+        "Квиз был автоматически исправлен. Вопрос на соответствие был заменён другим типом вопроса, "
+        "потому что часть пар не подтверждалась текстом."
     )
 
 

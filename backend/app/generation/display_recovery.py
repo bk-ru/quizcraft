@@ -43,12 +43,14 @@ _MATCHING_PROMPT_FRAGMENTS = (
 )
 _BAD_SHORT_ANSWERS = frozenset({"листе", "лист", "тексте", "процесс", "вещество"})
 _REPLACED_QUESTION_WARNING_MESSAGE = (
-    "Модель вернула один вопрос, который нельзя надёжно показать как учебный: "
-    "он был похож на служебную заготовку, смешивал типы вопросов или содержал некорректный ответ. "
-    "Мы заменили только этот вопрос на короткий вопрос, составленный из исходного текста."
+    "Квиз был автоматически исправлен. Один некачественный вопрос был заменён безопасным вопросом из текста."
 )
-_REPLACED_QUESTION_WARNING_RECOMMENDATIONS = (
-    "Проверьте заменённый вопрос и ответ перед использованием квиза.",
+_MATCHING_REPLACED_WARNING_MESSAGE = (
+    "Квиз был автоматически исправлен. Вопрос на соответствие был заменён другим типом вопроса, "
+    "потому что часть пар не подтверждалась текстом."
+)
+_MATCHING_CLEANED_WARNING_MESSAGE = (
+    "Квиз был автоматически исправлен. В вопросе на соответствие были удалены неподтверждённые пары."
 )
 
 
@@ -195,14 +197,13 @@ def _recover_question(
         recovered = _strip_fields_for_question_type(recovered)
 
     if recovered.question_type == "matching":
-        recovered = _recover_matching_question(recovered, normalized_source)
+        recovered, matching_cleaned = _recover_matching_question(recovered, normalized_source)
         if recovered is None:
             return _replacement_question(question, generation_request, normalized_source, used_prompts), (
-                GenerationWarning(
-                    code="matching_fallback_applied",
-                    message="Вопрос на соответствие был очищен или заменён, потому что часть пар не подтверждалась текстом.",
-                ),
+                _matching_replaced_warning(),
             )
+        if matching_cleaned:
+            warnings.append(_matching_cleaned_warning())
 
     recovered, quality_issue = recover_question_quality(recovered, generation_request.language)
     if quality_issue is not None:
@@ -263,10 +264,11 @@ def _maybe_convert_mixed_matching_question(
         correct_option_index=None,
         correct_answer=None,
     )
-    return _recover_matching_question(matching_question, normalized_source)
+    recovered, _matching_cleaned = _recover_matching_question(matching_question, normalized_source)
+    return recovered
 
 
-def _recover_matching_question(question: Question, normalized_source: str) -> Question | None:
+def _recover_matching_question(question: Question, normalized_source: str) -> tuple[Question | None, bool]:
     pairs = tuple(
         pair
         for pair in question.matching_pairs
@@ -276,14 +278,17 @@ def _recover_matching_question(question: Question, normalized_source: str) -> Qu
         and (not normalized_source or is_matching_pair_grounded(pair, normalized_source))
     )
     if len(pairs) < 4:
-        return None
-    return replace(
-        question,
-        question_type="matching",
-        options=(),
-        correct_option_index=None,
-        correct_answer=None,
-        matching_pairs=pairs,
+        return None, False
+    return (
+        replace(
+            question,
+            question_type="matching",
+            options=(),
+            correct_option_index=None,
+            correct_answer=None,
+            matching_pairs=pairs,
+        ),
+        len(pairs) < len(question.matching_pairs),
     )
 
 
@@ -318,8 +323,15 @@ def _replaced_question_warning() -> GenerationWarning:
     return GenerationWarning(
         code="replaced_placeholder_question",
         message=_REPLACED_QUESTION_WARNING_MESSAGE,
-        recommendations=_REPLACED_QUESTION_WARNING_RECOMMENDATIONS,
     )
+
+
+def _matching_replaced_warning() -> GenerationWarning:
+    return GenerationWarning(code="matching_fallback_applied", message=_MATCHING_REPLACED_WARNING_MESSAGE)
+
+
+def _matching_cleaned_warning() -> GenerationWarning:
+    return GenerationWarning(code="matching_fallback_applied", message=_MATCHING_CLEANED_WARNING_MESSAGE)
 
 
 def _recovered_question_prompt_warning() -> GenerationWarning:
