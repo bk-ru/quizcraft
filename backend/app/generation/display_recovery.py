@@ -97,38 +97,10 @@ def build_deterministic_short_answer_question(
 ) -> Question | None:
     """Build a deterministic source-grounded short-answer question."""
 
-    if not language.strip().casefold().startswith("ru"):
-        return None
-    source_casefold = source_text.casefold()
-    candidates = (
-        (
-            "Какое общее уравнение фотосинтеза приведено в тексте?",
-            "6CO₂ + 6H₂O + световая энергия → C₆H₁₂O₆ + 6O₂",
-            _has_photosynthesis_equation(source_text),
-        ),
-        (
-            "Где протекает световая стадия фотосинтеза?",
-            "На мембранах тилакоидов внутри хлоропластов.",
-            "световая стадия" in source_casefold and "мембранах тилакоидов" in source_casefold,
-        ),
-        (
-            "Где происходит темновая стадия фотосинтеза?",
-            "В строме хлоропласта.",
-            "темновая стадия" in source_casefold and "строме хлоропласта" in source_casefold,
-        ),
-        (
-            "Какую роль играют устьица в фотосинтезе?",
-            "Через устьица поступает углекислый газ, выходит кислород и испаряется водяной пар.",
-            "устьица" in source_casefold and "углекисл" in source_casefold,
-        ),
-        (
-            "Какую роль выполняет хлорофилл?",
-            "Хлорофилл поглощает прежде всего красные и синие лучи солнечного спектра, а зелёные отражает.",
-            "хлорофилл" in source_casefold and "красные и синие" in source_casefold,
-        ),
-    )
-    for prompt, answer, is_supported in candidates:
-        if is_supported and prompt.casefold() not in used_prompts:
+    for answer in _candidate_source_sentences(source_text):
+        for prompt in _generic_short_answer_prompts(language):
+            if prompt.casefold() in used_prompts:
+                continue
             return Question(
                 question_id=question_id,
                 prompt=prompt,
@@ -343,9 +315,39 @@ def _single_question_quiz(question: Question) -> Quiz:
     )
 
 
-def _has_photosynthesis_equation(source_text: str) -> bool:
-    compact = re.sub(r"\s+", "", source_text.casefold())
-    return "6co₂+6h₂o" in compact and "c₆h₁₂o₆+6o₂" in compact
+def _candidate_source_sentences(source_text: str) -> tuple[str, ...]:
+    sentences: list[str] = []
+    for sentence in re.split(r"(?<=[.!?。！？])\s+", source_text.strip()):
+        normalized = " ".join(sentence.strip().split())
+        if not _is_safe_fallback_answer(normalized):
+            continue
+        sentences.append(normalized)
+    return tuple(sentences)
+
+
+def _is_safe_fallback_answer(answer: str) -> bool:
+    if not 24 <= len(answer) <= 260:
+        return False
+    answer_casefold = answer.casefold()
+    if any(fragment in answer_casefold for fragment in _PLACEHOLDER_PROMPT_FRAGMENTS):
+        return False
+    if any(fragment in answer_casefold for fragment in _PLACEHOLDER_ANSWER_FRAGMENTS):
+        return False
+    return True
+
+
+def _generic_short_answer_prompts(language: str) -> tuple[str, ...]:
+    if language.strip().casefold().startswith("ru"):
+        return (
+            "Какой факт приведён в тексте?",
+            "Какое утверждение содержится в тексте?",
+            "Какая информация указана в тексте?",
+        )
+    return (
+        "What fact is stated in the text?",
+        "What statement appears in the text?",
+        "What information is given in the text?",
+    )
 
 
 def _dedupe_warnings(warnings: tuple[GenerationWarning, ...]) -> tuple[GenerationWarning, ...]:

@@ -1,4 +1,5 @@
 from dataclasses import replace
+from pathlib import Path
 
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.models import GenerationRequest
@@ -19,6 +20,12 @@ PHOTOSYNTHESIS_SOURCE = (
     "Световая стадия протекает на мембранах тилакоидов внутри хлоропластов и требует света. "
     "Темновая стадия, или цикл Кальвина, происходит в строме хлоропласта. "
     "Общее уравнение фотосинтеза часто записывают так: 6CO₂ + 6H₂O + световая энергия → C₆H₁₂O₆ + 6O₂."
+)
+
+GENERATION_PRODUCTION_FILES = (
+    Path("backend/app/generation/display_recovery.py"),
+    Path("backend/app/generation/question_types.py"),
+    Path("backend/app/generation/matching_fallback.py"),
 )
 
 
@@ -55,6 +62,23 @@ def build_valid_choice(question_id: str = "q1") -> Question:
         ),
         correct_option_index=1,
     )
+
+
+def test_generation_recovery_has_no_domain_specific_fallback_text() -> None:
+    forbidden_fragments = (
+        "общее уравнение фотосинтеза",
+        "световая стадия фотосинтеза",
+        "темновая стадия фотосинтеза",
+        "хлоропласт",
+        "тилакоид",
+        "строма",
+        "устьица",
+        "хлорофилл",
+        "углекислый газ",
+    )
+    production_source = "\n".join(path.read_text(encoding="utf-8").casefold() for path in GENERATION_PRODUCTION_FILES)
+
+    assert all(fragment not in production_source for fragment in forbidden_fragments)
 
 
 def build_grounded_pairs() -> tuple[MatchingPair, ...]:
@@ -169,7 +193,7 @@ def test_display_recovery_can_return_partial_quiz_without_placeholders() -> None
     recovered, warnings = recover_displayable_quiz(
         build_quiz(build_valid_choice(), placeholder),
         build_generation_request(question_count=2),
-        "Короткий текст без подходящих опорных фактов.",
+        "Коротко.",
     )
 
     validate_quiz(recovered)
@@ -209,9 +233,11 @@ def test_bad_photosynthesis_case_is_display_safe() -> None:
         assert "соответствия между понятиями" not in question.prompt.casefold()
 
 
-def test_deterministic_short_answer_builder_uses_photosynthesis_equation() -> None:
+def test_deterministic_short_answer_builder_uses_source_sentence() -> None:
+    source_text = "Российские исследователи описали новый метод очистки воды. Метод снижает количество примесей."
+
     question = build_deterministic_short_answer_question(
-        PHOTOSYNTHESIS_SOURCE,
+        source_text,
         question_id="q-safe",
         language="ru",
         used_prompts=set(),
@@ -220,5 +246,5 @@ def test_deterministic_short_answer_builder_uses_photosynthesis_equation() -> No
     assert question is not None
     assert question.question_type == "short_answer"
     assert question.question_id == "q-safe"
-    assert question.correct_answer == "6CO₂ + 6H₂O + световая энергия → C₆H₁₂O₆ + 6O₂"
+    assert question.correct_answer == "Российские исследователи описали новый метод очистки воды."
     assert question.matching_pairs == ()

@@ -41,9 +41,9 @@ QUESTION_TYPE_RULES = {
         "substance→role, organoid→function.\n"
         "  Do not mix unrelated categories in one matching question, such as stage→location, gas→source, and product→role together.\n"
         "  Prefer short source-grounded values copied or minimally rephrased from the document.\n"
-        "  Example for Russian content: Соотнесите термин и его значение: Хлорофилл→зелёный пигмент, поглощающий свет; "
-        "Хлоропласт→органоид, содержащий хлорофилл; Устьица→маленькие отверстия в кожице листа; "
-        "Фотолиз воды→расщепление воды под действием света.\n"
+        "  Example format: Concept A→description copied from the source; "
+        "Concept B→role copied from the source; Concept C→result copied from the source; "
+        "Concept D→location copied from the source.\n"
         "  Never create a matching question with fewer than 4 pairs.\n"
         "  If you cannot create 4 pairs, do not create a matching question; use another allowed question type."
     ),
