@@ -39,6 +39,14 @@ _MATCHING_PROMPT_FRAGMENTS = (
     "СЃРѕРїРѕСЃС‚Р°РІ",
 )
 _BAD_SHORT_ANSWERS = frozenset({"листе", "лист", "тексте", "процесс", "вещество"})
+_REPLACED_QUESTION_WARNING_MESSAGE = (
+    "Модель вернула один вопрос, который нельзя надёжно показать как учебный: "
+    "он был похож на служебную заготовку, смешивал типы вопросов или содержал некорректный ответ. "
+    "Мы заменили только этот вопрос на короткий вопрос, составленный из исходного текста."
+)
+_REPLACED_QUESTION_WARNING_RECOMMENDATIONS = (
+    "Проверьте заменённый вопрос и ответ перед использованием квиза.",
+)
 
 
 def recover_displayable_quiz(
@@ -156,10 +164,7 @@ def _recover_question(
 
     if _is_placeholder_question(recovered):
         return _replacement_question(recovered, generation_request, normalized_source, used_prompts), (
-            GenerationWarning(
-                code="replaced_placeholder_question",
-                message="Один некачественный вопрос был заменён безопасным вопросом из текста.",
-            ),
+            _replaced_question_warning(),
         )
 
     if recovered.question_type != "matching" and recovered.matching_pairs:
@@ -199,10 +204,7 @@ def _recover_question(
         return _replacement_question(recovered, generation_request, normalized_source, used_prompts), tuple(
             warnings
             + [
-                GenerationWarning(
-                    code="replaced_placeholder_question",
-                    message="Один некачественный вопрос был заменён безопасным вопросом из текста.",
-                )
+                _replaced_question_warning()
             ]
         )
 
@@ -302,6 +304,14 @@ def _is_methodically_bad_answer_question(question: Question) -> bool:
 def _looks_like_matching_prompt(prompt: str) -> bool:
     prompt_casefold = prompt.casefold()
     return any(fragment in prompt_casefold for fragment in ("соотнес", "сопостав", "matching", "match"))
+
+
+def _replaced_question_warning() -> GenerationWarning:
+    return GenerationWarning(
+        code="replaced_placeholder_question",
+        message=_REPLACED_QUESTION_WARNING_MESSAGE,
+        recommendations=_REPLACED_QUESTION_WARNING_RECOMMENDATIONS,
+    )
 
 
 def _single_question_quiz(question: Question) -> Quiz:

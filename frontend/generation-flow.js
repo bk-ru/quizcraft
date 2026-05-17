@@ -647,10 +647,10 @@ export function createGenerationFlow({
         });
       }
       if (hasGenerationWarnings(generationPayload)) {
-        setEditorStatus("Квиз показан с предупреждениями. Проверьте предупреждения к результату перед редактированием.", "warn");
+        setEditorStatus("Квиз показан, но часть результата была автоматически исправлена. Проверьте сообщение над квизом перед редактированием.", "warn");
         setSubmissionStatus("Квиз создан частично и отрисован ниже.", "warn");
         showToast("Квиз показан с предупреждениями.", "warn");
-        setLogMessage("Проверьте предупреждения к результату.", "warn");
+        setLogMessage("Проверьте предупреждение над квизом.", "warn");
       } else {
         setEditorStatus("Квиз готов. Нажмите «Редактировать квиз», чтобы открыть редактор.", "ok");
         setSubmissionStatus("Квиз создан и отрисован ниже.", "ok");

@@ -1813,12 +1813,14 @@ def test_frontend_surfaces_generation_warnings_as_partial_result() -> None:
     assert "generationPayload.warnings" in renderer_content
     assert "generationPayload.quality_status" in renderer_content
     assert "qualityStatus === \"failed\"" in renderer_content
+    assert "Квиз показан после автоматического исправления" in renderer_content
     assert "Квиз показан с предупреждениями" in renderer_content
     assert "Результат частичный" in renderer_content
     assert "hasGenerationWarnings" in flow_content
     assert "isDisplayableGenerationResult" in flow_content
     assert "quality_status" in flow_content
-    assert "Проверьте предупреждения к результату" in flow_content
+    assert "часть результата была автоматически исправлена" in flow_content
+    assert "Проверьте предупреждение над квизом" in flow_content
 
 
 def test_frontend_p3_visual_tokens() -> None:

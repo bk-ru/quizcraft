@@ -186,8 +186,11 @@ export function createQuizRenderer({
     }
 
     if (warnings.length > 0 || qualityStatus === "recovered" || qualityStatus === "warning" || qualityStatus === "partial") {
+      const warningIntro = qualityStatus === "recovered"
+        ? "Квиз показан после автоматического исправления."
+        : "Квиз показан с предупреждениями.";
       setResultState(
-        `Квиз показан с предупреждениями. ${formatWarningSummary(warnings)}`,
+        `${warningIntro} ${formatWarningSummary(warnings)}`,
         "warn",
         "Результат частичный",
       );

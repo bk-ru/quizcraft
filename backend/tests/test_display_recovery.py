@@ -133,7 +133,11 @@ def test_display_recovery_replaces_placeholder_question() -> None:
     assert question.question_type == "short_answer"
     assert "соответствия между понятиями" not in question.prompt.casefold()
     assert "Ответ должен опираться" not in question.correct_answer
-    assert any(warning.code == "replaced_placeholder_question" for warning in warnings)
+    replacement_warning = next(warning for warning in warnings if warning.code == "replaced_placeholder_question")
+    assert "Модель вернула один вопрос" in replacement_warning.message
+    assert "смешивал типы вопросов" in replacement_warning.message
+    assert "заменили только этот вопрос" in replacement_warning.message
+    assert replacement_warning.recommendations == ("Проверьте заменённый вопрос и ответ перед использованием квиза.",)
 
 
 def test_display_recovery_replaces_matching_prompt_in_short_answer() -> None:
@@ -159,7 +163,9 @@ def test_display_recovery_replaces_matching_prompt_in_short_answer() -> None:
     assert question.question_type == "short_answer"
     assert "соответствия" not in question.prompt.casefold()
     assert "Устьица —" not in question.correct_answer
-    assert any(warning.code == "replaced_placeholder_question" for warning in warnings)
+    replacement_warning = next(warning for warning in warnings if warning.code == "replaced_placeholder_question")
+    assert "служебную заготовку" in replacement_warning.message
+    assert replacement_warning.recommendations
 
 
 def test_display_recovery_returns_structurally_valid_quiz_with_warnings() -> None:
