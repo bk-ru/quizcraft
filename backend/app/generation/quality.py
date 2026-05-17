@@ -11,6 +11,7 @@ from backend.app.domain.validation import validate_quiz
 from backend.app.generation.matching_grounding import MATCHING_GROUNDEDNESS_ERROR_MESSAGE
 from backend.app.generation.matching_grounding import is_matching_pair_grounded
 from backend.app.generation.matching_grounding import normalize_grounding_text
+from backend.app.generation.question_quality import ensure_methodical_quality
 
 _DOC_LENGTH_THRESHOLDS: tuple[tuple[int, int], ...] = (
     (300, 2),
@@ -62,6 +63,7 @@ class GenerationQualityChecker:
         """Вызвать контролируемую доменную ошибку, когда квиз не проходит проверки качества."""
 
         validate_quiz(quiz)
+        ensure_methodical_quality(quiz)
         if source_text:
             _ensure_matching_pairs_are_grounded(quiz, source_text)
         if len(quiz.questions) != expected_question_count and not allow_partial:

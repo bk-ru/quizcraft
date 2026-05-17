@@ -10,14 +10,19 @@ from backend.app.domain.models import Quiz
 from backend.app.domain.validation import validate_quiz
 from backend.app.generation.display_recovery import build_deterministic_short_answer_question
 from backend.app.generation.display_recovery import recover_displayable_quiz
+from backend.app.generation.display_recovery import resolve_quality_status
 
 
 PHOTOSYNTHESIS_SOURCE = (
     "Фотосинтез происходит главным образом в листьях. "
     "В клетках листа находятся хлоропласты. "
+    "Хлоропласты — органоиды, содержащие хлорофилл. "
     "Хлорофилл поглощает прежде всего красные и синие лучи солнечного спектра, а зелёные отражает. "
     "Углекислый газ поступает из воздуха через устьица. Через устьица также выходит кислород и испаряется водяной пар. "
     "Световая стадия протекает на мембранах тилакоидов внутри хлоропластов и требует света. "
+    "Тилакоиды — мембраны, на которых протекает световая стадия. "
+    "Устьица — маленькие отверстия в кожице листа. "
+    "Одновременно происходит фотолиз воды: молекулы воды расщепляются под действием света. "
     "Темновая стадия, или цикл Кальвина, происходит в строме хлоропласта. "
     "Общее уравнение фотосинтеза часто записывают так: 6CO₂ + 6H₂O + световая энергия → C₆H₁₂O₆ + 6O₂."
 )
@@ -64,6 +69,21 @@ def build_valid_choice(question_id: str = "q1") -> Question:
     )
 
 
+def build_bad_chloroplast_choice(question_id: str = "q1") -> Question:
+    return Question(
+        question_id=question_id,
+        prompt="В каком органоиде листа находятся хлоропласты?",
+        question_type="single_choice",
+        options=(
+            Option(option_id="0", text="Ядро"),
+            Option(option_id="1", text="Хлоропласт"),
+            Option(option_id="2", text="Митохондрия"),
+            Option(option_id="3", text="Вакуоль"),
+        ),
+        correct_option_index=1,
+    )
+
+
 def test_generation_recovery_has_no_domain_specific_fallback_text() -> None:
     forbidden_fragments = (
         "общее уравнение фотосинтеза",
@@ -88,6 +108,106 @@ def build_grounded_pairs() -> tuple[MatchingPair, ...]:
         MatchingPair(left="Устьица", right="через устьица выходит кислород"),
         MatchingPair(left="Хлорофилл", right="поглощает красные и синие лучи"),
     )
+
+
+def build_mixed_matching_question(question_id: str = "q4") -> Question:
+    return Question(
+        question_id=question_id,
+        prompt="Соотнесите органоид и его функцию:",
+        question_type="matching",
+        matching_pairs=(
+            MatchingPair(left="Хлоропласт", right="органоид, содержащий хлорофилл"),
+            MatchingPair(left="Тилакоиды", right="мембраны, на которых протекает световая стадия"),
+            MatchingPair(left="Устьица", right="маленькие отверстия в кожице листа"),
+            MatchingPair(left="Фотолиз воды", right="расщепление молекул воды под действием света"),
+        ),
+    )
+
+
+def test_recovery_fixes_bad_chloroplast_single_choice() -> None:
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(build_bad_chloroplast_choice()),
+        build_generation_request(question_count=1),
+        PHOTOSYNTHESIS_SOURCE,
+    )
+
+    validate_quiz(recovered)
+    question = recovered.questions[0]
+    assert question.question_type == "single_choice"
+    assert question.correct_option_index == 1
+    assert question.options[1].text == "Хлоропласт"
+    assert "находятся хлоропласты" not in question.prompt.casefold()
+    assert question.prompt == "Какой органоид содержит зелёный пигмент хлорофилл?"
+    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
+
+
+def test_recovery_generalizes_mixed_matching_prompt() -> None:
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(build_mixed_matching_question()),
+        build_generation_request(question_count=1),
+        PHOTOSYNTHESIS_SOURCE,
+    )
+
+    validate_quiz(recovered)
+    question = recovered.questions[0]
+    assert question.question_type == "matching"
+    assert question.prompt == "Соотнесите понятие и его характеристику:"
+    assert tuple(pair.left for pair in question.matching_pairs) == (
+        "Хлоропласт",
+        "Тилакоиды",
+        "Устьица",
+        "Фотолиз воды",
+    )
+    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
+
+
+def test_valid_matching_prompt_not_changed() -> None:
+    valid_matching = Question(
+        question_id="q4",
+        prompt="Соотнесите фактор и его влияние:",
+        question_type="matching",
+        matching_pairs=(
+            MatchingPair(left="слабое освещение", right="образование органических веществ идёт медленно"),
+            MatchingPair(left="высокая температура", right="может нарушать работу ферментов"),
+            MatchingPair(left="недостаток воды", right="приводит к закрытию устьиц"),
+            MatchingPair(left="концентрация углекислого газа", right="влияет на скорость фотосинтеза"),
+        ),
+    )
+    source_text = (
+        "При слабом освещении образование органических веществ идёт медленно. "
+        "Высокая температура может нарушать работу ферментов. "
+        "Недостаток воды приводит к закрытию устьиц. "
+        "Концентрация углекислого газа влияет на скорость фотосинтеза."
+    )
+
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(valid_matching),
+        build_generation_request(question_count=1),
+        source_text,
+    )
+
+    validate_quiz(recovered)
+    assert recovered.questions[0].prompt == "Соотнесите фактор и его влияние:"
+    assert not any(warning.code == "recovered_question_prompt" for warning in warnings)
+
+
+def test_display_safe_quiz_has_no_methodical_known_bad_patterns() -> None:
+    recovered, warnings = recover_displayable_quiz(
+        build_quiz(build_bad_chloroplast_choice(), build_mixed_matching_question()),
+        build_generation_request(question_count=2),
+        PHOTOSYNTHESIS_SOURCE,
+    )
+
+    validate_quiz(recovered)
+    assert recovered.questions[0].prompt == "Какой органоид содержит зелёный пигмент хлорофилл?"
+    assert recovered.questions[1].prompt == "Соотнесите понятие и его характеристику:"
+    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
+    quality_status = resolve_quality_status(
+        expected_question_count=2,
+        actual_question_count=len(recovered.questions),
+        warnings=warnings,
+    )
+    assert quality_status == "recovered"
 
 
 def test_display_recovery_strips_or_replaces_mixed_type_question() -> None:

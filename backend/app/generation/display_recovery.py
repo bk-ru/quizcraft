@@ -15,6 +15,9 @@ from backend.app.domain.validation import validate_quiz
 from backend.app.generation.matching_grounding import is_matching_pair_grounded
 from backend.app.generation.matching_grounding import normalize_grounding_text
 from backend.app.generation.question_types import allowed_question_types
+from backend.app.generation.question_quality import RECOVERED_QUESTION_PROMPT_WARNING_CODE
+from backend.app.generation.question_quality import RECOVERED_QUESTION_PROMPT_WARNING_MESSAGE
+from backend.app.generation.question_quality import recover_question_quality
 
 DISPLAY_STATUS_OK = "ok"
 DISPLAY_STATUS_RECOVERED = "recovered"
@@ -138,6 +141,7 @@ def resolve_quality_status(
         "recovered_mixed_question_fields",
         "replaced_placeholder_question",
         "matching_fallback_applied",
+        RECOVERED_QUESTION_PROMPT_WARNING_CODE,
     }
     if any(warning.code in recovery_codes for warning in warnings):
         return DISPLAY_STATUS_RECOVERED
@@ -199,6 +203,10 @@ def _recover_question(
                     message="Вопрос на соответствие был очищен или заменён, потому что часть пар не подтверждалась текстом.",
                 ),
             )
+
+    recovered, quality_issue = recover_question_quality(recovered, generation_request.language)
+    if quality_issue is not None:
+        warnings.append(_recovered_question_prompt_warning())
 
     if _is_methodically_bad_answer_question(recovered):
         return _replacement_question(recovered, generation_request, normalized_source, used_prompts), tuple(
@@ -311,6 +319,13 @@ def _replaced_question_warning() -> GenerationWarning:
         code="replaced_placeholder_question",
         message=_REPLACED_QUESTION_WARNING_MESSAGE,
         recommendations=_REPLACED_QUESTION_WARNING_RECOMMENDATIONS,
+    )
+
+
+def _recovered_question_prompt_warning() -> GenerationWarning:
+    return GenerationWarning(
+        code=RECOVERED_QUESTION_PROMPT_WARNING_CODE,
+        message=RECOVERED_QUESTION_PROMPT_WARNING_MESSAGE,
     )
 
 

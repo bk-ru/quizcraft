@@ -88,6 +88,34 @@ def test_generation_quality_checker_rejects_duplicate_question_prompts() -> None
         )
 
 
+def test_generation_quality_checker_rejects_methodically_bad_chloroplast_choice() -> None:
+    checker = GenerationQualityChecker()
+    quiz = Quiz(
+        quiz_id="quiz-methodical",
+        document_id="doc-methodical",
+        title="Квиз",
+        version=1,
+        last_edited_at="2026-05-17T00:00:00Z",
+        questions=(
+            Question(
+                question_id="q1",
+                prompt="В каком органоиде листа находятся хлоропласты?",
+                question_type="single_choice",
+                options=(
+                    Option(option_id="0", text="Ядро"),
+                    Option(option_id="1", text="Хлоропласт"),
+                    Option(option_id="2", text="Митохондрия"),
+                    Option(option_id="3", text="Вакуоль"),
+                ),
+                correct_option_index=1,
+            ),
+        ),
+    )
+
+    with pytest.raises(GenerationQualityError, match="methodically inconsistent"):
+        checker.ensure_quality(quiz, expected_question_count=1)
+
+
 def test_generation_quality_checker_accepts_valid_quiz() -> None:
     checker = GenerationQualityChecker()
 
