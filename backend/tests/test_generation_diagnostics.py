@@ -102,6 +102,7 @@ def test_diagnostic_logger_persists_validation_failure_with_raw_model_content(tm
     assert payload["pipeline"] == "rag"
     assert payload["generation_request_raw"]["quiz_types"] == ["single_choice"]
     assert payload["provider_response"]["raw_model_content"] == response.content
+    assert payload["provider_request"]["prompt_version"] == "rag-v1"
     assert payload["quiz_summary"]["question_types"] == ["matching"]
     assert payload["quiz_summary"]["matching_pair_counts"] == [2]
     assert payload["rag"]["chunk_count"] == 17
@@ -147,7 +148,8 @@ def test_diagnostic_logger_persists_runtime_failures(tmp_path) -> None:
     assert payload["rag"]["chunk_count"] == 17
 
 
-def test_structured_request_summary_uses_lengths_and_preview() -> None:
+def test_structured_request_summary_uses_lengths_and_preview(monkeypatch) -> None:
+    monkeypatch.delenv("GENERATION_DIAGNOSTICS_INCLUDE_PROMPT", raising=False)
     request = StructuredGenerationRequest(
         system_prompt="system",
         user_prompt="Создай вопросы по документу. " * 40,
@@ -164,3 +166,36 @@ def test_structured_request_summary_uses_lengths_and_preview() -> None:
     assert summary["user_prompt_chars"] == len(request.user_prompt)
     assert summary["user_prompt_preview"] == request.user_prompt[:500]
     assert summary["inference_parameters"] == {"temperature": 0.2}
+    assert summary["schema_summary"] == {
+        "top_level_keys": ["properties", "type"],
+        "property_names": [],
+        "required": [],
+    }
+    assert "system_prompt" not in summary
+    assert "user_prompt" not in summary
+    assert "schema" not in summary
+
+
+def test_structured_request_summary_includes_full_prompt_when_enabled(monkeypatch) -> None:
+    monkeypatch.setenv("GENERATION_DIAGNOSTICS_INCLUDE_PROMPT", "true")
+    request = StructuredGenerationRequest(
+        system_prompt="Системная инструкция",
+        user_prompt="Создай вопросы по русскому документу.",
+        schema_name="quiz_payload",
+        schema={
+            "type": "object",
+            "required": ["questions"],
+            "properties": {"questions": {"type": "array"}},
+        },
+        inference_parameters={"temperature": 0.2},
+        model_name="google/gemma-4-e2b",
+    )
+
+    summary = summarize_structured_generation_request(request)
+
+    assert summary["model_name"] == "google/gemma-4-e2b"
+    assert summary["schema_name"] == "quiz_payload"
+    assert summary["inference_parameters"] == {"temperature": 0.2}
+    assert summary["system_prompt"] == request.system_prompt
+    assert summary["user_prompt"] == request.user_prompt
+    assert summary["schema"] == request.schema

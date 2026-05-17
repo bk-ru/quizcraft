@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from datetime import UTC
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +18,8 @@ from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.generation.safe_logging import summarize_document_payload
 from backend.app.generation.safe_logging import summarize_generation_request
 from backend.app.generation.safe_logging import summarize_model_payload
+
+_INCLUDE_PROMPT_ENV = "GENERATION_DIAGNOSTICS_INCLUDE_PROMPT"
 
 
 class FileSystemGenerationDiagnosticLogger:
@@ -157,7 +160,7 @@ class FileSystemGenerationDiagnosticLogger:
             "generation_request": summarize_generation_request(generation_request),
             "generation_request_raw": generation_request.to_dict(),
             "prompt_version": prompt_version,
-            "provider_request": provider_request,
+            "provider_request": _provider_request_payload(provider_request, prompt_version),
             "provider_response": self._response_payload(
                 response,
                 include_raw_model_content=include_raw_model_content,
@@ -219,12 +222,38 @@ class FileSystemGenerationDiagnosticLogger:
 def summarize_structured_generation_request(request: StructuredGenerationRequest) -> dict[str, Any]:
     """Return a prompt-safe summary of the outbound provider request."""
 
-    return {
+    summary: dict[str, Any] = {
         "model_name": request.model_name,
         "schema_name": request.schema_name,
+        "schema_summary": _schema_summary(request.schema),
         "schema_top_level_keys": sorted(request.schema),
         "system_prompt_chars": len(request.system_prompt),
         "user_prompt_chars": len(request.user_prompt),
         "user_prompt_preview": request.user_prompt[:500],
         "inference_parameters": dict(request.inference_parameters),
     }
+    if _include_prompt_diagnostics():
+        summary["system_prompt"] = request.system_prompt
+        summary["user_prompt"] = request.user_prompt
+        summary["schema"] = request.schema
+    return summary
+
+
+def _provider_request_payload(provider_request: dict[str, Any], prompt_version: str) -> dict[str, Any]:
+    payload = dict(provider_request)
+    payload.setdefault("prompt_version", prompt_version)
+    return payload
+
+
+def _schema_summary(schema: dict[str, Any]) -> dict[str, Any]:
+    properties = schema.get("properties")
+    required = schema.get("required")
+    return {
+        "top_level_keys": sorted(schema),
+        "property_names": sorted(properties) if isinstance(properties, dict) else [],
+        "required": list(required) if isinstance(required, list) else [],
+    }
+
+
+def _include_prompt_diagnostics() -> bool:
+    return os.getenv(_INCLUDE_PROMPT_ENV, "").strip().casefold() == "true"
