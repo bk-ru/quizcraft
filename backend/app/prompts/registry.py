@@ -34,7 +34,7 @@ QUALITY_RULES_BLOCK = (
 )
 MATCHING_REGISTRY_RULE = (
     "For matching questions, follow the matching rules above. "
-    "If you cannot create 4 grounded pairs, use another allowed type.\n"
+    "When matching is required by the selected type policy, do not omit it.\n"
 )
 
 

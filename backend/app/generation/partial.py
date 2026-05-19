@@ -10,7 +10,6 @@ from backend.app.domain.models import Quiz
 _DISPLAY_RECOVERY_WARNING_CODES = frozenset(
     {
         "matching_fallback_applied",
-        "recovered_question_prompt",
         "replaced_placeholder_question",
         "recovered_mixed_question_fields",
     }

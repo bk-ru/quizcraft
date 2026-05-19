@@ -52,7 +52,7 @@ QUESTION_TYPE_RULES = {
         "Do not mix unrelated categories in one matching question. "
         "Never create a matching question with fewer than 4 pairs. "
         "If matching is required by the selected type policy, create exactly one matching question with 4 or more pairs before repeating any other question type. "
-        "If matching is not required because question_count is smaller than the selected type count, use another suitable allowed type."
+        "If matching is not required by the selected type policy, use another suitable allowed type."
     ),
 }
 

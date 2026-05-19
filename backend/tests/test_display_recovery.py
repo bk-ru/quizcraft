@@ -124,7 +124,7 @@ def build_mixed_matching_question(question_id: str = "q4") -> Question:
     )
 
 
-def test_recovery_fixes_bad_chloroplast_single_choice() -> None:
+def test_display_recovery_keeps_structurally_valid_single_choice_without_methodical_rewrite() -> None:
     recovered, warnings = recover_displayable_quiz(
         build_quiz(build_bad_chloroplast_choice()),
         build_generation_request(question_count=1),
@@ -136,12 +136,11 @@ def test_recovery_fixes_bad_chloroplast_single_choice() -> None:
     assert question.question_type == "single_choice"
     assert question.correct_option_index == 1
     assert question.options[1].text == "Хлоропласт"
-    assert "находятся хлоропласты" not in question.prompt.casefold()
-    assert question.prompt == "Какой органоид содержит зелёный пигмент хлорофилл?"
-    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
+    assert question.prompt == "В каком органоиде листа находятся хлоропласты?"
+    assert warnings == ()
 
 
-def test_recovery_generalizes_mixed_matching_prompt() -> None:
+def test_display_recovery_keeps_matching_prompt_without_methodical_generalization() -> None:
     recovered, warnings = recover_displayable_quiz(
         build_quiz(build_mixed_matching_question()),
         build_generation_request(question_count=1),
@@ -151,14 +150,14 @@ def test_recovery_generalizes_mixed_matching_prompt() -> None:
     validate_quiz(recovered)
     question = recovered.questions[0]
     assert question.question_type == "matching"
-    assert question.prompt == "Соотнесите понятие и его характеристику:"
+    assert question.prompt == "Соотнесите органоид и его функцию:"
     assert tuple(pair.left for pair in question.matching_pairs) == (
         "Хлоропласт",
         "Тилакоиды",
         "Устьица",
         "Фотолиз воды",
     )
-    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
+    assert warnings == ()
 
 
 def test_recovery_warns_when_matching_pairs_are_cleaned() -> None:
@@ -211,10 +210,10 @@ def test_valid_matching_prompt_not_changed() -> None:
 
     validate_quiz(recovered)
     assert recovered.questions[0].prompt == "Соотнесите фактор и его влияние:"
-    assert not any(warning.code == "recovered_question_prompt" for warning in warnings)
+    assert warnings == ()
 
 
-def test_display_safe_quiz_has_no_methodical_known_bad_patterns() -> None:
+def test_display_recovery_does_not_apply_methodical_quality_warnings() -> None:
     recovered, warnings = recover_displayable_quiz(
         build_quiz(build_bad_chloroplast_choice(), build_mixed_matching_question()),
         build_generation_request(question_count=2),
@@ -222,15 +221,15 @@ def test_display_safe_quiz_has_no_methodical_known_bad_patterns() -> None:
     )
 
     validate_quiz(recovered)
-    assert recovered.questions[0].prompt == "Какой органоид содержит зелёный пигмент хлорофилл?"
-    assert recovered.questions[1].prompt == "Соотнесите понятие и его характеристику:"
-    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
+    assert recovered.questions[0].prompt == "В каком органоиде листа находятся хлоропласты?"
+    assert recovered.questions[1].prompt == "Соотнесите органоид и его функцию:"
+    assert warnings == ()
     quality_status = resolve_quality_status(
         expected_question_count=2,
         actual_question_count=len(recovered.questions),
         warnings=warnings,
     )
-    assert quality_status == "recovered"
+    assert quality_status == "ok"
 
 
 def test_display_recovery_strips_or_replaces_mixed_type_question() -> None:
@@ -283,7 +282,7 @@ def test_display_recovery_replaces_placeholder_question() -> None:
     assert replacement_warning.recommendations == ()
 
 
-def test_display_recovery_replaces_matching_prompt_in_short_answer() -> None:
+def test_display_recovery_keeps_structurally_valid_short_answer_without_methodical_rewrite() -> None:
     matching_as_answer = Question(
         question_id="q-fallback",
         prompt="Какие соответствия между этими понятиями описаны в тексте: Устьица, Фотолиз воды?",
@@ -304,15 +303,13 @@ def test_display_recovery_replaces_matching_prompt_in_short_answer() -> None:
     question = recovered.questions[0]
     assert question.question_id == "q-fallback"
     assert question.question_type == "short_answer"
-    assert "соответствия" not in question.prompt.casefold()
-    assert "Устьица —" not in question.correct_answer
-    replacement_warning = next(warning for warning in warnings if warning.code == "replaced_placeholder_question")
-    assert replacement_warning.message == (
-        "Квиз был автоматически исправлен. Один некачественный вопрос был заменён безопасным вопросом из текста."
-    )
+    assert question.prompt == "Какие соответствия между этими понятиями описаны в тексте: Устьица, Фотолиз воды?"
+    assert question.correct_answer is not None
+    assert question.correct_answer.startswith("Устьица —")
+    assert warnings == ()
 
 
-def test_display_recovery_specializes_generic_definition_short_answer() -> None:
+def test_display_recovery_keeps_generic_definition_short_answer_without_methodical_rewrite() -> None:
     question = Question(
         question_id="q5",
         prompt="Какой факт приведён в тексте?",
@@ -327,8 +324,8 @@ def test_display_recovery_specializes_generic_definition_short_answer() -> None:
     )
 
     validate_quiz(recovered)
-    assert recovered.questions[0].prompt == "Что такое МИИГАиК?"
-    assert any(warning.code == "recovered_question_prompt" for warning in warnings)
+    assert recovered.questions[0].prompt == "Какой факт приведён в тексте?"
+    assert warnings == ()
 
 
 def test_display_recovery_returns_structurally_valid_quiz_with_warnings() -> None:

@@ -15,9 +15,6 @@ from backend.app.domain.validation import validate_quiz
 from backend.app.generation.matching_grounding import is_matching_pair_grounded
 from backend.app.generation.matching_grounding import normalize_grounding_text
 from backend.app.generation.question_types import allowed_question_types
-from backend.app.generation.question_quality import RECOVERED_QUESTION_PROMPT_WARNING_CODE
-from backend.app.generation.question_quality import RECOVERED_QUESTION_PROMPT_WARNING_MESSAGE
-from backend.app.generation.question_quality import recover_question_quality
 
 DISPLAY_STATUS_OK = "ok"
 DISPLAY_STATUS_RECOVERED = "recovered"
@@ -33,15 +30,6 @@ _PLACEHOLDER_ANSWER_FRAGMENTS = (
     "ответ должен опираться только",
     "answer must use only relationships explicitly described",
 )
-_MATCHING_PROMPT_FRAGMENTS = (
-    "соответств",
-    "сопостав",
-    "match",
-    "relationships between",
-    "СЃРѕРѕС‚РІРµС‚СЃС‚РІ",
-    "СЃРѕРїРѕСЃС‚Р°РІ",
-)
-_BAD_SHORT_ANSWERS = frozenset({"листе", "лист", "тексте", "процесс", "вещество"})
 _DEFINITION_ANSWER_PATTERN = re.compile(r"^\s*(?P<term>[^.!?:;]{2,80}?)\s*[-—–]\s*это\b", re.IGNORECASE)
 _SENTENCE_SUBJECT_PATTERN = re.compile(
     r"\b(?:"
@@ -183,7 +171,6 @@ def resolve_quality_status(
         "recovered_mixed_question_fields",
         "replaced_placeholder_question",
         "matching_fallback_applied",
-        RECOVERED_QUESTION_PROMPT_WARNING_CODE,
     }
     if any(warning.code in recovery_codes for warning in warnings):
         return DISPLAY_STATUS_RECOVERED
@@ -246,18 +233,6 @@ def _recover_question(
             )
         if matching_cleaned:
             warnings.append(_matching_cleaned_warning())
-
-    recovered, quality_issue = recover_question_quality(recovered, generation_request.language)
-    if quality_issue is not None:
-        warnings.append(_recovered_question_prompt_warning())
-
-    if _is_methodically_bad_answer_question(recovered):
-        return _replacement_question(recovered, generation_request, source_text, used_prompts, used_answers), tuple(
-            warnings
-            + [
-                _replaced_question_warning()
-            ]
-        )
 
     try:
         validate_quiz(_single_question_quiz(recovered))
@@ -346,20 +321,6 @@ def _is_placeholder_question(question: Question) -> bool:
     )
 
 
-def _is_methodically_bad_answer_question(question: Question) -> bool:
-    if question.question_type not in {"fill_blank", "short_answer"}:
-        return False
-    prompt = question.prompt.strip().casefold()
-    answer = (question.correct_answer or "").strip().casefold()
-    if question.question_type == "fill_blank" and not any(blank in question.prompt for blank in ("____", "___", "…")):
-        return True
-    if question.question_type == "short_answer" and any(fragment in prompt for fragment in _MATCHING_PROMPT_FRAGMENTS):
-        return True
-    if "в какой органоиде" in prompt:
-        return True
-    return answer in _BAD_SHORT_ANSWERS
-
-
 def _looks_like_matching_prompt(prompt: str) -> bool:
     prompt_casefold = prompt.casefold()
     return any(fragment in prompt_casefold for fragment in ("соотнес", "сопостав", "matching", "match"))
@@ -378,13 +339,6 @@ def _matching_replaced_warning() -> GenerationWarning:
 
 def _matching_cleaned_warning() -> GenerationWarning:
     return GenerationWarning(code="matching_fallback_applied", message=_MATCHING_CLEANED_WARNING_MESSAGE)
-
-
-def _recovered_question_prompt_warning() -> GenerationWarning:
-    return GenerationWarning(
-        code=RECOVERED_QUESTION_PROMPT_WARNING_CODE,
-        message=RECOVERED_QUESTION_PROMPT_WARNING_MESSAGE,
-    )
 
 
 def _single_question_quiz(question: Question) -> Quiz:
