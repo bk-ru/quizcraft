@@ -50,7 +50,7 @@ def test_prompt_registry_guides_matching_generation_without_short_text_claims() 
     assert "Quality rules:" in direct_prompt.user_template
     assert "same semantic category" in direct_prompt.user_template
     assert "For matching questions, follow the matching rules above" in direct_prompt.user_template
-    assert "If you cannot create 4 grounded pairs, use another allowed type" in direct_prompt.user_template
+    assert "When matching is required by the selected type policy, do not omit it" in direct_prompt.user_template
     assert "not contain enough distinct concepts" not in direct_prompt.user_template
 
 

@@ -410,7 +410,7 @@ def test_rag_orchestrator_passes_retrieved_context_to_structured_generation_requ
     structured_request = provider.structured_requests[0]
     assert "Москва" in structured_request.user_prompt
     assert "Retrieved context" in structured_request.user_prompt
-    assert "Allowed question type: single_choice" in structured_request.user_prompt
+    assert "Selected question type: single_choice" in structured_request.user_prompt
     assert "Every question MUST use question_type=single_choice" in structured_request.user_prompt
     assert structured_request.schema_name == "quiz_payload"
 
@@ -432,7 +432,7 @@ def test_rag_orchestrator_uses_repair_prompt_after_quality_failure(tmp_path) -> 
     assert len(provider.structured_requests) == 2
     assert "Repair" in provider.structured_requests[1].user_prompt or "repair" in provider.structured_requests[1].user_prompt.lower()
     assert "Original generation settings" in provider.structured_requests[1].user_prompt
-    assert "Allowed question type: single_choice" in provider.structured_requests[1].user_prompt
+    assert "Selected question type: single_choice" in provider.structured_requests[1].user_prompt
     assert "Source document/context:" in provider.structured_requests[1].user_prompt
     source_block = provider.structured_requests[1].user_prompt.split("Source document/context:\n", 1)[1]
     source_block = source_block.split("\nInvalid JSON:", 1)[0]

@@ -49,20 +49,20 @@ def build_request(question_count: int) -> GenerationRequest:
 def test_multi_type_policy_requires_one_question_per_type_when_counts_match() -> None:
     policy = render_question_type_policy(build_request(question_count=5))
 
-    assert "Return exactly one question for each allowed question type" in policy
-    assert "Do not replace an allowed type with a repeated type" in policy
-    assert "include exactly one matching question" in policy
+    assert "Return exactly one question for each selected question type" in policy
+    assert "Do not omit any selected type" in policy
+    assert "Each selected type must appear exactly once" in policy
 
 
 def test_multi_type_policy_uses_every_type_before_repeating_when_count_is_larger() -> None:
     policy = render_question_type_policy(build_request(question_count=7))
 
-    assert "Use every allowed question type at least once" in policy
-    assert "Then repeat suitable allowed types until exactly 7 questions are returned" in policy
+    assert "Use EVERY selected question type at least once" in policy
+    assert "Then repeat suitable selected types until exactly 7 questions are returned" in policy
 
 
 def test_multi_type_policy_prefers_reliable_subset_when_count_is_smaller() -> None:
     policy = render_question_type_policy(build_request(question_count=3))
 
-    assert "Use the most suitable subset of allowed types" in policy
+    assert "Use the most suitable subset of selected types" in policy
     assert "single_choice, true_false, fill_blank, short_answer, matching" in policy

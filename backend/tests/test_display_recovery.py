@@ -160,7 +160,7 @@ def test_display_recovery_keeps_matching_prompt_without_methodical_generalizatio
     assert warnings == ()
 
 
-def test_recovery_warns_when_matching_pairs_are_cleaned() -> None:
+def test_recovery_keeps_structurally_valid_matching_pairs_without_grounding_cleanup() -> None:
     matching_question = replace(
         build_mixed_matching_question(),
         matching_pairs=(
@@ -176,11 +176,8 @@ def test_recovery_warns_when_matching_pairs_are_cleaned() -> None:
     )
 
     validate_quiz(recovered)
-    assert len(recovered.questions[0].matching_pairs) == 4
-    warning = next(warning for warning in warnings if warning.code == "matching_fallback_applied")
-    assert warning.message == (
-        "Квиз был автоматически исправлен. В вопросе на соответствие были удалены неподтверждённые пары."
-    )
+    assert len(recovered.questions[0].matching_pairs) == 5
+    assert warnings == ()
 
 
 def test_valid_matching_prompt_not_changed() -> None:

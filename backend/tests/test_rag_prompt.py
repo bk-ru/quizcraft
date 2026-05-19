@@ -37,7 +37,7 @@ def test_rag_prompt_user_template_references_retrieved_context_and_request_field
     assert "Quality rules:" in prompt.user_template
     assert "same semantic category" in prompt.user_template
     assert "For matching questions, follow the matching rules above" in prompt.user_template
-    assert "If you cannot create 4 grounded pairs, use another allowed type" in prompt.user_template
+    assert "When matching is required by the selected type policy, do not omit it" in prompt.user_template
     assert "not contain enough distinct concepts" not in prompt.user_template
 
 

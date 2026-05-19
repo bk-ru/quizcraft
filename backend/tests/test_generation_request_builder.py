@@ -61,7 +61,7 @@ def test_request_builder_creates_structured_provider_request_for_direct_mode() -
     assert "Language: ru" in provider_request.user_prompt
     assert "Difficulty: medium" in provider_request.user_prompt
     assert "Quiz type: single_choice" in provider_request.user_prompt
-    assert "Allowed question type: single_choice" in provider_request.user_prompt
+    assert "Selected question type: single_choice" in provider_request.user_prompt
     assert "Every question MUST use question_type=single_choice" in provider_request.user_prompt
     assert "provide exactly four options" in provider_request.user_prompt
     assert "correct_option_index to the zero-based index" in provider_request.user_prompt
@@ -76,8 +76,8 @@ def test_request_builder_renders_explicit_matching_rules_for_multi_type_generati
     )
 
     assert "Return exactly 6 questions" in provider_request.user_prompt
-    assert "Use every allowed question type at least once" in provider_request.user_prompt
-    assert "Then repeat suitable allowed types until exactly 6 questions" in provider_request.user_prompt
+    assert "Use EVERY selected question type at least once" in provider_request.user_prompt
+    assert "Then repeat suitable selected types until exactly 6 questions" in provider_request.user_prompt
     assert "4 or more pairs" in provider_request.user_prompt
     assert "Never create a matching question with fewer than 4 pairs" in provider_request.user_prompt
     assert "term→definition" in provider_request.user_prompt
@@ -98,9 +98,9 @@ def test_request_builder_requires_each_type_when_count_matches_allowed_types() -
 
     provider_request = builder.build(document=build_document(), generation_request=request)
 
-    assert "Return exactly one question for each allowed question type" in provider_request.user_prompt
-    assert "Do not replace an allowed type with a repeated type" in provider_request.user_prompt
-    assert "include exactly one matching question" in provider_request.user_prompt
+    assert "Return exactly one question for each selected question type" in provider_request.user_prompt
+    assert "Do not omit any selected type" in provider_request.user_prompt
+    assert "Each selected type must appear exactly once" in provider_request.user_prompt
 
 
 def test_request_builder_rejects_unsupported_generation_mode() -> None:

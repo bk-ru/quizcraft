@@ -12,8 +12,6 @@ from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
 from backend.app.domain.validation import MATCHING_SYMBOLIC_RIGHT_VALUES
 from backend.app.domain.validation import validate_quiz
-from backend.app.generation.matching_grounding import is_matching_pair_grounded
-from backend.app.generation.matching_grounding import normalize_grounding_text
 from backend.app.generation.question_types import allowed_question_types
 
 DISPLAY_STATUS_OK = "ok"
@@ -80,7 +78,6 @@ def recover_displayable_quiz(
 ) -> tuple[Quiz, tuple[GenerationWarning, ...]]:
     """Return a structurally valid quiz safe to display as a draft."""
 
-    normalized_source = normalize_grounding_text(source_text)
     allowed_types = allowed_question_types(generation_request)
     recovered_questions: list[Question] = []
     warnings: list[GenerationWarning] = []
@@ -92,7 +89,6 @@ def recover_displayable_quiz(
             question,
             generation_request,
             source_text,
-            normalized_source,
             allowed_types,
             used_prompts,
             used_answers,
@@ -189,7 +185,6 @@ def _recover_question(
     question: Question,
     generation_request: GenerationRequest,
     source_text: str,
-    normalized_source: str,
     allowed_types: tuple[str, ...],
     used_prompts: set[str],
     used_answers: set[str],
@@ -205,7 +200,6 @@ def _recover_question(
     if recovered.question_type != "matching" and recovered.matching_pairs:
         converted = _maybe_convert_mixed_matching_question(
             recovered,
-            normalized_source,
             allowed_types,
         )
         if converted is not None:
@@ -226,7 +220,7 @@ def _recover_question(
         recovered = _strip_fields_for_question_type(recovered)
 
     if recovered.question_type == "matching":
-        recovered, matching_cleaned = _recover_matching_question(recovered, normalized_source)
+        recovered, matching_cleaned = _recover_matching_question(recovered)
         if recovered is None:
             return _replacement_question(question, generation_request, source_text, used_prompts, used_answers), (
                 _matching_replaced_warning(),
@@ -269,7 +263,6 @@ def _strip_fields_for_question_type(question: Question) -> Question:
 
 def _maybe_convert_mixed_matching_question(
     question: Question,
-    normalized_source: str,
     allowed_types: tuple[str, ...],
 ) -> Question | None:
     if "matching" not in allowed_types:
@@ -285,18 +278,17 @@ def _maybe_convert_mixed_matching_question(
         correct_option_index=None,
         correct_answer=None,
     )
-    recovered, _matching_cleaned = _recover_matching_question(matching_question, normalized_source)
+    recovered, _matching_cleaned = _recover_matching_question(matching_question)
     return recovered
 
 
-def _recover_matching_question(question: Question, normalized_source: str) -> tuple[Question | None, bool]:
+def _recover_matching_question(question: Question) -> tuple[Question | None, bool]:
     pairs = tuple(
         pair
         for pair in question.matching_pairs
         if pair.left.strip()
         and pair.right.strip()
         and pair.right.strip().casefold() not in MATCHING_SYMBOLIC_RIGHT_VALUES
-        and (not normalized_source or is_matching_pair_grounded(pair, normalized_source))
     )
     if len(pairs) < 4:
         return None, False
@@ -432,7 +424,7 @@ def _clean_sentence_subject(subject: str) -> str | None:
 
 
 def _answer_key(answer: str) -> str:
-    return normalize_grounding_text(answer)
+    return " ".join(answer.strip().casefold().split())
 
 
 def _dedupe_warnings(warnings: tuple[GenerationWarning, ...]) -> tuple[GenerationWarning, ...]:

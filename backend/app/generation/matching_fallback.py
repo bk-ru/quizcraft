@@ -12,6 +12,7 @@ from backend.app.domain.models import MatchingPair
 from backend.app.domain.models import Question
 from backend.app.domain.models import Quiz
 from backend.app.domain.validation import MATCHING_SYMBOLIC_RIGHT_VALUES
+from backend.app.generation.display_recovery import build_deterministic_short_answer_question
 from backend.app.generation.matching_grounding import is_matching_pair_grounded
 from backend.app.generation.matching_grounding import MATCHING_GROUNDEDNESS_ERROR_MESSAGE
 from backend.app.generation.matching_grounding import normalize_grounding_text
@@ -82,16 +83,23 @@ def fallback_invalid_matching_questions(
     generation_request: GenerationRequest,
     *,
     source_text: str | None = None,
+    enforce_grounding: bool = True,
 ) -> tuple[Quiz, tuple[FallbackAction, ...]] | None:
     """Try to clean matching questions first; convert to short_answer only when necessary.
 
     Returns ``(cleaned_quiz, actions)`` or ``None`` when nothing changed.
     """
 
-    normalized_source_text = normalize_grounding_text(source_text or "")
+    normalized_source_text = normalize_grounding_text(source_text or "") if enforce_grounding else ""
     repaired_questions: list[Question] = []
     actions: list[FallbackAction] = []
     changed = False
+    used_prompts = {question.prompt.strip().casefold() for question in quiz.questions}
+    used_answers = {
+        question.correct_answer.strip().casefold()
+        for question in quiz.questions
+        if question.correct_answer is not None and question.correct_answer.strip()
+    }
     for question in quiz.questions:
         if question.question_type != "matching":
             repaired_questions.append(question)
@@ -103,11 +111,18 @@ def fallback_invalid_matching_questions(
             question,
             generation_request,
             normalized_source_text=normalized_source_text,
+            source_text=source_text or "",
+            used_prompts=used_prompts,
+            used_answers=used_answers,
+            allow_replacement=not enforce_grounding,
         )
         repaired_questions.append(cleaned)
         actions.append(action)
         if cleaned is not question:
             changed = True
+            used_prompts.add(cleaned.prompt.strip().casefold())
+            if cleaned.correct_answer is not None:
+                used_answers.add(cleaned.correct_answer.strip().casefold())
 
     if not changed:
         return None
@@ -201,6 +216,10 @@ def _apply_matching_fallback(
     generation_request: GenerationRequest,
     *,
     normalized_source_text: str,
+    source_text: str,
+    used_prompts: set[str],
+    used_answers: set[str],
+    allow_replacement: bool,
 ) -> tuple[Question, FallbackAction]:
     """Clean matching questions only when they remain valid matching questions."""
 
@@ -225,6 +244,23 @@ def _apply_matching_fallback(
             removed_pair_count=removed_count,
             final_question_type="matching",
         )
+
+    if allow_replacement:
+        replacement = build_deterministic_short_answer_question(
+            source_text,
+            question_id=question.question_id,
+            language=generation_request.language,
+            used_prompts=used_prompts,
+            used_answers=used_answers,
+        )
+        if replacement is not None:
+            return replacement, FallbackAction(
+                action="replaced_matching",
+                original_pair_count=original_pair_count,
+                grounded_pair_count=grounded_count,
+                removed_pair_count=removed_count,
+                final_question_type="short_answer",
+            )
 
     return question, FallbackAction(
         action="failed",

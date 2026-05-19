@@ -29,6 +29,8 @@ from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.context import assemble_context
 from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
 from backend.app.generation.diagnostics import summarize_structured_generation_request
+from backend.app.generation.display_recovery import dedupe_generation_warnings
+from backend.app.generation.display_recovery import recover_displayable_quiz
 from backend.app.generation.display_recovery import resolve_quality_status
 from backend.app.generation.matching_fallback import build_matching_pair_count_error
 from backend.app.generation.matching_fallback import FallbackAction
@@ -38,6 +40,7 @@ from backend.app.generation.matching_fallback import prepare_repair_source_text
 from backend.app.generation.pipeline_logging import log_generation_pipeline_event
 from backend.app.generation.partial import build_matching_fallback_warning
 from backend.app.generation.partial import build_partial_generation_warning
+from backend.app.generation.partial import merge_display_generation_warnings
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.quality import enrich_generation_error
 from backend.app.generation.quality import fit_generated_question_count
@@ -538,26 +541,24 @@ class RagGenerationOrchestrator:
             generation_request=generation_request,
             metadata={"phase": "quality_check"},
         )
-        # DISABLED: ensure_quality отклоняет matching вопросы с неподтвержденными парами
-        # try:
-        #     self._quality_checker.ensure_quality(
-        #         quiz,
-        #         generation_request.question_count,
-        #         source_text=document.normalized_text,
-        #     )
-        # except DomainValidationError as error:
-        #     self._log_diagnostic_validation_failure(
-        #         document=document,
-        #         generation_request=generation_request,
-        #         response=response,
-        #         prompt_version=prompt_version,
-        #         provider_request_summary=provider_request_summary,
-        #         error=error,
-        #         quiz=quiz,
-        #         rag_metadata=rag_metadata,
-        #         repair_attempt=repair_attempt,
-        #     )
-        #     raise
+        try:
+            self._quality_checker.ensure_quality(
+                quiz,
+                generation_request.question_count,
+            )
+        except DomainValidationError as error:
+            self._log_diagnostic_validation_failure(
+                document=document,
+                generation_request=generation_request,
+                response=response,
+                prompt_version=prompt_version,
+                provider_request_summary=provider_request_summary,
+                error=error,
+                quiz=quiz,
+                rag_metadata=rag_metadata,
+                repair_attempt=repair_attempt,
+            )
+            raise
         return quiz
 
     def _build_partial_quiz(
@@ -861,6 +862,7 @@ class RagGenerationOrchestrator:
             quiz,
             generation_request,
             source_text=document.normalized_text,
+            enforce_grounding=False,
         )
         if fallback_result is None:
             return None
@@ -874,12 +876,10 @@ class RagGenerationOrchestrator:
                 len(fallback_quiz.questions),
             ),
         )
-        # DISABLED: ensure_quality отклоняет matching вопросы с неподтвержденными парами
-        # self._quality_checker.ensure_quality(
-        #     fallback_quiz,
-        #     generation_request.question_count,
-        #     source_text=document.normalized_text,
-        # )
+        self._quality_checker.ensure_quality(
+            fallback_quiz,
+            generation_request.question_count,
+        )
         return fallback_quiz, response, prompt_version, provider_request_summary, fallback_actions
 
     def _log_diagnostic_success(
@@ -986,23 +986,19 @@ class RagGenerationOrchestrator:
         quiz: Quiz,
         warnings: tuple[GenerationWarning, ...],
     ) -> tuple[Quiz, tuple[GenerationWarning, ...], str]:
-        # DISABLED: recover_displayable_quiz вызывает замену вопросов с дублирующимися ответами
-        # recovered_quiz, recovery_warnings = recover_displayable_quiz(
-        #     quiz,
-        #     generation_request,
-        #     document.normalized_text,
-        # )
-        # merged_warnings = dedupe_generation_warnings(
-        #     merge_display_generation_warnings(warnings, recovery_warnings, recovered_quiz)
-        # )
-        # self._quality_checker.ensure_quality(
-        #     recovered_quiz,
-        #     generation_request.question_count,
-        #     source_text=document.normalized_text,
-        #     allow_partial=len(recovered_quiz.questions) < generation_request.question_count,
-        # )
-        recovered_quiz = quiz
-        merged_warnings = warnings
+        recovered_quiz, recovery_warnings = recover_displayable_quiz(
+            quiz,
+            generation_request,
+            document.normalized_text,
+        )
+        merged_warnings = dedupe_generation_warnings(
+            merge_display_generation_warnings(warnings, recovery_warnings, recovered_quiz)
+        )
+        self._quality_checker.ensure_quality(
+            recovered_quiz,
+            generation_request.question_count,
+            allow_partial=len(recovered_quiz.questions) < generation_request.question_count,
+        )
         quality_status = resolve_quality_status(
             expected_question_count=generation_request.question_count,
             actual_question_count=len(recovered_quiz.questions),

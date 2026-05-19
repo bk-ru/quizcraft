@@ -333,7 +333,7 @@ def test_direct_generation_orchestrator_uses_repair_prompt_after_quality_failure
     assert len(provider.requests) == 2
     assert "question count" in provider.requests[1].user_prompt
     assert "Original generation settings" in provider.requests[1].user_prompt
-    assert "Allowed question type: single_choice" in provider.requests[1].user_prompt
+    assert "Selected question type: single_choice" in provider.requests[1].user_prompt
     assert "Every question MUST use question_type=single_choice" in provider.requests[1].user_prompt
     assert "If the invalid JSON has fewer questions than requested" in provider.requests[1].user_prompt
     assert "Add new grounded questions from the source document/context" in provider.requests[1].user_prompt
@@ -352,7 +352,7 @@ def test_direct_generation_matching_pair_count_error_replaces_without_matching_p
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    assert len(provider.requests) == 2
+    assert len(provider.requests) == 1
     matching_question = result.quiz.questions[-1]
     assert matching_question.question_type == "short_answer"
     assert matching_question.matching_pairs == ()
@@ -373,7 +373,7 @@ def test_direct_generation_replaces_invalid_matching_after_failed_repair(tmp_pat
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
     fallback_question = result.quiz.questions[-1]
-    assert result.prompt_version == "repair-v1"
+    assert result.prompt_version == "direct-v1"
     assert fallback_question.question_type == "short_answer"
     assert fallback_question.matching_pairs == ()
     assert fallback_question.correct_answer is not None
@@ -402,7 +402,7 @@ def test_direct_generation_matching_only_pair_count_failure_returns_partial_resu
     assert result.quality_status == "recovered"
     assert result.warnings[0].message == (
         "Квиз был автоматически исправлен. Вопрос на соответствие был заменён другим типом вопроса, "
-        "потому что часть пар не подтверждалась текстом."
+        "потому что его структуру нельзя было безопасно привести к правилам типа."
     )
     assert not any("проверьте пары" in recommendation.casefold() for recommendation in result.warnings[0].recommendations)
 
@@ -421,16 +421,13 @@ def test_direct_generation_matching_only_ungrounded_failure_returns_partial_resu
     result = orchestrator.generate("doc-1", build_matching_only_generation_request())
 
     assert len(result.quiz.questions) == 1
-    assert result.quiz.questions[0].question_type == "short_answer"
-    assert result.quiz.questions[0].matching_pairs == ()
-    assert result.quality_status == "recovered"
-    assert result.warnings[0].message == (
-        "Квиз был автоматически исправлен. Вопрос на соответствие был заменён другим типом вопроса, "
-        "потому что часть пар не подтверждалась текстом."
-    )
+    assert result.quiz.questions[0].question_type == "matching"
+    assert len(result.quiz.questions[0].matching_pairs) == 4
+    assert result.quality_status == "ok"
+    assert result.warnings == ()
 
 
-def test_direct_generation_uses_repair_before_fallback_for_ungrounded_matching(tmp_path) -> None:
+def test_direct_generation_keeps_structurally_valid_ungrounded_matching_without_repair(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_ungrounded_full_text_matching_payload(question_count=5), response_id="resp-1"),
@@ -442,17 +439,16 @@ def test_direct_generation_uses_repair_before_fallback_for_ungrounded_matching(t
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request(question_count=5))
 
-    assert len(provider.requests) == 2
-    assert result.prompt_version == "repair-v1"
-    assert result.warnings
+    assert len(provider.requests) == 1
+    assert result.prompt_version == "direct-v1"
+    assert result.warnings == ()
     matching_question = result.quiz.questions[-1]
     assert matching_question.question_type == "matching"
     assert len(matching_question.matching_pairs) == 4
-    assert "Source document/context:" in provider.requests[1].user_prompt
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
-def test_direct_generation_matching_with_options_replaces_without_matching_prompt(tmp_path) -> None:
+def test_direct_generation_matching_with_options_is_structurally_cleaned_without_repair(tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_bad_photosynthesis_type_matching_payload(), response_id="resp-1"),
@@ -464,15 +460,15 @@ def test_direct_generation_matching_with_options_replaces_without_matching_promp
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    assert len(provider.requests) == 2
+    assert len(provider.requests) == 1
     matching_question = result.quiz.questions[-1]
-    assert matching_question.question_type == "short_answer"
-    assert matching_question.matching_pairs == ()
-    assert "соответств" not in matching_question.prompt.casefold()
-    assert "СЃРѕРѕС‚РІРµС‚" not in matching_question.prompt
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
+    assert matching_question.correct_option_index is None
+    assert all(pair.right not in {"A", "B"} for pair in matching_question.matching_pairs)
 
 
-def test_direct_generation_fallback_does_not_save_ungrounded_matching_after_failed_repair(tmp_path) -> None:
+def test_direct_generation_structural_matching_cleanup_preserves_full_text_pairs(tmp_path) -> None:
     bad_payload = build_bad_photosynthesis_type_matching_payload()
     provider = StubProvider(
         [
@@ -485,13 +481,13 @@ def test_direct_generation_fallback_does_not_save_ungrounded_matching_after_fail
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    fallback_question = result.quiz.questions[-1]
+    matching_question = result.quiz.questions[-1]
     serialized = str(result.quiz.to_dict())
-    assert fallback_question.question_type == "short_answer"
-    assert fallback_question.matching_pairs == ()
-    assert "Установите соответствие" not in fallback_question.prompt
-    assert "Цианобактерии" not in serialized
-    assert "Хемосинтезирующие бактерии" not in serialized
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
+    assert all(pair.right not in {"A", "B"} for pair in matching_question.matching_pairs)
+    assert "Цианобактерии" in serialized
+    assert "Хемосинтезирующие бактерии" in serialized
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
@@ -687,7 +683,7 @@ def _build_short_repair_payload(*, question_count: int = 1) -> dict[str, object]
     }
 
 
-def test_repair_returns_too_few_questions_fallback_from_original(tmp_path) -> None:
+def test_structural_matching_cleanup_skips_too_short_repair_response(tmp_path) -> None:
     bad_payload = build_bad_photosynthesis_type_matching_payload()
     short_repair_payload = _build_short_repair_payload(question_count=1)
     provider = StubProvider(
@@ -702,11 +698,12 @@ def test_repair_returns_too_few_questions_fallback_from_original(tmp_path) -> No
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
     assert len(result.quiz.questions) == 6
-    fallback_question = result.quiz.questions[-1]
-    assert fallback_question.question_type == "short_answer"
+    matching_question = result.quiz.questions[-1]
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
     serialized = str(result.quiz.to_dict())
-    assert "Цианобактерии" not in serialized
-    assert "Хемосинтезирующие бактерии" not in serialized
+    assert "Цианобактерии" in serialized
+    assert "Хемосинтезирующие бактерии" in serialized
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
@@ -725,10 +722,10 @@ def test_matching_error_fallback_preserves_question_count(tmp_path) -> None:
 
     assert len(result.quiz.questions) == 6
     matching_question = result.quiz.questions[-1]
-    assert matching_question.question_type == "short_answer"
-    assert matching_question.matching_pairs == ()
-    assert "соответств" not in matching_question.prompt.casefold()
-    assert "СЃРѕРѕС‚РІРµС‚" not in matching_question.prompt
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
+    assert matching_question.correct_option_index is None
+    assert all(pair.right not in {"A", "B"} for pair in matching_question.matching_pairs)
     assert result_repository.get(result.quiz.quiz_id) == result
 
 
@@ -767,7 +764,7 @@ def test_good_photosynthesis_matching_passes_quality_check(tmp_path) -> None:
     assert len(matching_question.matching_pairs) == 4
 
 
-def test_ungrounded_external_terms_still_rejected_or_fallbacked(tmp_path) -> None:
+def test_ungrounded_external_terms_are_kept_when_matching_is_structurally_valid(tmp_path) -> None:
     bad_payload = build_bad_photosynthesis_type_matching_payload()
     short_repair_payload = _build_short_repair_payload(question_count=1)
     provider = StubProvider(
@@ -782,11 +779,11 @@ def test_ungrounded_external_terms_still_rejected_or_fallbacked(tmp_path) -> Non
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
     serialized = str(result.quiz.to_dict())
-    assert "Цианобактерии" not in serialized
-    assert "Хемосинтезирующие бактерии" not in serialized
+    assert "Цианобактерии" in serialized
+    assert "Хемосинтезирующие бактерии" in serialized
 
 
-def test_matching_error_failed_repair_replaces_without_matching_prompt(tmp_path) -> None:
+def test_matching_structural_cleanup_does_not_require_repair_prompt(tmp_path) -> None:
     bad_payload = build_bad_photosynthesis_type_matching_payload()
     provider = StubProvider(
         [
@@ -799,12 +796,12 @@ def test_matching_error_failed_repair_replaces_without_matching_prompt(tmp_path)
 
     result = orchestrator.generate("doc-1", build_multi_type_generation_request())
 
-    assert len(provider.requests) == 2
-    assert result.prompt_version == "repair-v1"
-    fallback_question = result.quiz.questions[-1]
-    assert fallback_question.question_type == "short_answer"
-    assert "соответств" not in fallback_question.prompt.casefold()
-    assert "СЃРѕРѕС‚РІРµС‚" not in fallback_question.prompt
+    assert len(provider.requests) == 1
+    assert result.prompt_version == "direct-v1"
+    matching_question = result.quiz.questions[-1]
+    assert matching_question.question_type == "matching"
+    assert matching_question.options == ()
+    assert all(pair.right not in {"A", "B"} for pair in matching_question.matching_pairs)
 
 
 def test_prompt_budget_guard_returns_partial_result_warning_when_repair_is_too_large(tmp_path) -> None:
