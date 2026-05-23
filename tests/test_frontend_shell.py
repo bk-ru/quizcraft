@@ -745,6 +745,9 @@ def test_frontend_app_drives_generation_progress_state() -> None:
     assert "stopGenerationEventPolling" in generation_content
     assert "client.getGenerationEvents" in generation_content
     assert "generateRequestId" in generation_content
+    assert "LIVE_JOURNAL_ENTRY_STAGGER_MS" in generation_content
+    assert "animationDelay" in generation_content
+    assert "liveJournalElement.childElementCount * LIVE_JOURNAL_ENTRY_STAGGER_MS" in generation_content
     assert "last-filename" not in generation_content
     assert "Вставленный текст" not in generation_content
 

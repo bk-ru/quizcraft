@@ -9,6 +9,7 @@ const mediaTypeByExtension = {
 
 const SLOW_GENERATION_WARNING_MS = 60000;
 const GENERATION_EVENT_POLL_MS = 1000;
+const LIVE_JOURNAL_ENTRY_STAGGER_MS = 90;
 const DEFAULT_GENERATION_MODE = "direct";
 const SUPPORTED_REQUEST_MODES = Object.freeze(["direct", "rag"]);
 const SUPPORTED_QUIZ_TYPES = Object.freeze(["single_choice", "true_false", "fill_blank", "short_answer", "matching"]);
@@ -258,6 +259,7 @@ export function createGenerationFlow({
       item.className = "live-journal-entry";
       item.dataset.eventId = String(eventId);
       item.dataset.status = typeof event.status === "string" ? event.status : "";
+      item.style.animationDelay = `${liveJournalElement.childElementCount * LIVE_JOURNAL_ENTRY_STAGGER_MS}ms`;
       const time = document.createElement("span");
       time.className = "live-journal-time";
       time.textContent = formatJournalTime(event.elapsed_ms);
