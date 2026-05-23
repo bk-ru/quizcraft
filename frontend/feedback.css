@@ -154,14 +154,31 @@
 }
 
 .generation-live-journal {
+  position: relative;
   display: grid;
   gap: 8px;
-  margin-top: 12px;
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
+  margin-top: 14px;
+  padding: 14px 16px 16px;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--brand) 42%, var(--line));
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--brand) 10%, transparent), transparent 42%),
+    color-mix(in oklab, var(--surface) 94%, var(--brand) 6%);
+  box-shadow: 0 18px 46px color-mix(in oklab, var(--brand) 16%, transparent);
+}
+
+.generation-live-journal::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 color-mix(in oklab, white 34%, transparent);
 }
 
 .generation-live-journal h4 {
+  position: relative;
   margin: 0;
   color: var(--ink);
   font-size: 0.88rem;
@@ -184,6 +201,9 @@
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.45;
+  opacity: 0;
+  transform: translateY(6px);
+  animation: live-journal-entry-in 280ms var(--easing) forwards;
 }
 
 .live-journal-time {
@@ -193,6 +213,17 @@
 
 .live-journal-message {
   color: var(--ink);
+}
+
+@keyframes live-journal-entry-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes progress-pulse {
@@ -209,6 +240,12 @@
 @media (prefers-reduced-motion: reduce) {
   .progress-step[data-state="active"] .progress-step-dot {
     animation: none;
+  }
+
+  .live-journal-entry {
+    animation: none;
+    opacity: 1;
+    transform: none;
   }
 }
 

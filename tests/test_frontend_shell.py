@@ -581,9 +581,9 @@ def test_frontend_collapses_technical_identifiers_into_details() -> None:
     assert document_id_match is not None, (
         "Document ID must live inside a collapsed inline-details block"
     )
-    assert 'id="last-filename"' in content.split('<details class="inline-details">', 1)[0], (
-        "filename must stay visible outside the collapsed technical identifiers block"
-    )
+    visible_summary = content.split('<details class="inline-details">', 1)[0]
+    assert 'id="last-filename"' not in visible_summary
+    assert "Имя файла" not in visible_summary
     assert '<details class="inline-details" open' not in content, (
         "technical identifiers must stay collapsed by default"
     )
@@ -745,6 +745,8 @@ def test_frontend_app_drives_generation_progress_state() -> None:
     assert "stopGenerationEventPolling" in generation_content
     assert "client.getGenerationEvents" in generation_content
     assert "generateRequestId" in generation_content
+    assert "last-filename" not in generation_content
+    assert "Вставленный текст" not in generation_content
 
 
 def test_frontend_progress_aligns_with_backend_generation_status_evidence() -> None:
@@ -783,6 +785,9 @@ def test_frontend_styles_theme_generation_progress() -> None:
     )
     assert ".live-journal" in content
     assert ".live-journal-entry" in content
+    assert "live-journal-entry-in" in content
+    assert "box-shadow: 0 18px 46px" in content
+    assert "border: 1px solid color-mix" in content
     assert "@media (prefers-reduced-motion: reduce)" in content
 
 

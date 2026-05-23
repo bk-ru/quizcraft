@@ -28,9 +28,9 @@ def _event(
 class TestQueuedMessages:
     def test_queued_basic(self) -> None:
         msg = build_generation_journal_message(_event(status=GenerationRunStatus.QUEUED, step=GenerationPipelineStep.PARSE))
-        assert "Генерация поставлена в очередь." in msg
+        assert msg == "Генерация поставлена в очередь."
 
-    def test_queued_with_params(self) -> None:
+    def test_queued_omits_request_parameters(self) -> None:
         msg = build_generation_journal_message(_event(
             status=GenerationRunStatus.QUEUED,
             step=GenerationPipelineStep.PARSE,
@@ -41,58 +41,17 @@ class TestQueuedMessages:
                 "quiz_type": "single_choice",
             },
         ))
-        assert "5 вопросов" in msg
-        assert "русский" in msg
-        assert "средняя сложность" in msg
-        assert "множественный выбор" in msg
+        assert msg == "Генерация поставлена в очередь."
+        assert "Параметры:" not in msg
 
-    def test_queued_with_direct_mode(self) -> None:
+    def test_queued_omits_generation_mode(self) -> None:
         msg = build_generation_journal_message(_event(
             status=GenerationRunStatus.QUEUED,
             step=GenerationPipelineStep.PARSE,
             request_summary={"generation_mode": "direct"},
         ))
-        assert "прямая генерация" in msg
-
-    def test_queued_with_rag_mode(self) -> None:
-        msg = build_generation_journal_message(_event(
-            status=GenerationRunStatus.QUEUED,
-            step=GenerationPipelineStep.PARSE,
-            request_summary={"generation_mode": "rag"},
-        ))
-        assert "RAG" in msg
-
-    def test_queued_russian_language_labels(self) -> None:
-        msg = build_generation_journal_message(_event(
-            status=GenerationRunStatus.QUEUED,
-            step=GenerationPipelineStep.PARSE,
-            request_summary={"language": "ru"},
-        ))
-        assert "русский" in msg
-
-    def test_queued_difficulty_labels(self) -> None:
-        for diff, label in [("easy", "лёгкая"), ("medium", "средняя"), ("hard", "сложная")]:
-            msg = build_generation_journal_message(_event(
-                status=GenerationRunStatus.QUEUED,
-                step=GenerationPipelineStep.PARSE,
-                request_summary={"difficulty": diff},
-            ))
-            assert label in msg
-
-    def test_queued_quiz_type_labels(self) -> None:
-        for qtype, label in [
-            ("single_choice", "множественный выбор"),
-            ("true_false", "верно/неверно"),
-            ("fill_blank", "заполнение пропусков"),
-            ("short_answer", "короткий ответ"),
-            ("matching", "соответствие"),
-        ]:
-            msg = build_generation_journal_message(_event(
-                status=GenerationRunStatus.QUEUED,
-                step=GenerationPipelineStep.PARSE,
-                request_summary={"quiz_type": qtype},
-            ))
-            assert label in msg
+        assert msg == "Генерация поставлена в очередь."
+        assert "Режим:" not in msg
 
 
 class TestParseMessages:

@@ -116,17 +116,9 @@ def build_generation_journal_message(event: GenerationPipelineEvent) -> str:
     status = event.status.value
     step = event.step.value
     metadata = event.metadata
-    request_summary = event.request_summary
 
     if status == "queued":
-        parts = ["Генерация поставлена в очередь."]
-        params = _format_params_summary(request_summary)
-        if params:
-            parts.append(f"Параметры: {params}.")
-        mode = _format_generation_mode(request_summary)
-        if mode:
-            parts.append(f"Режим: {mode}.")
-        return " ".join(parts)
+        return "Генерация поставлена в очередь."
 
     if status == "failed":
         if step == "repair":
@@ -161,42 +153,6 @@ def build_generation_journal_message(event: GenerationPipelineEvent) -> str:
             return "Квиз сохранён."
 
     return f"{step}: {status}"
-
-
-def _format_params_summary(request_summary: dict[str, Any]) -> str:
-    if not request_summary:
-        return ""
-    question_count = request_summary.get("question_count")
-    language = request_summary.get("language")
-    difficulty = request_summary.get("difficulty")
-    quiz_type = request_summary.get("quiz_type")
-    parts: list[str] = []
-    if isinstance(question_count, int):
-        parts.append(f"{question_count} вопросов")
-    if isinstance(language, str) and language:
-        lang_labels = {"ru": "русский", "en": "английский", "kk": "казахский"}
-        parts.append(lang_labels.get(language, language))
-    if isinstance(difficulty, str) and difficulty:
-        diff_labels = {"easy": "лёгкая", "medium": "средняя", "hard": "сложная"}
-        parts.append(f"{diff_labels.get(difficulty, difficulty)} сложность")
-    if isinstance(quiz_type, str) and quiz_type:
-        type_labels = {
-            "single_choice": "множественный выбор",
-            "true_false": "верно/неверно",
-            "fill_blank": "заполнение пропусков",
-            "short_answer": "короткий ответ",
-            "matching": "соответствие",
-        }
-        parts.append(type_labels.get(quiz_type, quiz_type))
-    return " · ".join(parts)
-
-
-def _format_generation_mode(request_summary: dict[str, Any]) -> str | None:
-    mode = request_summary.get("generation_mode")
-    if not isinstance(mode, str):
-        return None
-    mode_labels = {"direct": "прямая генерация", "rag": "RAG (поиск по документу)"}
-    return mode_labels.get(mode)
 
 
 def _format_generate_running(metadata: dict[str, Any]) -> str:

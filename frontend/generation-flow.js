@@ -368,7 +368,6 @@ export function createGenerationFlow({
   function updateSelectedFileSummary() {
     const file = fileInput?.files?.[0] ?? null;
     setTextContent("file-summary", formatFileSummary(file));
-    setTextContent("last-filename", file ? file.name : "Ещё не загружен");
     applyDropzoneFilled(file);
   }
 
@@ -522,7 +521,6 @@ export function createGenerationFlow({
   }
 
   function updateOperationSummary(uploadPayload, generationPayload) {
-    setTextContent("last-filename", uploadPayload.filename ?? "Ещё не загружен");
     setTextContent("last-document-id", uploadPayload.document_id ?? "Ещё нет");
     setTextContent("last-quiz-id", generationPayload.quiz_id ?? "Ещё нет");
     setTextContent("last-request-id", generationPayload.request_id ?? "Ещё нет");
@@ -609,7 +607,6 @@ export function createGenerationFlow({
       await waitForProgressVisibility();
       advanceGenerationProgress("parse", "generate");
 
-      setTextContent("last-filename", isPastedText ? "Вставленный текст" : (uploadPayload.filename ?? file.name));
       setTextContent("last-document-id", uploadPayload.document_id ?? "Ещё нет");
       setSubmissionStatus("Документ загружен. Запускаем генерацию…", "warn");
       setLogMessage("Документ загружен, запускаем генерацию.", "warn");
