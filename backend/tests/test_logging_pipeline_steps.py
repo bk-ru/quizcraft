@@ -88,6 +88,19 @@ def build_response(payload: dict[str, object], response_id: str) -> StructuredGe
     )
 
 
+def build_response_with_provider_metadata(payload: dict[str, object], response_id: str) -> StructuredGenerationResponse:
+    return StructuredGenerationResponse(
+        model_name="local-model",
+        content=payload,
+        raw_response={"id": response_id},
+        provider_metadata={
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+            "stats": {"tokens_per_second": 12.345, "time_to_first_token": 0.456},
+            "model_info": {"context_length": 4096, "quant": "Q4_K_M"},
+        },
+    )
+
+
 def build_orchestrator(
     tmp_path,
     provider: StubProvider,
@@ -148,11 +161,30 @@ def test_orchestrator_logs_success_pipeline_steps_with_redacted_russian_payloads
     assert all(record.generation_document_id == "doc-ru-1" for record in generation_events(caplog))
 
 
+def test_orchestrator_logs_provider_response_metadata_for_live_journal(caplog, tmp_path) -> None:
+    provider = StubProvider([build_response_with_provider_metadata(build_payload(), "resp-1")])
+    orchestrator, document_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_document())
+
+    with caplog.at_level(logging.INFO):
+        orchestrator.generate("doc-ru-1", build_generation_request())
+
+    done_generate_events = [
+        record for record in generation_events(caplog)
+        if record.generation_step == "generate" and record.generation_status == "done"
+    ]
+    assert done_generate_events
+    metadata = done_generate_events[-1].generation_metadata
+    assert metadata["usage"]["total_tokens"] == 30
+    assert metadata["stats"]["tokens_per_second"] == 12.345
+    assert metadata["model_info"]["context_length"] == 4096
+
+
 def test_orchestrator_logs_repair_step_when_initial_generation_fails_quality(caplog, tmp_path) -> None:
     provider = StubProvider(
         [
             build_response(build_payload(question_count=1), "resp-1"),
-            build_response(build_payload(question_count=2), "resp-2"),
+            build_response_with_provider_metadata(build_payload(question_count=2), "resp-2"),
         ]
     )
     orchestrator, document_repository = build_orchestrator(tmp_path, provider)
@@ -171,6 +203,14 @@ def test_orchestrator_logs_repair_step_when_initial_generation_fails_quality(cap
     ]
     assert repair_events[0].generation_metadata["attempt"] == 1
     assert repair_events[0].generation_metadata["initial_error_code"] == "generation_quality_error"
+    repair_done_events = [
+        record
+        for record in repair_events
+        if record.generation_status == "done"
+    ]
+    assert repair_done_events[-1].generation_metadata["usage"]["total_tokens"] == 30
+    assert repair_done_events[-1].generation_metadata["stats"]["tokens_per_second"] == 12.345
+    assert repair_done_events[-1].generation_metadata["model_info"]["context_length"] == 4096
 
 
 def test_orchestrator_logs_failed_repair_and_persists_partial_result_warning(caplog, tmp_path) -> None:

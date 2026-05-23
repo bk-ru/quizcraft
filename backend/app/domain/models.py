@@ -425,6 +425,7 @@ class StructuredGenerationResponse:
     model_name: str
     content: dict[str, Any]
     raw_response: dict[str, Any]
+    provider_metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

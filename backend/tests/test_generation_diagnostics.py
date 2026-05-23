@@ -4,6 +4,8 @@ import json
 
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DomainValidationError
+from backend.app.domain.errors import LLMRequestError
+from backend.app.domain.errors import LLMResponseFormatError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import MatchingPair
@@ -146,6 +148,65 @@ def test_diagnostic_logger_persists_runtime_failures(tmp_path) -> None:
     assert payload["stage"] == "generate"
     assert payload["error"]["message"] == "LM Studio returned request error 400"
     assert payload["rag"]["chunk_count"] == 17
+
+
+def test_diagnostic_logger_persists_error_diagnostics(tmp_path) -> None:
+    logger = FileSystemGenerationDiagnosticLogger(tmp_path)
+    error = LLMResponseFormatError(
+        "LM Studio returned a malformed structured response",
+        diagnostic={
+            "reason": "message_content_invalid_json",
+            "content_preview": "не-json",
+            "response_keys": ["choices", "model"],
+        },
+    )
+
+    path = logger.log_runtime_failure(
+        pipeline="direct",
+        document=build_document(),
+        generation_request=build_request(),
+        stage="generate",
+        error=error,
+    )
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    assert payload["error"]["diagnostic"] == {
+        "reason": "message_content_invalid_json",
+        "content_preview": "не-json",
+        "response_keys": ["choices", "model"],
+    }
+
+
+def test_diagnostic_logger_strips_prompt_previews_from_error_diagnostics(tmp_path) -> None:
+    logger = FileSystemGenerationDiagnosticLogger(tmp_path)
+    error = LLMRequestError(
+        400,
+        "LM Studio returned request error 400",
+        diagnostic={
+            "path": "/chat/completions",
+            "request": {
+                "message_count": 2,
+                "user_prompt_preview": "Секретный русский текст документа",
+                "first_input_preview": "Фрагмент документа",
+                "message_chars": [12, 34],
+            },
+        },
+    )
+
+    path = logger.log_runtime_failure(
+        pipeline="direct",
+        document=build_document(),
+        generation_request=build_request(),
+        stage="generate",
+        error=error,
+    )
+
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    diagnostic = payload["error"]["diagnostic"]
+    assert diagnostic["path"] == "/chat/completions"
+    assert diagnostic["request"] == {"message_count": 2, "message_chars": [12, 34]}
+    assert "Секретный русский текст документа" not in json.dumps(payload, ensure_ascii=False)
+    assert "Фрагмент документа" not in json.dumps(payload, ensure_ascii=False)
 
 
 def test_structured_request_summary_uses_lengths_and_preview(monkeypatch) -> None:

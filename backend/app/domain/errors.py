@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 
 class BackendError(Exception):
     """Базовый тип ошибки для backend-специфичных сбоев."""
@@ -122,6 +124,10 @@ class LLMProviderError(BackendError):
     code = "llm_provider_error"
     retryable = False
 
+    def __init__(self, message: str, *, diagnostic: dict[str, Any] | None = None) -> None:
+        super().__init__(message)
+        self.diagnostic = {} if diagnostic is None else dict(diagnostic)
+
 
 class UnsupportedProviderError(LLMProviderError):
     """Вызывается, когда запрошенный провайдер не зарегистрирован."""
@@ -166,8 +172,8 @@ class LLMRequestError(LLMProviderError):
 
     code = "llm_request_error"
 
-    def __init__(self, status_code: int, message: str) -> None:
-        super().__init__(message)
+    def __init__(self, status_code: int, message: str, *, diagnostic: dict[str, Any] | None = None) -> None:
+        super().__init__(message, diagnostic=diagnostic)
         self.status_code = status_code
 
 
@@ -177,8 +183,8 @@ class LLMServerError(LLMProviderError):
     code = "llm_server_error"
     retryable = True
 
-    def __init__(self, status_code: int, message: str) -> None:
-        super().__init__(message)
+    def __init__(self, status_code: int, message: str, *, diagnostic: dict[str, Any] | None = None) -> None:
+        super().__init__(message, diagnostic=diagnostic)
         self.status_code = status_code
 
 

@@ -110,6 +110,34 @@ class TestGenerateMessages:
         ))
         assert "gemma-4" in msg
 
+    def test_generate_done_with_lm_studio_stats(self) -> None:
+        msg = build_generation_journal_message(_event(
+            status=GenerationRunStatus.DONE,
+            metadata={
+                "model_name": "gemma-4",
+                "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+                "stats": {"tokens_per_second": 12.345, "time_to_first_token": 0.456},
+                "model_info": {"context_length": 4096, "quant": "Q4_K_M"},
+                "runtime": {"name": "llama.cpp", "version": "1.2.3"},
+            },
+        ))
+        assert "gemma-4" in msg
+        assert "12.3 ток/с" in msg
+        assert "TTFT 0.46 с" in msg
+        assert "30 токенов" in msg
+        assert "контекст 4096" in msg
+
+    def test_generate_done_with_lm_studio_runtime(self) -> None:
+        msg = build_generation_journal_message(_event(
+            status=GenerationRunStatus.DONE,
+            metadata={
+                "model_name": "gemma-4",
+                "runtime": {"name": "llama.cpp", "version": "1.2.3"},
+            },
+        ))
+        assert "llama.cpp" in msg
+        assert "1.2.3" in msg
+
     def test_generate_done_without_model(self) -> None:
         msg = build_generation_journal_message(_event(
             status=GenerationRunStatus.DONE,

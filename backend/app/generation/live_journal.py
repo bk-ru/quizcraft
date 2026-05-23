@@ -188,10 +188,57 @@ def _format_generate_running(metadata: dict[str, Any]) -> str:
 
 
 def _format_generate_done(metadata: dict[str, Any]) -> str:
+    parts: list[str] = []
     model_name = metadata.get("model_name")
     if isinstance(model_name, str) and model_name:
-        return f"Провайдер ответил: модель {model_name}."
-    return "Провайдер ответил, проверяем результат."
+        parts.append(f"Провайдер ответил: модель {model_name}.")
+    else:
+        parts.append("Провайдер ответил, проверяем результат.")
+    parts.extend(_format_provider_metadata_messages(metadata))
+    return " ".join(parts)
+
+
+def _format_provider_metadata_messages(metadata: dict[str, Any]) -> list[str]:
+    messages: list[str] = []
+    stats = metadata.get("stats")
+    if isinstance(stats, dict):
+        tokens_per_second = stats.get("tokens_per_second")
+        time_to_first_token = stats.get("time_to_first_token")
+        stat_parts: list[str] = []
+        if isinstance(tokens_per_second, int | float):
+            stat_parts.append(f"{tokens_per_second:.1f} ток/с")
+        if isinstance(time_to_first_token, int | float):
+            stat_parts.append(f"TTFT {time_to_first_token:.2f} с")
+        if stat_parts:
+            messages.append(f"Скорость LM Studio: {', '.join(stat_parts)}.")
+    usage = metadata.get("usage")
+    if isinstance(usage, dict):
+        total_tokens = usage.get("total_tokens")
+        if isinstance(total_tokens, int):
+            messages.append(f"Использовано {total_tokens} токенов.")
+    model_info = metadata.get("model_info")
+    if isinstance(model_info, dict):
+        model_parts: list[str] = []
+        context_length = model_info.get("context_length")
+        quant = model_info.get("quant")
+        if isinstance(context_length, int):
+            model_parts.append(f"контекст {context_length}")
+        if isinstance(quant, str) and quant:
+            model_parts.append(f"квантование {quant}")
+        if model_parts:
+            messages.append(f"Параметры модели: {', '.join(model_parts)}.")
+    runtime = metadata.get("runtime")
+    if isinstance(runtime, dict):
+        runtime_name = runtime.get("name")
+        runtime_version = runtime.get("version")
+        runtime_parts = [
+            part
+            for part in (runtime_name, runtime_version)
+            if isinstance(part, str) and part
+        ]
+        if runtime_parts:
+            messages.append(f"Runtime LM Studio: {' '.join(runtime_parts)}.")
+    return messages
 
 
 def _format_repair_message(status: str, metadata: dict[str, Any]) -> str:

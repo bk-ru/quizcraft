@@ -20,6 +20,15 @@ from backend.app.generation.safe_logging import summarize_generation_request
 from backend.app.generation.safe_logging import summarize_model_payload
 
 _INCLUDE_PROMPT_ENV = "GENERATION_DIAGNOSTICS_INCLUDE_PROMPT"
+_SENSITIVE_DIAGNOSTIC_KEYS = frozenset({
+    "document_preview",
+    "first_input_preview",
+    "source_text",
+    "system_prompt",
+    "text_preview",
+    "user_prompt",
+    "user_prompt_preview",
+})
 
 
 class FileSystemGenerationDiagnosticLogger:
@@ -124,6 +133,9 @@ class FileSystemGenerationDiagnosticLogger:
                 "message": str(getattr(error, "message", str(error))),
             },
         }
+        diagnostic = getattr(error, "diagnostic", None)
+        if isinstance(diagnostic, dict) and diagnostic:
+            record["error"]["diagnostic"] = _safe_error_diagnostic(diagnostic)
         if rag_metadata is not None:
             record["rag"] = dict(rag_metadata)
 
@@ -177,6 +189,9 @@ class FileSystemGenerationDiagnosticLogger:
                 "code": getattr(error, "code", error.__class__.__name__),
                 "message": str(getattr(error, "message", str(error))),
             }
+            diagnostic = getattr(error, "diagnostic", None)
+            if isinstance(diagnostic, dict) and diagnostic:
+                record["error"]["diagnostic"] = _safe_error_diagnostic(diagnostic)
 
         target_path = self._storage_path / f"{record['run_id']}.json"
         target_path.write_text(
@@ -202,6 +217,8 @@ class FileSystemGenerationDiagnosticLogger:
             "content_summary": summarize_model_payload(response.content),
             "raw_response_keys": sorted(response.raw_response) if isinstance(response.raw_response, dict) else [],
         }
+        if response.provider_metadata:
+            payload["provider_metadata"] = dict(response.provider_metadata)
         if include_raw_model_content:
             payload["raw_model_content"] = response.content
         return payload
@@ -217,6 +234,22 @@ class FileSystemGenerationDiagnosticLogger:
             "option_counts": [len(question.options) for question in quiz.questions],
             "matching_pair_counts": [len(question.matching_pairs) for question in quiz.questions],
         }
+
+
+def _safe_error_diagnostic(value: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: _safe_error_diagnostic_value(item)
+        for key, item in value.items()
+        if key not in _SENSITIVE_DIAGNOSTIC_KEYS
+    }
+
+
+def _safe_error_diagnostic_value(value: Any) -> Any:
+    if isinstance(value, dict):
+        return _safe_error_diagnostic(value)
+    if isinstance(value, list):
+        return [_safe_error_diagnostic_value(item) for item in value]
+    return value
 
 
 def summarize_structured_generation_request(request: StructuredGenerationRequest) -> dict[str, Any]:

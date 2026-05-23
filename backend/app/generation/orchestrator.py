@@ -135,6 +135,7 @@ class DirectGenerationOrchestrator:
                 metadata_builder=lambda direct_result: {
                     "model_name": direct_result[0].model_name,
                     "model_payload": summarize_model_payload(direct_result[0].content),
+                    **direct_result[0].provider_metadata,
                 },
             )
         except Exception as error:
@@ -637,6 +638,7 @@ class DirectGenerationOrchestrator:
                     "attempt": attempt_index,
                     "model_name": current_response.model_name,
                     "model_payload": summarize_model_payload(current_response.content),
+                    **current_response.provider_metadata,
                 },
             )
             warning = build_partial_generation_warning(

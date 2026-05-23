@@ -186,6 +186,7 @@ class RagGenerationOrchestrator:
                 metadata_builder=lambda result: {
                     "model_name": result[0].model_name,
                     "model_payload": summarize_model_payload(result[0].content),
+                    **result[0].provider_metadata,
                     "context_chars": result[2],
                     "retrieved_chunks": result[3],
                 },
@@ -785,6 +786,7 @@ class RagGenerationOrchestrator:
                     "attempt": attempt_index,
                     "model_name": current_response.model_name,
                     "model_payload": summarize_model_payload(current_response.content),
+                    **current_response.provider_metadata,
                 },
             )
             warning = build_partial_generation_warning(

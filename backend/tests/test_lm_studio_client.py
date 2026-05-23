@@ -179,10 +179,12 @@ def test_client_retries_timeout_errors_and_raises_controlled_error(monkeypatch: 
 
     monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
 
-    with pytest.raises(LLMTimeoutError, match="timed out"):
+    with pytest.raises(LLMTimeoutError, match="timed out") as error_info:
         build_client(max_retries=2).generate_structured(build_request())
 
     assert call_count == 3
+    assert error_info.value.diagnostic["path"] == "/chat/completions"
+    assert error_info.value.diagnostic["reason"] == "timeout"
 
 
 def test_client_raises_controlled_error_for_invalid_json_response(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -246,7 +248,68 @@ def test_client_raises_controlled_error_for_malformed_structured_response(
 
     monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
 
-    with pytest.raises(LLMResponseFormatError, match="structured response"):
+    with pytest.raises(LLMResponseFormatError, match="structured response") as error_info:
         build_client().generate_structured(build_request())
 
     assert call_count == 1
+    assert error_info.value.diagnostic["reason"] == "message_content_invalid_json"
+    assert error_info.value.diagnostic["content_preview"] == "not-json"
+    assert error_info.value.diagnostic["response_keys"] == ["choices", "model"]
+
+
+def test_healthcheck_malformed_response_includes_diagnostic(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request, timeout):
+        return FakeHTTPResponse(b"{broken-json")
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    with pytest.raises(LLMResponseFormatError, match="healthcheck") as error_info:
+        build_client(max_retries=0).healthcheck()
+
+    assert error_info.value.diagnostic["path"] == "/models"
+    assert error_info.value.diagnostic["reason"] == "invalid_json"
+    assert error_info.value.diagnostic["raw_response_preview"] == "{broken-json"
+
+
+def test_healthcheck_timeout_includes_diagnostic(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request, timeout):
+        raise socket.timeout("timed out")
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    with pytest.raises(LLMTimeoutError, match="timed out") as error_info:
+        build_client(max_retries=0).healthcheck()
+
+    assert error_info.value.diagnostic["path"] == "/models"
+    assert error_info.value.diagnostic["reason"] == "timeout"
+
+
+def test_client_summarizes_lm_studio_response_stats(monkeypatch: pytest.MonkeyPatch) -> None:
+    def fake_urlopen(request, timeout):
+        return FakeHTTPResponse(
+            {
+                "model": "local-model",
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps({"questions": [{"prompt": "Question 1"}]})
+                        }
+                    }
+                ],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+                "stats": {"tokens_per_second": 12.345, "time_to_first_token": 0.456, "stop_reason": "eosFound"},
+                "model_info": {"context_length": 4096, "quant": "Q4_K_M", "arch": "llama"},
+                "runtime": {"name": "llama.cpp", "version": "1.2.3"},
+            }
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    response = build_client().generate_structured(build_request())
+
+    assert response.provider_metadata == {
+        "usage": {"prompt_tokens": 10, "completion_tokens": 20, "total_tokens": 30},
+        "stats": {"tokens_per_second": 12.345, "time_to_first_token": 0.456, "stop_reason": "eosFound"},
+        "model_info": {"context_length": 4096, "quant": "Q4_K_M", "arch": "llama"},
+        "runtime": {"name": "llama.cpp", "version": "1.2.3"},
+    }

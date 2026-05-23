@@ -68,23 +68,51 @@ class LMStudioClient(LLMProvider):
                 request_summary={"method": "GET", "payload_keys": []},
             ) from error
         except URLError as error:
-            raise self._map_url_error(error) from error
+            raise self._map_url_error(error, path="/models") from error
         except TimeoutError as error:
-            raise LLMTimeoutError("LM Studio request timed out") from error
+            raise self._timeout_error("/models") from error
         except socket.timeout as error:
-            raise LLMTimeoutError("LM Studio request timed out") from error
+            raise self._timeout_error("/models") from error
 
         try:
             response_payload = json.loads(raw_response)
         except JSONDecodeError as error:
-            raise LLMResponseFormatError("LM Studio healthcheck returned malformed response") from error
+            diagnostic = self._json_response_diagnostic(
+                "/models",
+                reason="invalid_json",
+                raw_response=raw_response,
+            )
+            logger.warning("LM Studio healthcheck returned invalid JSON diagnostic=%s", diagnostic)
+            raise LLMResponseFormatError(
+                "LM Studio healthcheck returned malformed response",
+                diagnostic=diagnostic,
+            ) from error
 
         if not isinstance(response_payload, dict):
-            raise LLMResponseFormatError("LM Studio healthcheck returned malformed response")
+            diagnostic = self._json_response_diagnostic(
+                "/models",
+                reason="json_root_not_object",
+                raw_response=raw_response,
+                response_type=type(response_payload).__name__,
+            )
+            logger.warning("LM Studio healthcheck returned non-object JSON diagnostic=%s", diagnostic)
+            raise LLMResponseFormatError(
+                "LM Studio healthcheck returned malformed response",
+                diagnostic=diagnostic,
+            )
 
         models = response_payload.get("data")
         if not isinstance(models, list):
-            raise LLMResponseFormatError("LM Studio healthcheck returned malformed response")
+            diagnostic = {
+                "path": "/models",
+                "reason": "missing_models_data",
+                "response_keys": sorted(response_payload),
+            }
+            logger.warning("LM Studio healthcheck returned malformed schema diagnostic=%s", diagnostic)
+            raise LLMResponseFormatError(
+                "LM Studio healthcheck returned malformed response",
+                diagnostic=diagnostic,
+            )
 
         available_models = tuple(
             entry["id"]
@@ -175,32 +203,56 @@ class LMStudioClient(LLMProvider):
             raise self._map_http_error(error, path=path, request_summary=request_summary) from error
         except URLError as error:
             logger.warning("LM Studio transport error path=%s error=%s", path, error.reason)
-            raise self._map_url_error(error) from error
+            raise self._map_url_error(error, path=path) from error
         except TimeoutError as error:
-            logger.warning("LM Studio request timed out path=%s", path)
-            raise LLMTimeoutError("LM Studio request timed out") from error
+            raise self._timeout_error(path) from error
         except socket.timeout as error:
-            logger.warning("LM Studio request timed out path=%s", path)
-            raise LLMTimeoutError("LM Studio request timed out") from error
+            raise self._timeout_error(path) from error
 
         try:
             parsed_response = json.loads(raw_response)
         except JSONDecodeError as error:
-            logger.warning(
-                "LM Studio returned invalid JSON path=%s raw_response_preview=%s",
+            diagnostic = self._json_response_diagnostic(
                 path,
-                _truncate(raw_response),
+                reason="invalid_json",
+                raw_response=raw_response,
             )
-            raise LLMResponseFormatError("LM Studio returned invalid JSON") from error
+            logger.warning("LM Studio returned invalid JSON diagnostic=%s", diagnostic)
+            raise LLMResponseFormatError("LM Studio returned invalid JSON", diagnostic=diagnostic) from error
 
         if not isinstance(parsed_response, dict):
-            raise LLMResponseFormatError("LM Studio returned invalid JSON")
+            diagnostic = self._json_response_diagnostic(
+                path,
+                reason="json_root_not_object",
+                raw_response=raw_response,
+                response_type=type(parsed_response).__name__,
+            )
+            logger.warning("LM Studio returned non-object JSON diagnostic=%s", diagnostic)
+            raise LLMResponseFormatError("LM Studio returned invalid JSON", diagnostic=diagnostic)
         logger.info(
             "Received LM Studio response path=%s response=%s",
             path,
             self._summarize_response_payload(path, parsed_response, len(raw_response)),
         )
         return parsed_response
+
+    def _structured_response_error(
+        self,
+        reason: str,
+        response_payload: dict[str, object],
+        *,
+        content_preview: str | None = None,
+    ) -> LLMResponseFormatError:
+        diagnostic = self._summarize_malformed_structured_response(
+            response_payload,
+            reason=reason,
+            content_preview=content_preview,
+        )
+        logger.warning("LM Studio returned malformed structured response diagnostic=%s", diagnostic)
+        return LLMResponseFormatError(
+            "LM Studio returned a malformed structured response",
+            diagnostic=diagnostic,
+        )
 
     def _extract_structured_response(
         self,
@@ -210,19 +262,19 @@ class LMStudioClient(LLMProvider):
 
         model_name = response_payload.get("model")
         if not isinstance(model_name, str) or not model_name:
-            raise LLMResponseFormatError("LM Studio returned a malformed structured response")
+            raise self._structured_response_error("missing_model", response_payload)
 
         choices = response_payload.get("choices")
         if not isinstance(choices, list) or not choices:
-            raise LLMResponseFormatError("LM Studio returned a malformed structured response")
+            raise self._structured_response_error("missing_choices", response_payload)
 
         first_choice = choices[0]
         if not isinstance(first_choice, dict):
-            raise LLMResponseFormatError("LM Studio returned a malformed structured response")
+            raise self._structured_response_error("first_choice_not_object", response_payload)
 
         message = first_choice.get("message")
         if not isinstance(message, dict):
-            raise LLMResponseFormatError("LM Studio returned a malformed structured response")
+            raise self._structured_response_error("missing_message", response_payload)
 
         content = message.get("content")
         if isinstance(content, dict):
@@ -231,19 +283,78 @@ class LMStudioClient(LLMProvider):
             try:
                 structured_content = json.loads(content)
             except JSONDecodeError as error:
-                raise LLMResponseFormatError("LM Studio returned a malformed structured response") from error
+                raise self._structured_response_error(
+                    "message_content_invalid_json",
+                    response_payload,
+                    content_preview=_truncate(content),
+                ) from error
         else:
-            raise LLMResponseFormatError("LM Studio returned a malformed structured response")
+            raise self._structured_response_error("missing_message_content", response_payload)
 
         if not isinstance(structured_content, dict):
-            raise LLMResponseFormatError("LM Studio returned a malformed structured response")
+            raise self._structured_response_error(
+                "message_content_not_object",
+                response_payload,
+                content_preview=_truncate(content) if isinstance(content, str) else None,
+            )
 
         logger.info("Received structured response from LM Studio model %s", model_name)
         return StructuredGenerationResponse(
             model_name=model_name,
             content=structured_content,
             raw_response=response_payload,
+            provider_metadata=self._extract_provider_metadata(response_payload),
         )
+
+    @staticmethod
+    def _extract_provider_metadata(response_payload: dict[str, object]) -> dict[str, Any]:
+        metadata: dict[str, Any] = {}
+        for key in ("usage", "stats", "model_info", "runtime"):
+            value = response_payload.get(key)
+            if isinstance(value, dict):
+                metadata[key] = dict(value)
+        return metadata
+
+    @staticmethod
+    def _summarize_malformed_structured_response(
+        response_payload: dict[str, object],
+        *,
+        reason: str,
+        content_preview: str | None = None,
+    ) -> dict[str, Any]:
+        diagnostic: dict[str, Any] = {
+            "reason": reason,
+            "response_keys": sorted(response_payload),
+            "model": response_payload.get("model"),
+        }
+        choices = response_payload.get("choices")
+        diagnostic["choices_type"] = type(choices).__name__
+        if isinstance(choices, list):
+            diagnostic["choice_count"] = len(choices)
+            if choices:
+                first_choice = choices[0]
+                diagnostic["first_choice_type"] = type(first_choice).__name__
+                if isinstance(first_choice, dict):
+                    diagnostic["first_choice_keys"] = sorted(first_choice)
+                    finish_reason = first_choice.get("finish_reason")
+                    if isinstance(finish_reason, str):
+                        diagnostic["finish_reason"] = finish_reason
+                    message = first_choice.get("message")
+                    diagnostic["message_type"] = type(message).__name__
+                    if isinstance(message, dict):
+                        diagnostic["message_keys"] = sorted(message)
+                        content = message.get("content")
+                        diagnostic["content_type"] = type(content).__name__
+                        if isinstance(content, str):
+                            diagnostic["content_chars"] = len(content)
+                            diagnostic["content_preview"] = content_preview or _truncate(content)
+                        elif isinstance(content, dict):
+                            diagnostic["content_keys"] = sorted(content)
+        for key in ("usage", "stats", "model_info", "runtime"):
+            value = response_payload.get(key)
+            if isinstance(value, dict):
+                diagnostic[key] = dict(value)
+        return diagnostic
 
     def _extract_embeddings_response(
         self,
@@ -313,24 +424,70 @@ class LMStudioClient(LLMProvider):
             request_summary,
             upstream_body_preview,
         )
+        diagnostic = {
+            "path": path,
+            "status_code": error.code,
+            "reason": str(error.reason),
+            "request": request_summary,
+            "upstream_body_chars": len(upstream_body),
+            "upstream_body_preview": upstream_body_preview,
+        }
         message_suffix = f": {upstream_body_preview}" if upstream_body_preview else ""
         if error.code >= 500:
-            return LLMServerError(error.code, f"LM Studio returned server error {error.code}{message_suffix}")
+            return LLMServerError(
+                error.code,
+                f"LM Studio returned server error {error.code}{message_suffix}",
+                diagnostic=diagnostic,
+            )
         if _is_context_overflow_error(upstream_body_preview):
             return LLMRequestError(
                 error.code,
                 "Контекст модели переполнен: запрос превышает размер контекста (n_ctx). "
                 "Увеличьте контекст в настройках LM Studio, сократите документ или используйте RAG-режим."
                 f"{message_suffix}",
+                diagnostic=diagnostic,
             )
-        return LLMRequestError(error.code, f"LM Studio returned request error {error.code}{message_suffix}")
+        return LLMRequestError(
+            error.code,
+            f"LM Studio returned request error {error.code}{message_suffix}",
+            diagnostic=diagnostic,
+        )
 
-    def _map_url_error(self, error: URLError):
+    def _map_url_error(self, error: URLError, *, path: str):
         """Преобразовать транспортные URL-сбои в контролируемые доменные ошибки."""
 
+        diagnostic = {"path": path, "reason": str(error.reason)}
         if isinstance(error.reason, TimeoutError | socket.timeout):
-            return LLMTimeoutError("LM Studio request timed out")
-        return LLMConnectionError(f"LM Studio request failed: {error.reason}")
+            return LLMTimeoutError("LM Studio request timed out", diagnostic=diagnostic)
+        return LLMConnectionError(f"LM Studio request failed: {error.reason}", diagnostic=diagnostic)
+
+    @staticmethod
+    def _timeout_error(path: str) -> LLMTimeoutError:
+        """Вернуть timeout-ошибку с диагностикой endpoint'а LM Studio."""
+
+        diagnostic = {"path": path, "reason": "timeout"}
+        logger.warning("LM Studio request timed out diagnostic=%s", diagnostic)
+        return LLMTimeoutError("LM Studio request timed out", diagnostic=diagnostic)
+
+    @staticmethod
+    def _json_response_diagnostic(
+        path: str,
+        *,
+        reason: str,
+        raw_response: str,
+        response_type: str | None = None,
+    ) -> dict[str, Any]:
+        """Вернуть безопасную диагностику JSON-ответа LM Studio."""
+
+        diagnostic: dict[str, Any] = {
+            "path": path,
+            "reason": reason,
+            "raw_response_chars": len(raw_response),
+            "raw_response_preview": _truncate(raw_response),
+        }
+        if response_type is not None:
+            diagnostic["response_type"] = response_type
+        return diagnostic
 
     @staticmethod
     def _summarize_request_payload(path: str, payload: dict[str, object]) -> dict[str, Any]:
