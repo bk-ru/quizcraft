@@ -14,6 +14,8 @@ from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.llm.lm_studio import LMStudioClient
 from backend.app.llm.retry import RetryPolicy
 
+RUSSIAN_PROMPT = "Вопрос 1"
+
 
 class FakeHTTPResponse:
     """Минимальный ответ context manager, используемый для stub вызовов urllib."""
@@ -50,7 +52,7 @@ def build_client(max_retries: int = 2) -> LMStudioClient:
     )
 
 
-def build_request() -> StructuredGenerationRequest:
+def build_request(model_name: str | None = "local-model") -> StructuredGenerationRequest:
     return StructuredGenerationRequest(
         system_prompt="You turn source text into a quiz.",
         user_prompt="Generate one question in JSON.",
@@ -66,7 +68,118 @@ def build_request() -> StructuredGenerationRequest:
             },
         },
         inference_parameters={"temperature": 0.2, "max_tokens": 256},
+        model_name=model_name,
     )
+
+
+def test_client_uses_loaded_lm_studio_model_for_automatic_chat_generation(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {"urls": []}
+
+    def fake_urlopen(request, timeout):
+        captured["urls"].append(request.full_url)
+        if request.full_url == "http://localhost:1234/api/v0/models":
+            return FakeHTTPResponse(
+                {
+                    "data": [
+                        {"id": "google/gemma-4-e2b", "state": "not-loaded", "type": "vlm"},
+                        {"id": "nvidia/nemotron-3-nano-4b", "state": "loaded", "type": "llm"},
+                        {"id": "text-embedding-qwen3-embedding-4b", "state": "loaded", "type": "embeddings"},
+                    ]
+                }
+            )
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeHTTPResponse(
+            {
+                "model": "nvidia/nemotron-3-nano-4b",
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps({"questions": [{"prompt": RUSSIAN_PROMPT}]})
+                        }
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    response = build_client().generate_structured(build_request(model_name=None))
+
+    assert captured["urls"] == [
+        "http://localhost:1234/api/v0/models",
+        "http://localhost:1234/v1/chat/completions",
+    ]
+    assert captured["payload"]["model"] == "nvidia/nemotron-3-nano-4b"
+    assert response.model_name == "nvidia/nemotron-3-nano-4b"
+    assert response.content == {"questions": [{"prompt": RUSSIAN_PROMPT}]}
+
+
+def test_client_keeps_explicit_request_model_without_loaded_model_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {"urls": []}
+
+    def fake_urlopen(request, timeout):
+        captured["urls"].append(request.full_url)
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeHTTPResponse(
+            {
+                "model": "explicit-model",
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps({"questions": [{"prompt": RUSSIAN_PROMPT}]})
+                        }
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    response = build_client().generate_structured(build_request(model_name="explicit-model"))
+
+    assert captured["urls"] == ["http://localhost:1234/v1/chat/completions"]
+    assert captured["payload"]["model"] == "explicit-model"
+    assert response.model_name == "explicit-model"
+
+
+def test_client_falls_back_to_default_model_when_no_loaded_chat_model(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {"urls": []}
+
+    def fake_urlopen(request, timeout):
+        captured["urls"].append(request.full_url)
+        if request.full_url == "http://localhost:1234/api/v0/models":
+            return FakeHTTPResponse(
+                {
+                    "data": [
+                        {"id": "text-embedding-qwen3-embedding-4b", "state": "loaded", "type": "embeddings"},
+                        {"id": "google/gemma-4-e2b", "state": "not-loaded", "type": "vlm"},
+                    ]
+                }
+            )
+        captured["payload"] = json.loads(request.data.decode("utf-8"))
+        return FakeHTTPResponse(
+            {
+                "model": "local-model",
+                "choices": [
+                    {
+                        "message": {
+                            "content": json.dumps({"questions": [{"prompt": RUSSIAN_PROMPT}]})
+                        }
+                    }
+                ],
+            }
+        )
+
+    monkeypatch.setattr("backend.app.llm.lm_studio.urlopen", fake_urlopen)
+
+    response = build_client().generate_structured(build_request(model_name=None))
+
+    assert captured["urls"] == [
+        "http://localhost:1234/api/v0/models",
+        "http://localhost:1234/v1/chat/completions",
+    ]
+    assert captured["payload"]["model"] == "local-model"
+    assert response.model_name == "local-model"
 
 
 def test_client_posts_schema_and_returns_structured_payload(monkeypatch: pytest.MonkeyPatch) -> None:

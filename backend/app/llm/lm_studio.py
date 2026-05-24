@@ -9,6 +9,8 @@ from json import JSONDecodeError
 from typing import Any
 from urllib.error import HTTPError
 from urllib.error import URLError
+from urllib.parse import urlparse
+from urllib.parse import urlunparse
 from urllib.request import Request
 from urllib.request import urlopen
 
@@ -30,6 +32,7 @@ logger = logging.getLogger(__name__)
 
 MAX_UPSTREAM_ERROR_BODY_CHARS = 4000
 MAX_LOG_PREVIEW_CHARS = 500
+LM_STUDIO_CHAT_MODEL_TYPES = frozenset({"llm", "vlm"})
 
 
 class LMStudioClient(LLMProvider):
@@ -157,7 +160,7 @@ class LMStudioClient(LLMProvider):
         """Сформировать payload chat-completions для LM Studio."""
 
         payload: dict[str, object] = {
-            "model": request.model_name or self._default_model,
+            "model": self._resolve_chat_model_name(request),
             "messages": [
                 {"role": "system", "content": request.system_prompt},
                 {"role": "user", "content": request.user_prompt},
@@ -173,6 +176,81 @@ class LMStudioClient(LLMProvider):
         }
         payload.update(request.inference_parameters)
         return payload
+
+    def _resolve_chat_model_name(self, request: StructuredGenerationRequest) -> str:
+        """Select a model for a chat-completions request."""
+
+        if request.model_name:
+            return request.model_name
+        return self._loaded_lm_studio_chat_model() or self._default_model
+
+    def _loaded_lm_studio_chat_model(self) -> str | None:
+        """Return the loaded chat/VLM model from the LM Studio native API when available."""
+
+        url = self._native_models_url()
+        request = Request(
+            url=url,
+            headers={"Accept": "application/json"},
+            method="GET",
+        )
+        try:
+            with urlopen(request, timeout=self._timeout_seconds) as response:
+                raw_response = response.read().decode("utf-8")
+        except HTTPError as error:
+            logger.warning(
+                "LM Studio loaded model lookup returned HTTP error status=%s reason=%s",
+                error.code,
+                error.reason,
+            )
+            return None
+        except URLError as error:
+            logger.warning("LM Studio loaded model lookup failed error=%s", error.reason)
+            return None
+        except TimeoutError:
+            logger.warning("LM Studio loaded model lookup timed out")
+            return None
+        except socket.timeout:
+            logger.warning("LM Studio loaded model lookup timed out")
+            return None
+
+        try:
+            payload = json.loads(raw_response)
+        except JSONDecodeError:
+            logger.warning("LM Studio loaded model lookup returned invalid JSON")
+            return None
+
+        if not isinstance(payload, dict):
+            logger.warning("LM Studio loaded model lookup returned non-object JSON")
+            return None
+        models = payload.get("data")
+        if not isinstance(models, list):
+            logger.warning("LM Studio loaded model lookup returned malformed models payload")
+            return None
+
+        for model in models:
+            if not isinstance(model, dict):
+                continue
+            model_id = model.get("id")
+            model_state = model.get("state")
+            model_type = model.get("type")
+            if (
+                isinstance(model_id, str)
+                and model_id.strip()
+                and model_state == "loaded"
+                and model_type in LM_STUDIO_CHAT_MODEL_TYPES
+            ):
+                selected_model = model_id.strip()
+                logger.info("Selected loaded LM Studio model %s", selected_model)
+                return selected_model
+
+        logger.info("No loaded LM Studio chat model found, using configured default model %s", self._default_model)
+        return None
+
+    def _native_models_url(self) -> str:
+        """Build the native LM Studio endpoint URL for model state."""
+
+        parsed_url = urlparse(self._base_url)
+        return urlunparse((parsed_url.scheme, parsed_url.netloc, "/api/v0/models", "", "", ""))
 
     def _build_embeddings_payload(self, request: EmbeddingRequest) -> dict[str, object]:
         """Сформировать payload embeddings для LM Studio."""
