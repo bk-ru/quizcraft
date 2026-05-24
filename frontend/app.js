@@ -139,6 +139,7 @@ const PROVIDER_DISPLAY_NAMES = Object.freeze({
   external_api: "External API",
 });
 const LM_STUDIO_CONNECTION_STORAGE_KEY = "quizcraft.lmStudioConnection";
+const PROVIDER_AVAILABLE_TEXT = "Доступен";
 
 const PROVIDER_UNAVAILABLE_INSTRUCTION =
   "Провайдер недоступен. Проверьте активный провайдер, загрузите настроенную модель и повторите проверку подключения.";
@@ -147,7 +148,7 @@ const BACKEND_AVAILABLE_INSTRUCTION =
 const BACKEND_CHECK_FAILED_INSTRUCTION =
   "Backend недоступен. Запустите сервер командой .\\run-backend.ps1 из корня проекта и проверьте, что порт 8000 свободен.";
 const PROVIDER_AVAILABLE_INSTRUCTION =
-  "Активный провайдер отвечает через backend. Если генерация падает, проверьте модель по умолчанию / настроенную модель и поддержку structured output.";
+  "Подключение к программе с ИИ-моделью проверено. Можно запускать генерацию.";
 const PROVIDER_CHECK_FAILED_INSTRUCTION =
   "Провайдер не удалось проверить через backend. Убедитесь, что backend запущен, активный провайдер доступен и модель загружена.";
 const PROVIDER_CHECK_BLOCKED_INSTRUCTION =
@@ -655,7 +656,7 @@ async function checkProviderConnection() {
       setPreflightStatus("", null);
       setStatus(
         "provider",
-        `${providerName}`,
+        PROVIDER_AVAILABLE_TEXT,
         statusMap[providerHealth.status] ?? "warn",
         PROVIDER_AVAILABLE_INSTRUCTION,
       );
@@ -722,7 +723,12 @@ async function applyLMStudioConnectionSettings() {
     if (isProviderReadyStatus(connection.status)) {
       generationConnectionState.provider = "ok";
       generationConnectionState.providerReason = "";
-      setStatus("provider", `LM Studio · ${connection.message}`, statusMap[connection.status] ?? "ok", PROVIDER_AVAILABLE_INSTRUCTION);
+      setStatus(
+        "provider",
+        PROVIDER_AVAILABLE_TEXT,
+        statusMap[connection.status] ?? "ok",
+        PROVIDER_AVAILABLE_INSTRUCTION,
+      );
       setPreflightStatus("", null);
       setLMStudioConnectionStatus(`LM Studio подключён: ${connection.base_url}`, "ok");
       setLogMessage("Адрес LM Studio применён.", "ok");

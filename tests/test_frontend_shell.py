@@ -448,6 +448,16 @@ def test_frontend_marks_provider_unready_statuses_as_critical() -> None:
     assert "formatProviderName" in app_content
 
 
+def test_frontend_provider_available_status_is_plain_language() -> None:
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'const PROVIDER_AVAILABLE_TEXT = "Доступен"' in app_content
+    assert "Подключение к программе с ИИ-моделью проверено" in app_content
+    assert 'setStatus(\n        "provider",\n        PROVIDER_AVAILABLE_TEXT,' in app_content
+    assert '`LM Studio \u00b7 ${connection.message}`' not in app_content
+    assert '`${providerName}`' not in app_content
+
+
 def test_frontend_status_tooltips_and_retry_buttons_are_wired() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
