@@ -79,6 +79,11 @@ class TestParseMessages:
 
 
 class TestGenerateMessages:
+    def test_generate_started_without_phase(self) -> None:
+        msg = build_generation_journal_message(_event())
+        assert msg == "\u041d\u0430\u0447\u0438\u043d\u0430\u0435\u043c \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0438\u044e."
+        assert "\u041e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u043c \u0437\u0430\u043f\u0440\u043e\u0441" not in msg
+
     def test_prompt_preparation(self) -> None:
         msg = build_generation_journal_message(_event(
             metadata={"phase": "prompt_preparation"},
@@ -282,6 +287,26 @@ class TestFailedMessages:
             step=GenerationPipelineStep.PERSIST,
         ))
         assert "Ошибка сохранения квиза." == msg
+
+    def test_generate_failed_timeout_is_user_friendly(self) -> None:
+        msg = build_generation_journal_message(_event(
+            status=GenerationRunStatus.FAILED,
+            step=GenerationPipelineStep.GENERATE,
+            error_code="llm_timeout_error",
+        ))
+        assert "LM Studio" in msg
+        assert "\u043d\u0435 \u043e\u0442\u0432\u0435\u0442\u0438\u043b" in msg
+        assert "llm_timeout_error" not in msg
+
+    def test_generate_failed_malformed_response_is_user_friendly(self) -> None:
+        msg = build_generation_journal_message(_event(
+            status=GenerationRunStatus.FAILED,
+            step=GenerationPipelineStep.GENERATE,
+            error_code="llm_response_format_error",
+        ))
+        assert "LM Studio" in msg
+        assert "\u0444\u043e\u0440\u043c\u0430\u0442" in msg
+        assert "llm_response_format_error" not in msg
 
     def test_failed_with_error_code(self) -> None:
         msg = build_generation_journal_message(_event(

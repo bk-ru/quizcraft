@@ -184,7 +184,7 @@ def _format_generate_running(metadata: dict[str, Any]) -> str:
         return "Провайдер ответил, проверяем структуру результата."
     if phase == "quality_check":
         return "Проверяем качество квиза."
-    return "Отправляем запрос провайдеру."
+    return "Начинаем генерацию."
 
 
 def _format_generate_done(metadata: dict[str, Any]) -> str:
@@ -283,13 +283,30 @@ def _format_repair_message(status: str, metadata: dict[str, Any]) -> str:
 
 
 def _failed_message(step: str, metadata: dict[str, Any], error_code: str | None) -> str:
+    if step == "generate":
+        return _generate_failed_message(error_code)
     step_labels = {
         "parse": "Ошибка подготовки документа. Проверьте формат и содержимое файла.",
-        "generate": "Ошибка запроса к провайдеру. Проверьте, что backend, провайдер и настроенная модель доступны.",
         "repair": "Ошибка исправления ответа модели.",
         "persist": "Ошибка сохранения квиза.",
     }
     label = step_labels.get(step, f"Ошибка на этапе {step}.")
+    if error_code:
+        return f"{label} Код: {error_code}."
+    return label
+
+
+def _generate_failed_message(error_code: str | None) -> str:
+    messages = {
+        "llm_timeout_error": "LM Studio не ответил вовремя. Проверьте, что сервер запущен, модель загружена и timeout достаточен.",
+        "llm_connection_error": "Не удалось подключиться к LM Studio. Проверьте адрес провайдера и доступность сервера в сети.",
+        "llm_server_error": "LM Studio вернул ошибку сервера. Попробуйте повторить генерацию или перезапустить модель.",
+        "llm_request_error": "LM Studio отклонил запрос. Проверьте выбранную модель, размер контекста и параметры генерации.",
+        "llm_response_format_error": "LM Studio ответил, но формат результата не подошёл. Попробуйте повторить генерацию или выбрать другую модель.",
+    }
+    if error_code in messages:
+        return messages[error_code]
+    label = "Ошибка запроса к провайдеру. Проверьте, что backend, провайдер и настроенная модель доступны."
     if error_code:
         return f"{label} Код: {error_code}."
     return label
