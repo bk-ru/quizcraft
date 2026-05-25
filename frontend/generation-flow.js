@@ -6,6 +6,8 @@ const mediaTypeByExtension = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   pdf: "application/pdf",
 };
+const SUPPORTED_DOCUMENT_EXTENSIONS = Object.freeze(Object.keys(mediaTypeByExtension));
+const SUPPORTED_DOCUMENT_MEDIA_TYPES = Object.freeze(new Set(Object.values(mediaTypeByExtension)));
 
 const SLOW_GENERATION_WARNING_MS = 60000;
 const GENERATION_EVENT_POLL_MS = 1000;
@@ -81,6 +83,7 @@ export function createGenerationFlow({
   docFilePillMeta,
   docFileRemoveButton,
   docInputWrap,
+  documentDropOverlay,
   submitButton,
   dropzone,
   quizIdInput,
@@ -473,6 +476,62 @@ export function createGenerationFlow({
     showToast("Файл удалён из формы.", "warn");
   }
 
+  function isFileDragEvent(event) {
+    const types = Array.from(event.dataTransfer?.types ?? []);
+    return types.includes("Files");
+  }
+
+  function isSupportedDocumentFile(file) {
+    if (!(file instanceof File)) {
+      return false;
+    }
+    const name = typeof file.name === "string" ? file.name.trim().toLowerCase() : "";
+    const extension = name.includes(".") ? name.split(".").pop() : "";
+    const mediaType = resolveMediaType(file).toLowerCase();
+    return SUPPORTED_DOCUMENT_EXTENSIONS.includes(extension) || SUPPORTED_DOCUMENT_MEDIA_TYPES.has(mediaType);
+  }
+
+  function setPageDocumentDragActive(isActive) {
+    const document = windowRef?.document;
+    if (!document?.body) {
+      return;
+    }
+    if (isActive) {
+      document.body.dataset.documentDragActive = "true";
+      documentDropOverlay?.setAttribute("aria-hidden", "false");
+    } else {
+      delete document.body.dataset.documentDragActive;
+      documentDropOverlay?.setAttribute("aria-hidden", "true");
+    }
+  }
+
+  function attachFileToInput(file) {
+    if (!fileInput || !(file instanceof File)) {
+      return false;
+    }
+    if (!isSupportedDocumentFile(file)) {
+      showToast("Можно прикрепить только документ TXT, DOCX или PDF.", "bad");
+      return false;
+    }
+    const DataTransferConstructor = windowRef?.DataTransfer ?? (typeof DataTransfer === "function" ? DataTransfer : null);
+    if (typeof DataTransferConstructor !== "function") {
+      showToast("Браузер не смог прикрепить файл перетаскиванием. Используйте кнопку «Прикрепить файл».", "bad");
+      return false;
+    }
+    try {
+      const dataTransfer = new DataTransferConstructor();
+      dataTransfer.items.add(file);
+      fileInput.files = dataTransfer.files;
+    } catch (_error) {
+      showToast("Не удалось прикрепить файл перетаскиванием. Используйте кнопку «Прикрепить файл».", "bad");
+      return false;
+    }
+    updateDocInputSummary();
+    advanceStepper("setup");
+    showToast(`Файл «${file.name}» готов к загрузке.`, "ok");
+    return true;
+  }
+
   function buildGenerationPayload() {
     if (!form) {
       throw new Error("Форма генерации недоступна");
@@ -709,7 +768,7 @@ export function createGenerationFlow({
     }
   }
 
-  function attachDropzone() {
+  function attachInlineDropzone() {
     if (!dropzone || !fileInput) {
       return;
     }
@@ -732,18 +791,71 @@ export function createGenerationFlow({
     }
     dropzone.addEventListener("drop", (event) => {
       event.preventDefault();
+      event.stopPropagation();
       setDragActive(false);
       const dropped = event.dataTransfer?.files?.[0];
       if (!dropped) {
         return;
       }
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(dropped);
-      fileInput.files = dataTransfer.files;
-      updateDocInputSummary();
-      advanceStepper("setup");
-      showToast(`Файл «${dropped.name}» готов к загрузке.`, "ok");
+      attachFileToInput(dropped);
     });
+  }
+
+  function attachPageDocumentDropzone() {
+    const document = windowRef?.document;
+    if (!document || !fileInput) {
+      return;
+    }
+    let dragDepth = 0;
+    const clearDragState = () => {
+      dragDepth = 0;
+      setPageDocumentDragActive(false);
+    };
+
+    document.addEventListener("dragenter", (event) => {
+      if (!isFileDragEvent(event)) {
+        return;
+      }
+      event.preventDefault();
+      dragDepth += 1;
+      setPageDocumentDragActive(true);
+    });
+    document.addEventListener("dragover", (event) => {
+      if (!isFileDragEvent(event)) {
+        return;
+      }
+      event.preventDefault();
+      event.dataTransfer.dropEffect = "copy";
+      setPageDocumentDragActive(true);
+    });
+    document.addEventListener("dragleave", (event) => {
+      if (!isFileDragEvent(event)) {
+        return;
+      }
+      dragDepth = Math.max(0, dragDepth - 1);
+      if (dragDepth === 0) {
+        setPageDocumentDragActive(false);
+      }
+    });
+    document.addEventListener("drop", (event) => {
+      if (!isFileDragEvent(event)) {
+        return;
+      }
+      event.preventDefault();
+      clearDragState();
+      const dropped = event.dataTransfer?.files?.[0];
+      if (!dropped) {
+        return;
+      }
+      attachFileToInput(dropped);
+    });
+    document.addEventListener("dragend", clearDragState);
+    windowRef?.addEventListener?.("blur", clearDragState);
+  }
+
+  function attachDropzone() {
+    attachInlineDropzone();
+    attachPageDocumentDropzone();
   }
 
   return {

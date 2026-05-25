@@ -54,6 +54,7 @@ const docFilePillMeta = document.getElementById("doc-file-pill-meta");
 const docFileRemoveButton = document.getElementById("doc-file-remove");
 const docClearButton = document.getElementById("doc-clear-button");
 const docExampleButton = document.getElementById("doc-example-button");
+const documentDropOverlay = document.getElementById("document-drop-overlay");
 const toastRegion = document.getElementById("toast-region");
 const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
@@ -497,6 +498,7 @@ const generationFlow = createGenerationFlow({
   docFilePillMeta,
   docFileRemoveButton,
   docInputWrap,
+  documentDropOverlay,
   submitButton,
   dropzone,
   quizIdInput,

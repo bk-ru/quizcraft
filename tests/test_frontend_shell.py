@@ -1093,6 +1093,39 @@ def test_frontend_dropzone_surface_exposes_filled_preview_affordance() -> None:
     assert "docFileRemoveButton?.addEventListener" in app_content
 
 
+def test_frontend_page_wide_document_drag_drop_overlay_is_wired() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    forms_css = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert re.search(
+        r'<div id="document-drop-overlay"[^>]*role="status"[^>]*aria-live="polite"',
+        index_content,
+    )
+    assert "Отпустите файл, чтобы прикрепить документ" in index_content
+    assert "TXT, DOCX или PDF" in index_content
+
+    assert ".document-drop-overlay" in forms_css
+    assert ".document-drop-overlay-card" in forms_css
+    assert "backdrop-filter: blur" in forms_css
+    assert "transition: opacity" in forms_css
+    assert 'body[data-document-drag-active="true"] .document-drop-overlay' in forms_css
+
+    assert "const documentDropOverlay = document.getElementById(\"document-drop-overlay\")" in app_content
+    assert "documentDropOverlay" in app_content
+    assert "function attachPageDocumentDropzone" in generation_content
+    assert "function isFileDragEvent" in generation_content
+    assert "function isSupportedDocumentFile" in generation_content
+    assert "SUPPORTED_DOCUMENT_EXTENSIONS" in generation_content
+    assert "Можно прикрепить только документ TXT, DOCX или PDF." in generation_content
+    assert "isSupportedDocumentFile(file)" in generation_content
+    assert 'document.addEventListener("dragenter"' in generation_content
+    assert 'document.addEventListener("drop"' in generation_content
+    assert 'document.body.dataset.documentDragActive = "true"' in generation_content
+    assert 'showToast(`Файл «${file.name}» готов к загрузке.`, "ok")' in generation_content
+
+
 def test_frontend_dropzone_file_size_formatter_uses_russian_units() -> None:
     content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
 
