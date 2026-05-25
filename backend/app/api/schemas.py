@@ -46,6 +46,7 @@ class GenerationRequestBody(_StrictModel):
     generation_mode: GenerationMode | None = None
     model_name: str | None = Field(default=None, min_length=1)
     profile_name: str | None = Field(default=None, min_length=1)
+    temperature: float | None = Field(default=None, ge=0.0, le=1.0)
 
     def to_settings(self, defaults: GenerationSettings | None = None) -> GenerationSettings:
         """Преобразовать частичное тело запроса в полные настройки генерации."""
@@ -78,6 +79,13 @@ class GenerationRequestBody(_StrictModel):
             return self.quiz_type.value
         return None
 
+    def inference_parameter_overrides(self) -> dict[str, Any]:
+        """Return request-time model parameters passed directly in the request."""
+
+        if self.temperature is None:
+            return {}
+        return {"temperature": self.temperature}
+
     def to_domain(
         self,
         *,
@@ -88,10 +96,13 @@ class GenerationRequestBody(_StrictModel):
         """Преобразовать валидированное тело в доменный запрос генерации."""
 
         settings = self.to_settings()
+        resolved_inference_parameters = {} if inference_parameters is None else dict(inference_parameters)
+        if self.temperature is not None:
+            resolved_inference_parameters["temperature"] = self.temperature
         return settings.to_generation_request(
             model_name=model_name,
             profile_name=profile_name,
-            inference_parameters={} if inference_parameters is None else dict(inference_parameters),
+            inference_parameters=resolved_inference_parameters,
         )
 
 

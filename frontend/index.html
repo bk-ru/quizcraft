@@ -224,11 +224,13 @@
                     <option value="">Авто</option>
                   </select>
                 </label>
-                <label class="field" for="generation-profile">
-                  <span class="field-label">Профиль <span class="field-tooltip" tabindex="0" aria-label="Что такое профиль генерации" data-tooltip="Набор настроек промпта: стиль вопросов и инструкции для модели. «Авто» — стандартный профиль по умолчанию.">?</span></span>
-                  <select id="generation-profile" name="profile_name" disabled>
-                    <option value="">Авто</option>
-                  </select>
+                <label class="field" for="generation-temperature">
+                  <span class="field-label">Температура <span class="field-tooltip" tabindex="0" aria-label="Что такое температура генерации" data-tooltip="Температура управляет случайностью ответа модели: ниже — ответы стабильнее и строже, выше — больше разнообразия, но выше риск ошибок в формате.">?</span></span>
+                  <div class="range-field">
+                    <input id="generation-temperature" name="temperature" type="range" min="0" max="1" step="0.1" value="0.2" aria-describedby="generation-temperature-hint">
+                    <output id="generation-temperature-value" for="generation-temperature">0.2</output>
+                  </div>
+                  <span id="generation-temperature-hint" class="field-hint">0 — строже, 1 — разнообразнее.</span>
                 </label>
                 <div class="field field--full lm-studio-connection" aria-labelledby="lm-studio-connection-title">
                   <span id="lm-studio-connection-title" class="field-label">LM Studio в локальной сети</span>

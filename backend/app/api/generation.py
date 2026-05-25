@@ -51,10 +51,12 @@ def register_generation_routes(app: FastAPI) -> None:
             profile_name=settings.profile_name,
         )
         dispatcher = get_generation_dispatcher(request.app)
+        inference_parameters = dict(profile.inference_parameters)
+        inference_parameters.update(payload.inference_parameter_overrides())
         generation_request = settings.to_generation_request(
             model_name=profile.model_name,
             profile_name=profile.profile_name,
-            inference_parameters=dict(profile.inference_parameters),
+            inference_parameters=inference_parameters,
         )
         with bind_generation_journal(request.state.correlation_id, get_generation_event_store(request.app)):
             result = await run_in_threadpool(

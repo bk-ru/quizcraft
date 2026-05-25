@@ -67,6 +67,8 @@ const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
 const dropzoneRemoveButton = document.getElementById("dropzone-remove");
 const modelSelect = document.getElementById("generation-model");
 const profileSelect = document.getElementById("generation-profile");
+const generationTemperatureInput = document.getElementById("generation-temperature");
+const generationTemperatureValue = document.getElementById("generation-temperature-value");
 const exportSplitToggle = document.getElementById("export-split-toggle");
 const exportSplitMenu = document.getElementById("export-split-menu");
 const editorExportJsonButton = document.getElementById("editor-export-json-button");
@@ -439,6 +441,16 @@ const modelPickerField = document.getElementById("model-picker-field");
 if (enableModelPicker && modelPickerField) {
   modelPickerField.hidden = false;
 }
+
+function syncGenerationTemperatureValue() {
+  if (!generationTemperatureInput || !generationTemperatureValue) {
+    return;
+  }
+  generationTemperatureValue.value = Number(generationTemperatureInput.value).toFixed(1);
+}
+
+syncGenerationTemperatureValue();
+generationTemperatureInput?.addEventListener("input", syncGenerationTemperatureValue);
 
 const generationSettings = createGenerationSettingsController({
   client,

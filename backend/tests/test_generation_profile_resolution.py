@@ -139,6 +139,21 @@ def test_generate_endpoint_accepts_explicit_allowed_model_over_profile_model(tmp
     assert provider.requests[0].inference_parameters["temperature"] == 0.0
 
 
+def test_generate_endpoint_temperature_override_takes_precedence_over_profile(tmp_path) -> None:
+    provider = RecordingProvider()
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_russian_document(client)
+
+    response = client.post(
+        f"/documents/{document_id}/generate",
+        json=build_payload(profile_name="strict", temperature=0.8),
+    )
+
+    assert response.status_code == 200
+    assert provider.requests[0].inference_parameters["temperature"] == 0.8
+
+
 def test_generate_endpoint_rejects_model_outside_whitelist(tmp_path) -> None:
     provider = RecordingProvider()
     app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)

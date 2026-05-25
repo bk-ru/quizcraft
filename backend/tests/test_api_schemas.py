@@ -41,6 +41,37 @@ def test_generation_request_body_accepts_multiple_quiz_types() -> None:
     assert request.quiz_types == ("single_choice", "true_false", "fill_blank", "short_answer", "matching")
 
 
+def test_generation_request_body_accepts_temperature_override() -> None:
+    body = GenerationRequestBody.model_validate(
+        {
+            "question_count": 3,
+            "language": "ru",
+            "difficulty": "medium",
+            "quiz_type": "single_choice",
+            "generation_mode": "direct",
+            "temperature": 0.7,
+        }
+    )
+
+    request = body.to_domain()
+
+    assert request.inference_parameters == {"temperature": 0.7}
+
+
+def test_generation_request_body_rejects_temperature_outside_slider_range() -> None:
+    with pytest.raises(ValidationError):
+        GenerationRequestBody.model_validate(
+            {
+                "question_count": 3,
+                "language": "ru",
+                "difficulty": "medium",
+                "quiz_type": "single_choice",
+                "generation_mode": "direct",
+                "temperature": 1.5,
+            }
+        )
+
+
 def test_generation_request_body_rejects_empty_quiz_types() -> None:
     with pytest.raises(ValidationError):
         GenerationRequestBody.model_validate(

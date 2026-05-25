@@ -573,9 +573,13 @@ export function createGenerationFlow({
         payload.model_name = modelName;
       }
     }
-    const profileName = String(formData.get("profile_name") ?? "").trim();
-    if (profileName) {
-      payload.profile_name = profileName;
+    const temperatureRaw = String(formData.get("temperature") ?? "").trim();
+    if (temperatureRaw) {
+      const temperature = Number(temperatureRaw);
+      if (!Number.isFinite(temperature) || temperature < 0 || temperature > 1) {
+        throw new Error("Температура должна быть числом от 0 до 1.");
+      }
+      payload.temperature = temperature;
     }
 
     return payload;

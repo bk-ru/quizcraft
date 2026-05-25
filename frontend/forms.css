@@ -872,3 +872,23 @@ button {
 .field-model-picker[hidden] {
   display: none;
 }
+
+.range-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.range-field input[type="range"] {
+  min-height: 28px;
+  padding: 0;
+  accent-color: var(--accent);
+}
+
+.range-field output {
+  min-width: 3ch;
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+}

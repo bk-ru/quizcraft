@@ -332,7 +332,8 @@ def test_frontend_params_advanced_block_and_generation_mode() -> None:
     assert 'class="form-advanced"' in content
     assert "\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e" in content
     assert 'id="generation-model"' in content
-    assert 'id="generation-profile"' in content
+    assert 'id="generation-temperature"' in content
+    assert 'name="temperature"' in content
     assert "\u0410\u0432\u0442\u043e (RAG \u0434\u043b\u044f \u0434\u043b\u0438\u043d\u043d\u044b\u0445 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u043e\u0432)" in content
     assert "RAG \u2014 \u0432\u0441\u0435\u0433\u0434\u0430" in content
     assert ".form-advanced" in styles
@@ -1430,7 +1431,7 @@ def test_frontend_stepper_exposes_failed_state_on_generation_error() -> None:
     )
 
 
-def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
+def test_frontend_model_picker_and_temperature_slider_are_wired_to_backend() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
     client_content = API_CLIENT_JS.read_text(encoding="utf-8")
@@ -1446,26 +1447,27 @@ def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
     assert 'id="generation-model"' in index_content, (
         "index must contain the model select element inside the picker"
     )
-    assert 'id="generation-profile"' in index_content, (
-        "upload form must expose a generation profile selector"
-    )
     assert 'name="model_name"' in index_content
-    assert 'name="profile_name"' in index_content
-    assert "Профиль" in index_content
-    assert ">Авто<" in index_content, (
-        "selectors must default to Russian auto-mode when no override is picked"
-    )
+
+    assert 'id="generation-temperature"' in index_content
+    assert 'name="temperature"' in index_content
+    assert 'type="range"' in index_content
+    assert 'min="0"' in index_content
+    assert 'max="1"' in index_content
+    assert 'step="0.1"' in index_content
+    assert "Температура" in index_content
+    assert "ниже — ответы стабильнее" in index_content
+    assert "выше — больше разнообразия" in index_content
+    assert 'id="generation-temperature-value"' in index_content
+    assert 'id="generation-profile"' not in index_content
+    assert 'name="profile_name"' not in index_content
+    assert "Профиль" not in index_content
 
     assert "export function createGenerationSettingsController" in settings_content
     assert "loadSettings" in settings_content
     assert "populateModelSelect" in settings_content
-    assert "populateProfileSelect" in settings_content
     assert "available_models" in settings_content
-    assert "available_profiles" in settings_content
     assert "default_model" in settings_content
-    assert "default_profile" in settings_content
-    assert "humanizeProfile" in settings_content
-    assert "Быстрый" in settings_content and "Сбалансированный" in settings_content and "Строгий" in settings_content
 
     assert "getGenerationSettings" in client_content, (
         "API client must expose getGenerationSettings"
@@ -1478,14 +1480,18 @@ def test_frontend_model_and_profile_selectors_are_wired_to_backend() -> None:
     assert 'formData.get("model_name")' in generation_content, (
         "generation payload must still be able to pick up model_name when picker is enabled"
     )
-    assert 'formData.get("profile_name")' in generation_content, (
-        "generation payload must pick up the profile_name override from the form"
+    assert 'formData.get("temperature")' in generation_content, (
+        "generation payload must pick up the temperature override from the form"
     )
-    assert "payload.profile_name = profileName" in generation_content
+    assert "payload.temperature = temperature" in generation_content
+    assert 'formData.get("profile_name")' not in generation_content
+    assert "payload.profile_name = profileName" not in generation_content
 
     assert "generationSettings.loadSettings()" in app_content, (
-        "app bootstrap must request available models/profiles from backend"
+        "app bootstrap must request available models from backend"
     )
+    assert "generationTemperatureInput" in app_content
+    assert "generationTemperatureValue" in app_content
 
 
 def test_frontend_editor_confirms_destructive_regenerate_action() -> None:
