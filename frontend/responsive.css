@@ -1,4 +1,30 @@
 @media (max-width: 900px) {
+  .compact-workspace .workspace-sidebar {
+    width: var(--sidebar-width-mobile);
+    padding-inline: 10px;
+  }
+
+  .compact-workspace .workspace-sidebar-brand {
+    justify-content: center;
+  }
+
+  .compact-workspace .workspace-sidebar-brand > span:last-child,
+  .compact-workspace .workspace-sidebar-history,
+  .compact-workspace .workspace-sidebar-status > span:last-child {
+    display: none;
+  }
+
+  .compact-workspace .workspace-sidebar-status {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .compact-workspace .workspace-workbench {
+    width: calc(100vw - var(--sidebar-width-mobile) - 32px);
+    margin-right: 16px;
+    margin-left: calc(var(--sidebar-width-mobile) + 16px);
+  }
+
   .workspace-grid > .panel-upload,
   .workspace-grid > .panel-params {
     grid-column: span 12;

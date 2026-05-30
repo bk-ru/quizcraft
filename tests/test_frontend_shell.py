@@ -109,6 +109,40 @@ def test_frontend_index_exposes_split_static_assets() -> None:
         assert target_path.is_file(), f"missing referenced asset: {relative_asset}"
 
 
+def test_frontend_index_exposes_single_compact_workspace_shell() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+    sidebar = content.split('<aside class="workspace-sidebar"', maxsplit=1)[1].split("</aside>", maxsplit=1)[0]
+
+    assert 'class="compact-workspace"' in content
+    assert content.count('class="compact-workspace"') == 1
+    assert 'class="workspace-sidebar"' in content
+    assert 'aria-label="QuizCraft"' in sidebar
+    assert "<button" not in sidebar
+    assert 'id="workspace-workbench"' in content
+    assert content.count("<main") == 1
+    assert "compact-workspace-enabled" not in content
+    assert "data-compact-workspace" not in content
+    assert 'id="generation-progress"' in content
+    assert 'id="generation-result"' in content
+    assert 'id="modal-region"' in content
+    assert 'id="toast-region"' in content
+    assert 'id="document-drop-overlay"' in content
+
+
+def test_frontend_shell_uses_offline_compact_workspace_tokens() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    tokens = (FRONTEND_DIR / "tokens.css").read_text(encoding="utf-8")
+    layout = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert "fonts.googleapis.com" not in index_content
+    assert '--font-sans: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;' in tokens
+    assert '--font-display: "Fraunces", Georgia, serif;' in tokens
+    assert '--font-mono: "JetBrains Mono", Consolas, monospace;' in tokens
+    assert "--sidebar-width: 264px;" in tokens
+    assert ".compact-workspace .workspace-sidebar" in layout
+    assert ".compact-workspace .workspace-workbench" in layout
+
+
 def test_frontend_index_exposes_russian_result_view_shell() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
@@ -1895,11 +1929,22 @@ def test_frontend_p3_visual_tokens() -> None:
     assert "--radius-md: 14px" in tokens
     assert "--radius-lg: 20px" in tokens
 
-    assert "0 12px 36px rgba(98, 69, 255, 0.18)" in tokens
-    assert "0 12px 36px rgba(152, 133, 255, 0.24)" in tokens
-
-    assert "--muted: #4a4468" in tokens
-    assert "--muted: #c0bacf" in tokens
+    assert "--bg: #f6f3ec" in tokens
+    assert "--bg: #0b0d14" in tokens
+    assert "--surface: rgba(255, 252, 244, 0.85)" in tokens
+    assert "--surface: rgba(22, 25, 36, 0.72)" in tokens
+    assert "--ink: #1a1827" in tokens
+    assert "--ink: #f1efe9" in tokens
+    assert "--muted: #6a6781" in tokens
+    assert "--muted: #9a9aa8" in tokens
+    assert "--brand: #5c4dd6" in tokens
+    assert "--brand: #8b7dff" in tokens
+    assert "--accent: #d62f93" in tokens
+    assert "--accent: #ff5fae" in tokens
+    assert "--bad: #ff6b82" in tokens
+    assert "--duration-fast: 140ms" in tokens
+    assert "--duration-base: 260ms" in tokens
+    assert "--duration-slow: 540ms" in tokens
 
     assert "blur(10px)" in layout
     assert "blur(8px)" in layout
