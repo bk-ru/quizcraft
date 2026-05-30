@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi.testclient import TestClient
 
 from backend.app.core.config import AppConfig
@@ -227,8 +229,40 @@ def test_rag_generation_endpoint_passes_retrieved_context_into_structured_reques
     assert structured_request.schema_name == "quiz_payload"
 
 
-def test_direct_request_promotes_to_rag_when_document_exceeds_threshold(tmp_path) -> None:
-    """Документ >= 30000 символов должен перейти в RAG режим"""
+def test_auto_request_uses_rag_when_document_exceeds_threshold(tmp_path) -> None:
+    """Документ >= 30000 символов в auto должен перейти в RAG режим."""
+    provider = StubRagApiProvider(structured_responses=[build_russian_quiz_response()])
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_long_russian_document(client, target_length=DEFAULT_RAG_MIN_CHARS)
+
+    response = client.post(
+        f"/documents/{document_id}/generate",
+        json=build_rag_payload(generation_mode="auto"),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["prompt_version"] == "rag-v1"
+    assert len(provider.embedding_requests) == 3
+
+
+def test_auto_request_below_threshold_skips_rag_path(tmp_path) -> None:
+    provider = StubRagApiProvider(structured_responses=[build_russian_quiz_response()])
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_short_russian_document(client)
+
+    response = client.post(
+        f"/documents/{document_id}/generate",
+        json=build_rag_payload(generation_mode="auto"),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["prompt_version"] == "direct-v1"
+    assert provider.embedding_requests == []
+
+
+def test_direct_request_above_threshold_skips_rag_path(tmp_path) -> None:
     provider = StubRagApiProvider(structured_responses=[build_russian_quiz_response()])
     app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
     client = TestClient(app)
@@ -237,6 +271,28 @@ def test_direct_request_promotes_to_rag_when_document_exceeds_threshold(tmp_path
     response = client.post(
         f"/documents/{document_id}/generate",
         json=build_rag_payload(generation_mode="direct"),
+    )
+
+    assert response.status_code == 200
+    assert response.json()["prompt_version"] == "direct-v1"
+    assert provider.embedding_requests == []
+
+
+def test_legacy_saved_direct_settings_route_long_document_through_auto_rag(tmp_path) -> None:
+    target_path = tmp_path / "settings" / "generation.json"
+    target_path.parent.mkdir(parents=True)
+    target_path.write_text(
+        json.dumps(build_rag_payload(generation_mode="direct"), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    provider = StubRagApiProvider(structured_responses=[build_russian_quiz_response()])
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_long_russian_document(client, target_length=DEFAULT_RAG_MIN_CHARS)
+
+    response = client.post(
+        f"/documents/{document_id}/generate",
+        json={"question_count": 2},
     )
 
     assert response.status_code == 200

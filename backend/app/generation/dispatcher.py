@@ -19,8 +19,7 @@ class GenerationOrchestratorDispatcher:
     """Маршрутизировать запрос генерации в direct или rag orchestrator.
 
     Dispatcher один раз загружает запрошенный документ, чтобы вычислить его нормализованную
-    длину, применяет rule-based selector режима для повышения ``direct`` до ``rag``,
-    когда документ превышает настроенный порог, заменяет ``generation_mode`` запроса
+    длину, разрешает ``auto`` в ``direct`` или ``rag``, заменяет ``generation_mode`` запроса
     разрешенным режимом и делегирует соответствующему orchestrator. ``single_question_regen``
     отклоняется, потому что у него есть собственный endpoint и orchestrator.
     """

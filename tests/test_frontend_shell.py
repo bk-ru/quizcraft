@@ -1782,14 +1782,17 @@ def test_frontend_index_exposes_generation_mode_selector() -> None:
     assert "Режим генерации" in index_content, (
         "selector label must be in Russian"
     )
-    assert '<option value="direct" selected>' in index_content, (
-        "direct must be the default generation mode"
+    assert '<option value="auto" selected>' in index_content, (
+        "auto must be the default generation mode"
+    )
+    assert '<option value="direct">' in index_content, (
+        "direct must remain selectable as an explicit mode"
     )
     assert '<option value="rag">' in index_content, (
         "rag must be selectable"
     )
     assert "Авто (RAG для длинных документов)" in index_content, (
-        "direct option copy must explain the auto-promotion behaviour in Russian"
+        "auto option copy must explain the automatic RAG behaviour in Russian"
     )
     assert "RAG — всегда" in index_content, (
         "rag option copy must explain the explicit retrieval mode in Russian"
@@ -1810,7 +1813,10 @@ def test_frontend_index_surfaces_resolved_generation_mode_in_result() -> None:
 def test_frontend_generation_flow_forwards_requested_generation_mode() -> None:
     content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
 
-    assert 'SUPPORTED_REQUEST_MODES = Object.freeze(["direct", "rag"])' in content, (
+    assert 'DEFAULT_GENERATION_MODE = "auto"' in content, (
+        "unsupported modes must fall back to auto"
+    )
+    assert 'SUPPORTED_REQUEST_MODES = Object.freeze(["auto", "direct", "rag"])' in content, (
         "frontend must whitelist the modes it can send to the backend"
     )
     assert 'formData.get("generation_mode")' in content, (

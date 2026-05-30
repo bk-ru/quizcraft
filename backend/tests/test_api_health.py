@@ -82,7 +82,7 @@ def test_backend_health_endpoint_returns_backend_status_and_basic_config_info() 
         "status": "ok",
         "default_provider": "lm_studio",
         "default_model": "local-model",
-        "generation_modes": ["direct", "single_question_regen", "rag"],
+        "generation_modes": ["auto", "direct", "single_question_regen", "rag"],
         "providers_enabled": ["lm_studio"],
     }
     assert response.headers["X-Request-ID"]

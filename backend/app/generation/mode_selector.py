@@ -1,4 +1,4 @@
-"""Rule-based selector для выбора между режимами direct и RAG генерации."""
+"""Rule-based selector для разрешения auto режима генерации."""
 
 from __future__ import annotations
 
@@ -18,14 +18,15 @@ def select_generation_mode(
     direct_max_chars: int = DEFAULT_DIRECT_MAX_CHARS,
     rag_min_chars: int = DEFAULT_RAG_MIN_CHARS,
 ) -> GenerationMode:
-    """Выбрать эффективный режим генерации для запроса на основе размера документа.
+    """Выбрать эффективный режим генерации с учетом явно запрошенного режима.
 
     Логика:
-    - До direct_max_chars (по умолчанию 15000) → DIRECT
-    - От rag_min_chars (по умолчанию 30000) → RAG
-    - Между порогами → DIRECT (по умолчанию быстрее)
+    - Явно запрошенные DIRECT, RAG и SINGLE_QUESTION_REGEN сохраняются
+    - AUTO до direct_max_chars (по умолчанию 15000) → DIRECT
+    - AUTO от rag_min_chars (по умолчанию 30000) → RAG
+    - AUTO между порогами → DIRECT (по умолчанию быстрее)
 
-    Явно запрошенный RAG или SINGLE_QUESTION_REGEN всегда используется.
+    AUTO не передается в orchestrator.
     """
 
     _validate_selector_inputs(
@@ -35,10 +36,8 @@ def select_generation_mode(
         rag_min_chars=rag_min_chars,
     )
 
-    if requested_mode is GenerationMode.SINGLE_QUESTION_REGEN:
-        return GenerationMode.SINGLE_QUESTION_REGEN
-    if requested_mode is GenerationMode.RAG:
-        return GenerationMode.RAG
+    if requested_mode is not GenerationMode.AUTO:
+        return requested_mode
     if document_length_chars >= rag_min_chars:
         return GenerationMode.RAG
     if document_length_chars <= direct_max_chars:
