@@ -10,10 +10,12 @@ import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
 import { createGenTiming } from "./gen-timing.js";
 import { createQuizRenderer } from "./quiz-renderer.js";
+import { createSidebarController } from "./sidebar.js";
 import { createStageFlowController } from "./stage-flow.js";
 import { createThemeController } from "./theme.js";
 import { createToastController } from "./toast.js";
 import { describeError, describeValidationError } from "./validation-errors.js";
+import { createWorkspaceController } from "./workspace.js";
 
 const config = window.QuizCraftConfig ?? {};
 const backendBaseUrl = typeof config.backendBaseUrl === "string" && config.backendBaseUrl.trim()
@@ -86,6 +88,12 @@ const lmStudioHostInput = document.getElementById("lm-studio-host");
 const lmStudioPortInput = document.getElementById("lm-studio-port");
 const applyLMStudioConnectionButton = document.getElementById("apply-lm-studio-connection");
 const lmStudioConnectionStatus = document.getElementById("lm-studio-connection-status");
+const workspaceRoot = document.querySelector(".compact-workspace");
+const workspaceSidebar = document.getElementById("workspace-sidebar");
+const sidebarToggleButton = document.getElementById("sidebar-toggle");
+const sidebarNewQuizButton = document.getElementById("sidebar-new-quiz");
+const sidebarHistoryList = document.getElementById("sidebar-history-list");
+const sidebarStatusCell = document.getElementById("sidebar-status-cell");
 
 const editorState = {
   loadedQuiz: null,
@@ -429,6 +437,7 @@ const modalRegion = document.getElementById("modal-region");
 const toastController = createToastController(toastRegion);
 const confirmModal = createConfirmModal({ modalRegion });
 const stageFlow = createStageFlowController({ root: stageRoot });
+const workspaceController = createWorkspaceController({ root: workspaceRoot, stageFlow });
 const progressController = createProgressController({ stepper, generationProgressPanel, stageFlow });
 const themeController = createThemeController({ themeToggleLabel });
 const quizHistory = createQuizHistory({
@@ -558,6 +567,75 @@ const quizExporter = createQuizExporter({
   client,
   editorState,
   showToast: toastController.showToast,
+});
+
+async function startNewQuiz() {
+  if (editorState.isDirty) {
+    const confirmed = await confirmModal.confirm({
+      title: "Начать новый квиз?",
+      body: "Несохранённые изменения текущего квиза будут потеряны.",
+      confirmLabel: "Начать новый квиз",
+      cancelLabel: "Продолжить редактирование",
+      tone: "warn",
+    });
+    if (!confirmed) {
+      return false;
+    }
+  }
+  if (docTextInput) {
+    docTextInput.value = "";
+  }
+  generationFlow.removeSelectedFile();
+  generationFlow.updateDocInputSummary();
+  quizRenderer.clearQuizResult();
+  quizEditor.clearQuizEditor();
+  editorState.isDirty = false;
+  setExportAvailability(null);
+  quizRenderer.setResultState("Квиз появится здесь после успешной генерации.", "idle", "Ожидание результата");
+  workspaceController.activateState("setup", { focus: true });
+  docTextInput?.focus();
+  return true;
+}
+
+async function openQuizFromHistory(quizId) {
+  if (typeof quizId !== "string" || !quizId.trim()) {
+    return;
+  }
+  try {
+    const payload = await client.getQuiz(quizId);
+    const normalizedQuizId = payload.quiz_id ?? payload.quiz?.quiz_id ?? quizId;
+    if (quizIdInput) {
+      quizIdInput.value = normalizedQuizId;
+    }
+    quizRenderer.renderQuizResult({
+      ...payload,
+      quiz_id: normalizedQuizId,
+      quiz: payload.quiz ?? {},
+    });
+    quizHistory.saveQuizToHistory({
+      quiz_id: normalizedQuizId,
+      title: payload.quiz?.title,
+      language: payload.language,
+    });
+    workspaceController.activateState("result", { focus: true });
+    toastController.showToast("Квиз загружен из истории.", "ok");
+  } catch (error) {
+    toastController.showToast(`Не удалось открыть квиз из истории: ${describeError(error)}`, "bad");
+  }
+}
+
+const sidebarController = createSidebarController({
+  sidebar: workspaceSidebar,
+  toggleButton: sidebarToggleButton,
+  newQuizButton: sidebarNewQuizButton,
+  historyList: sidebarHistoryList,
+  statusCell: sidebarStatusCell,
+  themeButton: themeToggleButton,
+  historyStore: quizHistory,
+  onNewQuiz: startNewQuiz,
+  onSelectQuiz: openQuizFromHistory,
+  onOpenStatus: () => workspaceController.openModal("status"),
+  onToggleTheme: themeController.cycleTheme,
 });
 
 const keyboardShortcuts = createKeyboardShortcuts({
@@ -804,7 +882,8 @@ function openEditorForCurrentQuiz() {
 }
 
 themeController.applyTheme(themeController.resolveStoredTheme());
-themeToggleButton?.addEventListener("click", themeController.cycleTheme);
+workspaceController.register();
+sidebarController.register();
 retryBackendButton?.addEventListener("click", () => {
   checkBackendConnection();
 });
@@ -973,6 +1052,6 @@ quizEditorFields?.addEventListener("click", (event) => {
   quizEditor.cancelActiveRegeneration();
 });
 
-stageFlow.activateStage("setup");
+workspaceController.activateState("setup");
 updateGenerationSubmitAvailability();
 bootstrapShell();

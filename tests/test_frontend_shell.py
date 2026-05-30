@@ -19,6 +19,8 @@ VALIDATION_ERRORS_JS = FRONTEND_DIR / "validation-errors.js"
 QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
 QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
 QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
+SIDEBAR_JS = FRONTEND_DIR / "sidebar.js"
+WORKSPACE_JS = FRONTEND_DIR / "workspace.js"
 GENERATION_FLOW_JS = FRONTEND_DIR / "generation-flow.js"
 GENERATION_SETTINGS_JS = FRONTEND_DIR / "generation-settings.js"
 KEYBOARD_JS = FRONTEND_DIR / "keyboard.js"
@@ -34,6 +36,8 @@ FRONTEND_JS_MODULES = (
     QUIZ_RENDERER_JS,
     QUIZ_EDITOR_JS,
     QUIZ_HISTORY_JS,
+    SIDEBAR_JS,
+    WORKSPACE_JS,
     GENERATION_FLOW_JS,
     GENERATION_SETTINGS_JS,
     KEYBOARD_JS,
@@ -111,13 +115,12 @@ def test_frontend_index_exposes_split_static_assets() -> None:
 
 def test_frontend_index_exposes_single_compact_workspace_shell() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
-    sidebar = content.split('<aside class="workspace-sidebar"', maxsplit=1)[1].split("</aside>", maxsplit=1)[0]
+    sidebar = content.split('<aside id="workspace-sidebar" class="workspace-sidebar"', maxsplit=1)[1].split("</aside>", maxsplit=1)[0]
 
     assert 'class="compact-workspace"' in content
     assert content.count('class="compact-workspace"') == 1
     assert 'class="workspace-sidebar"' in content
     assert 'aria-label="QuizCraft"' in sidebar
-    assert "<button" not in sidebar
     assert 'id="workspace-workbench"' in content
     assert content.count("<main") == 1
     assert "compact-workspace-enabled" not in content
@@ -141,6 +144,79 @@ def test_frontend_shell_uses_offline_compact_workspace_tokens() -> None:
     assert "--sidebar-width: 264px;" in tokens
     assert ".compact-workspace .workspace-sidebar" in layout
     assert ".compact-workspace .workspace-workbench" in layout
+
+
+def test_frontend_index_exposes_working_sidebar_shell() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="workspace-sidebar"' in content
+    assert 'id="sidebar-toggle"' in content
+    assert 'id="sidebar-new-quiz"' in content
+    assert 'id="sidebar-history-list"' in content
+    assert 'id="sidebar-status-cell"' in content
+    assert 'id="theme-toggle"' in content
+    assert content.count("История") == 1
+    assert "Новый квиз" in content
+    assert 'id="workspace-status-modal"' in content
+    assert 'data-workspace-modal="status"' in content
+    assert 'data-workspace-modal-close' in content
+
+
+def test_frontend_sidebar_module_owns_sidebar_dom_without_backend_calls() -> None:
+    content = SIDEBAR_JS.read_text(encoding="utf-8")
+
+    assert "export function createSidebarController" in content
+    assert "onNewQuiz" in content
+    assert "onSelectQuiz" in content
+    assert "onOpenStatus" in content
+    assert "onToggleTheme" in content
+    assert "historyStore.loadQuizHistory()" in content
+    assert "historyStore.subscribe(renderHistory)" in content
+    assert "client." not in content
+    assert "fetch(" not in content
+
+
+def test_frontend_workspace_module_owns_states_and_modals_without_quiz_payload() -> None:
+    content = WORKSPACE_JS.read_text(encoding="utf-8")
+
+    assert "export function createWorkspaceController" in content
+    assert 'setup: "setup"' in content
+    assert 'generating: "generation"' in content
+    assert 'result: "result"' in content
+    assert "stageFlow.activateStage" in content
+    assert "openModal" in content
+    assert "closeModal" in content
+    assert 'bodyElement.classList.add("workspace-modal-open")' in content
+    assert 'bodyElement.classList.remove("workspace-modal-open")' in content
+    assert "quiz" not in content.lower()
+
+
+def test_frontend_app_wires_sidebar_history_and_workspace_navigation() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'import { createSidebarController } from "./sidebar.js"' in content
+    assert 'import { createWorkspaceController } from "./workspace.js"' in content
+    assert "const workspaceController = createWorkspaceController" in content
+    assert "const sidebarController = createSidebarController" in content
+    assert "historyStore: quizHistory" in content
+    assert "onNewQuiz: startNewQuiz" in content
+    assert "onSelectQuiz: openQuizFromHistory" in content
+    assert 'onOpenStatus: () => workspaceController.openModal("status")' in content
+    assert "onToggleTheme: themeController.cycleTheme" in content
+    assert "const payload = await client.getQuiz(quizId)" in content
+    assert "quizIdInput.value = normalizedQuizId" in content
+    assert "quizRenderer.renderQuizResult" in content
+    assert 'workspaceController.activateState("setup"' in content
+
+
+def test_frontend_quiz_history_notifies_sidebar_subscribers() -> None:
+    content = QUIZ_HISTORY_JS.read_text(encoding="utf-8")
+
+    assert "const subscribers = new Set()" in content
+    assert "function subscribe" in content
+    assert "subscribers.add(callback)" in content
+    assert "notifySubscribers()" in content
+    assert "subscribe," in content
 
 
 def test_frontend_index_exposes_russian_result_view_shell() -> None:

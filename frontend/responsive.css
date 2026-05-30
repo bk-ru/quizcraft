@@ -9,12 +9,24 @@
   }
 
   .compact-workspace .workspace-sidebar-brand > span:last-child,
+  .compact-workspace .workspace-sidebar-new > span:last-child,
   .compact-workspace .workspace-sidebar-history,
-  .compact-workspace .workspace-sidebar-status > span:last-child {
+  .compact-workspace .workspace-sidebar-status > span:last-child,
+  .compact-workspace .workspace-sidebar-theme > span:last-child {
     display: none;
   }
 
+  .compact-workspace .workspace-sidebar-header {
+    flex-direction: column;
+  }
+
+  .compact-workspace .workspace-sidebar-new,
   .compact-workspace .workspace-sidebar-status {
+    justify-content: center;
+    padding-inline: 0;
+  }
+
+  .compact-workspace .workspace-sidebar-theme {
     justify-content: center;
     padding-inline: 0;
   }

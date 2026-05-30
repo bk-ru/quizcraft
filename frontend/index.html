@@ -15,19 +15,44 @@
 </head>
 <body>
   <div class="compact-workspace">
-    <aside class="workspace-sidebar" aria-label="Навигация QuizCraft">
-      <a class="workspace-sidebar-brand" href="#top" aria-label="QuizCraft">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span>QuizCraft</span>
-      </a>
+    <aside id="workspace-sidebar" class="workspace-sidebar" aria-label="Навигация QuizCraft" data-collapsed="false">
+      <div class="workspace-sidebar-header">
+        <a class="workspace-sidebar-brand" href="#top" aria-label="QuizCraft">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <span>QuizCraft</span>
+        </a>
+        <button id="sidebar-toggle" class="workspace-sidebar-toggle" type="button" aria-label="Свернуть боковую панель" aria-expanded="true">
+          <span aria-hidden="true">‹</span>
+        </button>
+      </div>
+      <button id="sidebar-new-quiz" class="workspace-sidebar-new" type="button">
+        <span aria-hidden="true">+</span>
+        <span>Новый квиз</span>
+      </button>
       <section class="workspace-sidebar-history" aria-labelledby="workspace-history-title">
         <h2 id="workspace-history-title">История</h2>
-        <p>Сохранённые квизы появятся здесь.</p>
+        <div id="sidebar-history-list" class="workspace-sidebar-history-list">
+          <p class="workspace-sidebar-empty">Сохранённые квизы появятся здесь.</p>
+        </div>
       </section>
-      <div class="workspace-sidebar-status" aria-label="Статус подключения">
+      <button id="sidebar-status-cell" class="workspace-sidebar-status" type="button">
         <span class="dot" aria-hidden="true"></span>
-        <span>Локальный workspace</span>
-      </div>
+        <span>Статус подключения</span>
+      </button>
+      <button id="theme-toggle" class="theme-toggle workspace-sidebar-theme" type="button" aria-label="Переключить тему оформления">
+        <svg class="theme-toggle-icon" data-theme-icon="auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="4" width="18" height="14" rx="2"></rect>
+          <path d="M8 21h8M12 18v3"></path>
+        </svg>
+        <svg class="theme-toggle-icon" data-theme-icon="light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="4"></circle>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
+        </svg>
+        <svg class="theme-toggle-icon" data-theme-icon="dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+        <span id="theme-toggle-label">Авто</span>
+      </button>
     </aside>
 
     <div class="shell-background" aria-hidden="true"></div>
@@ -58,22 +83,6 @@
         </span>
       </div>
 
-      <div class="topbar-actions">
-        <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Переключить тему оформления">
-          <svg class="theme-toggle-icon" data-theme-icon="auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <rect x="3" y="4" width="18" height="14" rx="2"></rect>
-            <path d="M8 21h8M12 18v3"></path>
-          </svg>
-          <svg class="theme-toggle-icon" data-theme-icon="light" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="4"></circle>
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"></path>
-          </svg>
-          <svg class="theme-toggle-icon" data-theme-icon="dark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
-          </svg>
-          <span id="theme-toggle-label">Авто</span>
-        </button>
-      </div>
     </header>
 
     <section id="top" class="hero" aria-labelledby="shell-title">
@@ -555,6 +564,15 @@
     </div>
     <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="false"></div>
     <div id="modal-region" class="modal-region"></div>
+    <section id="workspace-status-modal" class="workspace-modal" data-workspace-modal="status" role="dialog" aria-modal="true" aria-labelledby="workspace-status-modal-title" hidden>
+      <div class="workspace-modal-card">
+        <div class="workspace-modal-heading">
+          <h2 id="workspace-status-modal-title">Статус подключения</h2>
+          <button class="workspace-modal-close" type="button" data-workspace-modal-close aria-label="Закрыть окно статуса">×</button>
+        </div>
+        <p>Подробные настройки подключения будут добавлены в следующем батче.</p>
+      </div>
+    </section>
   </div>
 
   <script src="./config.js"></script>
