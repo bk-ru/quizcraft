@@ -71,6 +71,9 @@ const modelSelect = document.getElementById("generation-model");
 const profileSelect = document.getElementById("generation-profile");
 const generationTemperatureInput = document.getElementById("generation-temperature");
 const generationTemperatureValue = document.getElementById("generation-temperature-value");
+const questionCountRange = document.getElementById("question-count-range");
+const questionCountInput = document.getElementById("question-count");
+const generationEstimate = document.getElementById("generation-estimate");
 const exportSplitToggle = document.getElementById("export-split-toggle");
 const exportSplitMenu = document.getElementById("export-split-menu");
 const editorExportJsonButton = document.getElementById("editor-export-json-button");
@@ -88,6 +91,9 @@ const lmStudioHostInput = document.getElementById("lm-studio-host");
 const lmStudioPortInput = document.getElementById("lm-studio-port");
 const applyLMStudioConnectionButton = document.getElementById("apply-lm-studio-connection");
 const lmStudioConnectionStatus = document.getElementById("lm-studio-connection-status");
+const lmStudioConnectionSection = document.getElementById("lm-studio-connection-section");
+const lmStudioProviderHint = document.getElementById("lm-studio-provider-hint");
+const providerModelStatus = document.getElementById("provider-model-status");
 const workspaceRoot = document.querySelector(".compact-workspace");
 const workspaceSidebar = document.getElementById("workspace-sidebar");
 const sidebarToggleButton = document.getElementById("sidebar-toggle");
@@ -446,6 +452,7 @@ const quizHistory = createQuizHistory({
 quizHistory.renderHistoryDatalist();
 const enableModelPicker = Boolean(config.enableModelPicker);
 const modelPickerField = document.getElementById("model-picker-field");
+const genTiming = createGenTiming();
 
 if (enableModelPicker && modelPickerField) {
   modelPickerField.hidden = false;
@@ -458,8 +465,75 @@ function syncGenerationTemperatureValue() {
   generationTemperatureValue.value = Number(generationTemperatureInput.value).toFixed(1);
 }
 
+function syncQuestionCount(source = questionCountInput, target = questionCountRange) {
+  if (!source || !target) {
+    return;
+  }
+  const parsedValue = Number.parseInt(source.value, 10);
+  const normalizedValue = Number.isInteger(parsedValue) ? Math.min(50, Math.max(3, parsedValue)) : 5;
+  source.value = String(normalizedValue);
+  target.value = String(normalizedValue);
+}
+
+function formatEstimateDuration(durationMs) {
+  const seconds = Math.max(1, Math.round(durationMs / 1000));
+  if (seconds < 60) {
+    return `около ${seconds} сек.`;
+  }
+  return `около ${Math.ceil(seconds / 60)} мин.`;
+}
+
+function updateGenerationEstimate() {
+  if (!generationEstimate) {
+    return;
+  }
+  if (fileInput?.files?.[0]) {
+    generationEstimate.textContent = "Оценка времени уточнится после загрузки документа.";
+    return;
+  }
+  const charCount = docTextInput?.value?.trim().length ?? 0;
+  const totalMs = genTiming.estimateTotalMs(charCount);
+  generationEstimate.textContent = totalMs
+    ? `Оценка времени генерации: ${formatEstimateDuration(totalMs)}`
+    : "";
+}
+
+function updateLMStudioConnectionVisibility(providerKey = generationConnectionState.providerKey) {
+  const isLMStudio = providerKey === "lm_studio";
+  if (lmStudioConnectionSection) {
+    lmStudioConnectionSection.hidden = !isLMStudio;
+  }
+  if (lmStudioProviderHint) {
+    lmStudioProviderHint.hidden = isLMStudio;
+  }
+}
+
+function updateProviderModelStatus(defaultModel = "", models = []) {
+  if (!providerModelStatus) {
+    return;
+  }
+  const availableModels = Array.isArray(models) ? models.filter(Boolean) : [];
+  const defaultModelLabel = typeof defaultModel === "string" && defaultModel.trim()
+    ? `Модель по умолчанию: ${defaultModel.trim()}.`
+    : "Модель по умолчанию не указана.";
+  providerModelStatus.textContent = availableModels.length > 0
+    ? `${defaultModelLabel} Доступные модели: ${availableModels.join(", ")}`
+    : defaultModelLabel;
+}
+
 syncGenerationTemperatureValue();
 generationTemperatureInput?.addEventListener("input", syncGenerationTemperatureValue);
+syncQuestionCount();
+updateGenerationEstimate();
+updateLMStudioConnectionVisibility();
+questionCountRange?.addEventListener("input", () => {
+  syncQuestionCount(questionCountRange, questionCountInput);
+  updateGenerationEstimate();
+});
+questionCountInput?.addEventListener("change", () => {
+  syncQuestionCount(questionCountInput, questionCountRange);
+  updateGenerationEstimate();
+});
 
 const generationSettings = createGenerationSettingsController({
   client,
@@ -508,7 +582,6 @@ const quizEditor = createQuizEditor({
   confirmAction: confirmModal.confirm,
 });
 
-const genTiming = createGenTiming();
 const generationFlow = createGenerationFlow({
   client,
   form,
@@ -532,6 +605,7 @@ const generationFlow = createGenerationFlow({
   timerEtaValueElement: document.getElementById("timer-eta-value"),
   charCountElement: document.getElementById("char-count"),
   docLengthHintElement: document.getElementById("doc-length-hint"),
+  onDocInputSummaryChange: updateGenerationEstimate,
   genTiming,
   dropzoneFileName,
   dropzoneFileMeta,
@@ -682,6 +756,7 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
     generationConnectionState.backendReason = "";
     generationConnectionState.providerKey = backendHealth.default_provider ?? generationConnectionState.providerKey;
     generationConnectionState.providerName = formatProviderName(generationConnectionState.providerKey);
+    updateLMStudioConnectionVisibility();
     setStatus(
       "backend",
       "Доступен",
@@ -702,6 +777,7 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
     generationConnectionState.provider = "blocked";
     generationConnectionState.backendReason = reason;
     generationConnectionState.providerReason = "Сначала восстановите подключение к серверу.";
+    updateProviderModelStatus();
     const message = buildBackendUnavailableMessage(reason);
     setStatus("backend", "Проверка не удалась", "bad", message);
     setLogMessage(message, "bad");
@@ -717,6 +793,7 @@ async function checkProviderConnection() {
   if (generationConnectionState.backend !== "ok") {
     generationConnectionState.provider = "blocked";
     generationConnectionState.providerReason = "Сначала восстановите подключение к серверу.";
+    updateProviderModelStatus();
     setPreflightStatus(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
     setStatus("provider", "Недоступен · сначала сервер", "bad", PROVIDER_CHECK_BLOCKED_INSTRUCTION);
     setLogMessage(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
@@ -726,6 +803,7 @@ async function checkProviderConnection() {
   }
   generationConnectionState.provider = "checking";
   generationConnectionState.providerReason = "";
+  updateProviderModelStatus();
   updateGenerationSubmitAvailability();
   setPreflightStatus("", null);
   setStatus("provider", "Проверка…", null, "Проверяем подключение к активному провайдеру через backend.");
@@ -735,6 +813,8 @@ async function checkProviderConnection() {
     const providerName = formatProviderName(providerHealth.provider);
     generationConnectionState.providerKey = providerHealth.provider ?? generationConnectionState.providerKey;
     generationConnectionState.providerName = providerName;
+    updateLMStudioConnectionVisibility();
+    updateProviderModelStatus(providerHealth.default_model, providerHealth.available_models);
     if (!isProviderReadyStatus(providerHealth.status)) {
       generationConnectionState.provider = "bad";
       generationConnectionState.providerReason = providerHealth.message || `status: ${providerHealth.status}`;
@@ -812,6 +892,7 @@ async function applyLMStudioConnectionSettings() {
     storeLMStudioConnection({ host: connection.host, port: connection.port });
     generationConnectionState.providerKey = "lm_studio";
     generationConnectionState.providerName = "LM Studio";
+    updateLMStudioConnectionVisibility();
     if (isProviderReadyStatus(connection.status)) {
       generationConnectionState.provider = "ok";
       generationConnectionState.providerReason = "";

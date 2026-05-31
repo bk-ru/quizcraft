@@ -64,25 +64,6 @@
         <span>QuizCraft</span>
       </a>
 
-      <div class="topbar-status-group" role="status" aria-live="polite">
-        <span class="topbar-status" data-status-surface="backend" data-status-label="Сервер" data-status-tooltip="Сервер · Проверка…" tabindex="0" aria-label="Сервер · Проверка…">
-          <span class="dot" aria-hidden="true"></span>
-          <span>Сервер · </span>
-          <span id="backend-status-text">Проверка…</span>
-          <button id="retry-backend-button" class="status-retry-inline" type="button" aria-label="Повторно проверить подключение к серверу" title="Повторно проверить подключение к серверу">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
-          </button>
-        </span>
-        <span class="topbar-status" data-status-surface="provider" data-status-label="Провайдер" data-status-tooltip="Провайдер · Проверка…" tabindex="0" aria-label="Провайдер · Проверка…">
-          <span class="dot" aria-hidden="true"></span>
-          <span>Провайдер · </span>
-          <span id="provider-status-text">Проверка…</span>
-          <button id="retry-provider-button" class="status-retry-inline" type="button" aria-label="Повторно проверить активный провайдер" title="Повторно проверить активный провайдер">
-            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
-          </button>
-        </span>
-      </div>
-
     </header>
 
     <section id="top" class="hero" aria-labelledby="shell-title">
@@ -191,14 +172,17 @@
           <div class="form-grid">
             <label class="field" for="question-count">
               <span class="field-label">Количество вопросов</span>
-              <input id="question-count" name="question_count" type="number" min="1" max="20" step="1" value="5" required>
+              <div class="count-field">
+                <input id="question-count-range" type="range" min="3" max="50" step="1" value="5" aria-label="Количество вопросов">
+                <input id="question-count" name="question_count" type="number" min="3" max="50" step="1" value="5" required>
+              </div>
             </label>
             <label class="field" for="difficulty">
               <span class="field-label">Сложность</span>
               <select id="difficulty" name="difficulty">
-                <option value="easy">Базовая</option>
-                <option value="medium" selected>Средняя</option>
-                <option value="hard">Продвинутая</option>
+                <option value="easy">Легко</option>
+                <option value="medium" selected>Средне</option>
+                <option value="hard">Сложно</option>
               </select>
             </label>
             <fieldset class="field question-type-field" data-question-type-group>
@@ -233,48 +217,6 @@
                 <option value="en">English</option>
               </select>
             </label>
-            <details class="form-advanced" id="advanced-params">
-              <summary class="form-advanced-summary">Дополнительно</summary>
-              <div class="form-grid form-advanced-grid">
-                <label class="field field--full" for="generation-mode">
-                  <span class="field-label">Режим генерации</span>
-                  <select id="generation-mode" name="generation_mode">
-                    <option value="auto" selected>Авто (RAG для длинных документов)</option>
-                    <option value="direct">Прямой — всегда</option>
-                    <option value="rag">RAG — всегда</option>
-                  </select>
-                </label>
-                <label class="field field-model-picker" for="generation-model" id="model-picker-field" hidden>
-                  <span class="field-label">Модель</span>
-                  <select id="generation-model" name="model_name" disabled>
-                    <option value="">Авто</option>
-                  </select>
-                </label>
-                <label class="field" for="generation-temperature">
-                  <span class="field-label">Температура <span class="field-tooltip" tabindex="0" aria-label="Что такое температура генерации" data-tooltip="Температура управляет случайностью ответа модели: ниже — ответы стабильнее и строже, выше — больше разнообразия, но выше риск ошибок в формате.">?</span></span>
-                  <div class="range-field">
-                    <input id="generation-temperature" name="temperature" type="range" min="0" max="1" step="0.1" value="0.2" aria-describedby="generation-temperature-hint">
-                    <output id="generation-temperature-value" for="generation-temperature">0.2</output>
-                  </div>
-                  <span id="generation-temperature-hint" class="field-hint">0 — строже, 1 — разнообразнее.</span>
-                </label>
-                <div class="field field--full lm-studio-connection" aria-labelledby="lm-studio-connection-title">
-                  <span id="lm-studio-connection-title" class="field-label">LM Studio в локальной сети</span>
-                  <div class="inline-fields">
-                    <label class="field compact-field" for="lm-studio-host">
-                      <span class="field-label">IP или host устройства</span>
-                      <input id="lm-studio-host" name="lm_studio_host" type="text" inputmode="url" autocomplete="off" placeholder="192.168.1.42">
-                    </label>
-                    <label class="field compact-field" for="lm-studio-port">
-                      <span class="field-label">Порт LM Studio</span>
-                      <input id="lm-studio-port" name="lm_studio_port" type="number" min="1" max="65535" step="1" value="1234" inputmode="numeric">
-                    </label>
-                    <button id="apply-lm-studio-connection" class="secondary-action compact-action" type="button">Применить</button>
-                  </div>
-                  <p id="lm-studio-connection-status" class="field-hint" aria-live="polite" hidden></p>
-                </div>
-              </div>
-            </details>
           </div>
           <p class="form-hint" data-hint="defaults">После успешной генерации выбранные параметры запоминаются и используются как значения по умолчанию для следующих запусков.</p>
           <div class="form-actions">
@@ -284,6 +226,7 @@
               <span class="visually-hidden">(<kbd>Ctrl/⌘</kbd> + <kbd>Enter</kbd>)</span>
             </button>
           </div>
+          <p id="generation-estimate" class="field-hint generation-estimate" aria-live="polite"></p>
           <p id="preflight-status" class="submission-status" aria-live="polite" hidden></p>
         </section>
       </form>
@@ -570,7 +513,67 @@
           <h2 id="workspace-status-modal-title">Статус подключения</h2>
           <button class="workspace-modal-close" type="button" data-workspace-modal-close aria-label="Закрыть окно статуса">×</button>
         </div>
-        <p>Подробные настройки подключения будут добавлены в следующем батче.</p>
+        <div class="settings-modal-grid">
+          <div class="settings-status-grid" role="status" aria-live="polite">
+            <div class="settings-status-row topbar-status" data-status-surface="backend" data-status-label="Сервер" data-status-tooltip="Сервер · Проверка…" tabindex="0" aria-label="Сервер · Проверка…">
+              <span class="dot" aria-hidden="true"></span>
+              <span>Сервер · </span>
+              <span id="backend-status-text">Проверка…</span>
+              <button id="retry-backend-button" class="status-retry-inline" type="button" aria-label="Повторно проверить подключение к серверу" title="Повторно проверить подключение к серверу">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+              </button>
+            </div>
+            <div class="settings-status-row topbar-status" data-status-surface="provider" data-status-label="Провайдер" data-status-tooltip="Провайдер · Проверка…" tabindex="0" aria-label="Провайдер · Проверка…">
+              <span class="dot" aria-hidden="true"></span>
+              <span>Провайдер · </span>
+              <span id="provider-status-text">Проверка…</span>
+              <button id="retry-provider-button" class="status-retry-inline" type="button" aria-label="Повторно проверить активный провайдер" title="Повторно проверить активный провайдер">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
+              </button>
+            </div>
+            <p id="provider-model-status" class="field-hint" aria-live="polite">Модель уточняется после проверки провайдера.</p>
+          </div>
+          <div class="form-grid settings-form-grid">
+            <label class="field field--full" for="generation-mode">
+              <span class="field-label">Режим генерации <span class="field-tooltip field-tooltip--edge" tabindex="0" aria-label="Как выбрать режим генерации" data-tooltip="Авто выбирает прямой режим или RAG по длине документа. Прямой всегда передаёт весь текст. RAG использует релевантные фрагменты.">?</span></span>
+              <select id="generation-mode" name="generation_mode" form="generation-form">
+                <option value="auto" selected>Авто (RAG для длинных документов)</option>
+                <option value="direct">Прямой — всегда</option>
+                <option value="rag">RAG — всегда</option>
+              </select>
+            </label>
+            <label class="field field-model-picker" for="generation-model" id="model-picker-field" hidden>
+              <span class="field-label">Модель</span>
+              <select id="generation-model" name="model_name" form="generation-form" disabled>
+                <option value="">Авто</option>
+              </select>
+            </label>
+            <label class="field" for="generation-temperature">
+              <span class="field-label">Температура <span class="field-tooltip field-tooltip--edge" tabindex="0" aria-label="Что такое температура генерации" data-tooltip="Температура управляет случайностью ответа модели: ниже — ответы стабильнее и строже, выше — больше разнообразия, но выше риск ошибок в формате.">?</span></span>
+              <div class="range-field">
+                <input id="generation-temperature" name="temperature" form="generation-form" type="range" min="0" max="1" step="0.1" value="0.2" aria-describedby="generation-temperature-hint">
+                <output id="generation-temperature-value" for="generation-temperature">0.2</output>
+              </div>
+              <span id="generation-temperature-hint" class="field-hint">0 — строже, 1 — разнообразнее.</span>
+            </label>
+            <div id="lm-studio-connection-section" class="field field--full lm-studio-connection" aria-labelledby="lm-studio-connection-title">
+              <span id="lm-studio-connection-title" class="field-label">LM Studio в локальной сети</span>
+              <div class="inline-fields">
+                <label class="field compact-field" for="lm-studio-host">
+                  <span class="field-label">IP или host устройства <span class="field-tooltip field-tooltip--edge" tabindex="0" aria-label="Как указать host LM Studio" data-tooltip="Укажите только IP или host устройства без http://, пути /v1 и порта.">?</span></span>
+                  <input id="lm-studio-host" name="lm_studio_host" form="generation-form" type="text" inputmode="url" autocomplete="off" placeholder="192.168.1.42">
+                </label>
+                <label class="field compact-field" for="lm-studio-port">
+                  <span class="field-label">Порт LM Studio <span class="field-tooltip field-tooltip--edge" tabindex="0" aria-label="Как указать порт LM Studio" data-tooltip="Укажите порт Local Server из LM Studio. Допустимы значения от 1 до 65535.">?</span></span>
+                  <input id="lm-studio-port" name="lm_studio_port" form="generation-form" type="number" min="1" max="65535" step="1" value="1234" inputmode="numeric">
+                </label>
+                <button id="apply-lm-studio-connection" class="secondary-action compact-action" type="button" form="generation-form">Применить</button>
+              </div>
+              <p id="lm-studio-connection-status" class="field-hint" aria-live="polite" hidden></p>
+            </div>
+            <p id="lm-studio-provider-hint" class="field-hint field--full" hidden>Настройки LM Studio доступны только когда активен провайдер LM Studio.</p>
+          </div>
+        </div>
       </div>
     </section>
   </div>

@@ -17,7 +17,7 @@ const SUPPORTED_REQUEST_MODES = Object.freeze(["auto", "direct", "rag"]);
 const SUPPORTED_QUIZ_TYPES = Object.freeze(["single_choice", "true_false", "fill_blank", "short_answer", "matching"]);
 
 const DOC_LENGTH_THRESHOLDS = Object.freeze([
-  { maxChars: 300, maxQuestions: 2 },
+  { maxChars: 300, maxQuestions: 3 },
   { maxChars: 800, maxQuestions: 5 },
   { maxChars: 2000, maxQuestions: 10 },
   { maxChars: 5000, maxQuestions: 15 },
@@ -96,6 +96,7 @@ export function createGenerationFlow({
   timerEtaValueElement = null,
   charCountElement = null,
   docLengthHintElement = null,
+  onDocInputSummaryChange = () => {},
   genTiming = null,
   dropzoneFileName,
   dropzoneFileMeta,
@@ -445,6 +446,7 @@ export function createGenerationFlow({
       const hasText = Boolean(docTextInput?.value?.trim());
       setTextContent("file-summary", hasText ? "Текст готов к генерации." : "Вставьте текст или прикрепите файл.");
     }
+    onDocInputSummaryChange();
   }
 
   function resolveInputFile() {
@@ -538,8 +540,8 @@ export function createGenerationFlow({
     }
     const formData = new FormData(form);
     const questionCount = Number.parseInt(String(formData.get("question_count") ?? ""), 10);
-    if (!Number.isInteger(questionCount) || questionCount <= 0) {
-      throw new Error("Количество вопросов должно быть положительным целым числом.");
+    if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 50) {
+      throw new Error("Количество вопросов должно быть целым числом от 3 до 50.");
     }
     const difficulty = String(formData.get("difficulty") ?? "").trim();
     const quizTypes = formData.getAll("quiz_types")

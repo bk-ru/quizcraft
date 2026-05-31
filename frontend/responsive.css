@@ -71,6 +71,10 @@
 }
 
 @media (max-width: 620px) {
+  .settings-status-grid {
+    grid-template-columns: 1fr;
+  }
+
   .step-button {
     padding: 10px;
   }

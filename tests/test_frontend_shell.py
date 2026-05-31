@@ -253,7 +253,7 @@ def test_frontend_index_exposes_supported_question_type_labels() -> None:
     assert ".field input[type=\"checkbox\"]" in styles
     assert "min-height: 15px;" in styles
     assert "padding: 0;" in styles
-    assert "appearance: auto;" in styles
+    assert "appearance: none;" in styles
     assert 'name="quiz_types"' in content
     assert 'value="single_choice" checked' not in content
     for value, label in (
@@ -434,20 +434,19 @@ def test_frontend_wires_capability_driven_advanced_exports() -> None:
     assert "${formatConfig.label}-файл квиза скачан." in download_content
 
 
-def test_frontend_params_advanced_block_and_generation_mode() -> None:
+def test_frontend_status_modal_exposes_generation_mode() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
     styles = (FRONTEND_DIR / "forms.css").read_text(encoding="utf-8")
 
-    assert 'id="advanced-params"' in content
-    assert 'class="form-advanced"' in content
-    assert "\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e" in content
+    assert 'id="advanced-params"' not in content
+    assert 'class="form-advanced"' not in content
     assert 'id="generation-model"' in content
     assert 'id="generation-temperature"' in content
     assert 'name="temperature"' in content
     assert "\u0410\u0432\u0442\u043e (RAG \u0434\u043b\u044f \u0434\u043b\u0438\u043d\u043d\u044b\u0445 \u0434\u043e\u043a\u0443\u043c\u0435\u043d\u0442\u043e\u0432)" in content
     assert "RAG \u2014 \u0432\u0441\u0435\u0433\u0434\u0430" in content
-    assert ".form-advanced" in styles
-    assert ".form-advanced-summary" in styles
+    assert ".settings-modal-grid" in styles
+    assert ".settings-form-grid" in styles
 
 
 def test_frontend_exposes_manual_lm_studio_connection_controls() -> None:
@@ -467,6 +466,101 @@ def test_frontend_exposes_manual_lm_studio_connection_controls() -> None:
     assert "client.putLMStudioConnection" in app_content
     assert "localStorage" in app_content
     assert 'applyLMStudioConnectionButton?.addEventListener("click"' in app_content
+
+
+def test_frontend_setup_uses_compact_main_controls() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'id="question-count-range"' in content
+    assert 'id="question-count" name="question_count" type="number" min="3" max="50"' in content
+    assert 'id="question-count-range" type="range" min="3" max="50"' in content
+    assert '<option value="easy">Легко</option>' in content
+    assert '<option value="medium" selected>Средне</option>' in content
+    assert '<option value="hard">Сложно</option>' in content
+    assert 'id="generation-estimate"' in content
+    assert 'id="advanced-params"' not in content
+
+
+def test_frontend_status_modal_hosts_real_connection_controls() -> None:
+    content = INDEX_HTML.read_text(encoding="utf-8")
+    modal = content.split('id="workspace-status-modal"', maxsplit=1)[1].split("</section>", maxsplit=1)[0]
+
+    for expected in (
+        'data-status-surface="backend"',
+        'data-status-surface="provider"',
+        'id="retry-backend-button"',
+        'id="retry-provider-button"',
+        'id="generation-mode"',
+        'id="generation-temperature"',
+        'id="generation-model"',
+        'id="provider-model-status"',
+        'id="lm-studio-connection-section"',
+        'id="lm-studio-host"',
+        'id="lm-studio-port"',
+        'id="apply-lm-studio-connection"',
+    ):
+        assert expected in modal
+    assert "Сменить провайдера" not in content
+
+
+def test_frontend_app_syncs_question_count_estimate_and_lm_studio_visibility() -> None:
+    content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'document.getElementById("question-count-range")' in content
+    assert 'document.getElementById("question-count")' in content
+    assert "function syncQuestionCount" in content
+    assert 'questionCountInput?.addEventListener("change"' in content
+    assert 'questionCountInput?.addEventListener("input"' not in content
+    assert 'document.getElementById("generation-estimate")' in content
+    assert "function updateGenerationEstimate" in content
+    assert 'document.getElementById("lm-studio-connection-section")' in content
+    assert "function updateLMStudioConnectionVisibility" in content
+    assert 'providerKey === "lm_studio"' in content
+    assert "updateProviderModelStatus(providerHealth.default_model, providerHealth.available_models)" in content
+    assert content.count("updateProviderModelStatus();") >= 2
+
+
+def test_frontend_forms_define_compact_pills_and_viewport_safe_tooltips() -> None:
+    styles = FORMS_CSS.read_text(encoding="utf-8")
+
+    assert ".question-type-option:has(input:checked)" in styles
+    assert ".field input[type=\"checkbox\"]:checked" in styles
+    assert "border-radius: 50%;" in styles
+    assert "calc(100vw - 32px)" in styles
+    assert ".settings-modal-grid" in styles
+    assert styles.index(".field-tooltip:hover::before") < styles.index(".field-tooltip--edge:hover::before")
+
+
+def test_frontend_gen_timing_estimates_total_duration_for_setup() -> None:
+    content = (FRONTEND_DIR / "gen-timing.js").read_text(encoding="utf-8")
+
+    assert "function estimateTotalMs" in content
+    assert "estimateTotalMs }" in content
+
+
+def test_frontend_short_text_advice_respects_compact_minimum_count() -> None:
+    content = (FRONTEND_DIR / "generation-flow.js").read_text(encoding="utf-8")
+
+    assert "{ maxChars: 300, maxQuestions: 3 }" in content
+    assert "{ maxChars: 300, maxQuestions: 2 }" not in content
+    assert "questionCount < 3 || questionCount > 50" in content
+
+
+def test_frontend_mobile_status_modal_stacks_status_rows() -> None:
+    content = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
+
+    assert ".settings-status-grid" in content
+    assert "grid-template-columns: 1fr;" in content
+
+
+def test_frontend_modal_controls_preserve_form_busy_state_and_shortcut() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    keyboard_content = KEYBOARD_JS.read_text(encoding="utf-8")
+
+    for control_id in ("lm-studio-host", "lm-studio-port", "apply-lm-studio-connection"):
+        control = index_content.split(f'id="{control_id}"', maxsplit=1)[1].split(">", maxsplit=1)[0]
+        assert 'form="generation-form"' in control
+    assert "target.form !== generationForm" in keyboard_content
 
 
 def test_frontend_editor_wires_single_question_regeneration_action() -> None:
