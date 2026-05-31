@@ -12,6 +12,47 @@
   display: none;
 }
 
+.generation-skeleton-stream {
+  display: grid;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.generation-skeleton-stream[hidden] {
+  display: none;
+}
+
+.generation-skeleton-card {
+  display: grid;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elev);
+}
+
+.generation-skeleton-bar {
+  display: block;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, var(--surface-sunken) 0%, var(--line) 50%, var(--surface-sunken) 100%);
+  background-size: 200% 100%;
+  animation: generation-skeleton-shimmer 1.6s linear infinite;
+}
+
+.generation-skeleton-bar--title {
+  width: 68%;
+  height: 14px;
+}
+
+.generation-skeleton-bar--wide {
+  width: 90%;
+}
+
+.generation-skeleton-bar--short {
+  width: 58%;
+}
+
 .generation-progress-head {
   display: flex;
   align-items: center;
@@ -231,6 +272,11 @@
   50% { box-shadow: 0 0 0 6px color-mix(in oklab, var(--brand) 0%, transparent); }
 }
 
+@keyframes generation-skeleton-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+
 @media (max-width: 720px) {
   .progress-steps {
     grid-template-columns: 1fr 1fr;
@@ -246,6 +292,10 @@
     animation: none;
     opacity: 1;
     transform: none;
+  }
+
+  .generation-skeleton-bar {
+    animation: none;
   }
 }
 

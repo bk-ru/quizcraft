@@ -129,6 +129,7 @@ export function createGenerationFlow({
   let currentAbortController = null;
   let timerIntervalId = null;
   let generationEventPollId = null;
+  let generationEventPollingRequestId = null;
   let generationEventAfter = 0;
   const generationEventIds = new Set();
   let timerStartedAt = 0;
@@ -278,11 +279,17 @@ export function createGenerationFlow({
     }
   }
 
-  async function pollGenerationEvents(requestId) {
+  async function pollGenerationEvents(requestId, { force = false } = {}) {
     if (!client || typeof client.getGenerationEvents !== "function") {
       return;
     }
+    if (!force && generationEventPollingRequestId !== requestId) {
+      return;
+    }
     const payload = await client.getGenerationEvents(requestId, { after: generationEventAfter });
+    if (!force && generationEventPollingRequestId !== requestId) {
+      return;
+    }
     const events = Array.isArray(payload?.events) ? payload.events : [];
     if (events.length === 0) {
       return;
@@ -300,20 +307,23 @@ export function createGenerationFlow({
     }
     stopGenerationEventPolling();
     clearGenerationJournal();
+    generationEventPollingRequestId = generationRequestId;
     pollGenerationEvents(generationRequestId).catch(() => {});
     generationEventPollId = windowRef.setInterval(() => {
       pollGenerationEvents(generationRequestId).catch(() => {});
     }, GENERATION_EVENT_POLL_MS);
   }
 
-  async function stopGenerationEventPolling(generationRequestId = null) {
+  async function stopGenerationEventPolling(generationRequestId = null, { flush = true } = {}) {
+    const activeRequestId = generationEventPollingRequestId;
+    generationEventPollingRequestId = null;
     if (windowRef && generationEventPollId !== null) {
       windowRef.clearInterval(generationEventPollId);
       generationEventPollId = null;
     }
-    if (generationRequestId) {
+    if (generationRequestId && flush && generationRequestId === activeRequestId) {
       try {
-        await pollGenerationEvents(generationRequestId);
+        await pollGenerationEvents(generationRequestId, { force: true });
       } catch (_error) {
         // Final generation success/error handling remains authoritative.
       }
@@ -327,6 +337,44 @@ export function createGenerationFlow({
     currentAbortController.abort();
     setCancelButtonVisible(false);
     return true;
+  }
+
+  function throwIfGenerationAborted(signal) {
+    if (signal?.aborted) {
+      throw new QuizCraftApiError("Запрос отменён пользователем.", { status: 0 });
+    }
+  }
+
+  async function readFileArrayBuffer(file, signal) {
+    throwIfGenerationAborted(signal);
+    if (typeof file.stream !== "function") {
+      const content = await file.arrayBuffer();
+      throwIfGenerationAborted(signal);
+      return content;
+    }
+    const reader = file.stream().getReader();
+    const cancelRead = () => {
+      reader.cancel().catch(() => {});
+    };
+    signal?.addEventListener("abort", cancelRead, { once: true });
+    try {
+      const chunks = [];
+      while (true) {
+        throwIfGenerationAborted(signal);
+        const { done, value } = await reader.read();
+        throwIfGenerationAborted(signal);
+        if (done) {
+          break;
+        }
+        chunks.push(value);
+      }
+      const content = await new Blob(chunks).arrayBuffer();
+      throwIfGenerationAborted(signal);
+      return content;
+    } finally {
+      signal?.removeEventListener("abort", cancelRead);
+      reader.releaseLock();
+    }
   }
 
   function resolveMediaType(file) {
@@ -628,6 +676,7 @@ export function createGenerationFlow({
     let generationPayload;
     let generationBody;
     let generationRequestId = null;
+    let shouldFlushGenerationEvents = false;
     try {
       generationBody = buildGenerationPayload();
     } catch (error) {
@@ -666,7 +715,7 @@ export function createGenerationFlow({
       uploadPayload = await client.uploadDocument({
         filename: file.name,
         mediaType: resolveMediaType(file),
-        content: await file.arrayBuffer(),
+        content: await readFileArrayBuffer(file, abortController.signal),
         signal: abortController.signal,
       });
 
@@ -695,6 +744,8 @@ export function createGenerationFlow({
         quizIdInput.value = generationPayload.quiz_id ?? "";
       }
       if (!isDisplayableGenerationResult(generationPayload)) {
+        shouldFlushGenerationEvents = true;
+        failGenerationProgress("validate");
         setResultState("Результат не показан: квиз не прошёл безопасное восстановление.", "bad", "Результат недоступен");
         setEditorStatus("Квиз не готов к редактированию: безопасное восстановление не удалось.", "bad");
         setSubmissionStatus("Генерация завершилась без отображаемого результата.", "bad");
@@ -702,6 +753,7 @@ export function createGenerationFlow({
         return;
       }
       renderQuizResult(generationPayload);
+      shouldFlushGenerationEvents = true;
       const generatedQuiz = generationPayload.quiz ?? {};
       if (typeof saveQuizToHistory === "function") {
         saveQuizToHistory({
@@ -764,7 +816,7 @@ export function createGenerationFlow({
         }
       }
     } finally {
-      await stopGenerationEventPolling(generationRequestId);
+      await stopGenerationEventPolling(generationRequestId, { flush: shouldFlushGenerationEvents });
       setBusyState(false);
       stopTimer();
       setCancelButtonVisible(false);

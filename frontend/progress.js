@@ -28,6 +28,15 @@ const PROGRESS_SUCCESS_AUTOHIDE_MS = 900;
 const PROGRESS_FAILURE_AUTOHIDE_MS = 2400;
 
 export function createProgressController({ stepper, generationProgressPanel, stageFlow }, windowRef = window) {
+  let progressAutoHideTimeoutId = null;
+
+  function clearProgressAutoHide() {
+    if (progressAutoHideTimeoutId !== null) {
+      windowRef.clearTimeout(progressAutoHideTimeoutId);
+      progressAutoHideTimeoutId = null;
+    }
+  }
+
   function setStepState(step, state) {
     if (!stepper) {
       return;
@@ -90,6 +99,45 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     }
   }
 
+  function ensureGenerationSkeletons() {
+    if (!generationProgressPanel) {
+      return null;
+    }
+    const existing = generationProgressPanel.querySelector("[data-generation-skeletons]");
+    if (existing) {
+      return existing;
+    }
+    const documentRef = generationProgressPanel.ownerDocument;
+    if (!documentRef) {
+      return null;
+    }
+    const stream = documentRef.createElement("div");
+    stream.className = "generation-skeleton-stream";
+    stream.setAttribute("data-generation-skeletons", "true");
+    stream.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 2; index += 1) {
+      const card = documentRef.createElement("div");
+      card.className = "generation-skeleton-card";
+      for (const modifier of ["title", "wide", "short"]) {
+        const bar = documentRef.createElement("span");
+        bar.className = `generation-skeleton-bar generation-skeleton-bar--${modifier}`;
+        card.append(bar);
+      }
+      stream.append(card);
+    }
+    generationProgressPanel.append(stream);
+    return stream;
+  }
+
+  function setGenerationSkeletonsVisible(visible) {
+    const skeletons = visible
+      ? ensureGenerationSkeletons()
+      : generationProgressPanel?.querySelector("[data-generation-skeletons]");
+    if (skeletons) {
+      skeletons.hidden = !visible;
+    }
+  }
+
   function setGenerationProgressStepState(step, state) {
     if (!generationProgressPanel) {
       return;
@@ -111,14 +159,17 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     generationProgressPanel.dataset.currentStep = "";
     delete generationProgressPanel.dataset.backendStep;
     delete generationProgressPanel.dataset.backendStatus;
+    setGenerationSkeletonsVisible(false);
   }
 
   function startGenerationProgress() {
     if (!generationProgressPanel) {
       return;
     }
+    clearProgressAutoHide();
     resetGenerationProgress();
     setGenerationProgressVisible(true);
+    setGenerationSkeletonsVisible(true);
     setGenerationProgressStepState("upload", "active");
     generationProgressPanel.dataset.currentStep = "upload";
   }
@@ -145,9 +196,12 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     for (const step of GENERATION_PROGRESS_ORDER) {
       setGenerationProgressStepState(step, "done");
     }
+    setGenerationSkeletonsVisible(false);
     generationProgressPanel.dataset.currentStep = "done";
-    windowRef.setTimeout(() => {
+    clearProgressAutoHide();
+    progressAutoHideTimeoutId = windowRef.setTimeout(() => {
       setGenerationProgressVisible(false);
+      progressAutoHideTimeoutId = null;
     }, PROGRESS_SUCCESS_AUTOHIDE_MS);
   }
 
@@ -240,8 +294,11 @@ export function createProgressController({ stepper, generationProgressPanel, sta
       setGenerationProgressStepState(failedStep, "failed");
       generationProgressPanel.dataset.currentStep = "failed";
     }
-    windowRef.setTimeout(() => {
+    setGenerationSkeletonsVisible(false);
+    clearProgressAutoHide();
+    progressAutoHideTimeoutId = windowRef.setTimeout(() => {
       setGenerationProgressVisible(false);
+      progressAutoHideTimeoutId = null;
     }, PROGRESS_FAILURE_AUTOHIDE_MS);
   }
 

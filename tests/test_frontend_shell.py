@@ -1009,6 +1009,78 @@ def test_frontend_styles_theme_generation_progress() -> None:
     assert "@media (prefers-reduced-motion: reduce)" in content
 
 
+def test_frontend_progress_uses_honest_skeletons_until_final_quiz() -> None:
+    progress_content = PROGRESS_JS.read_text(encoding="utf-8")
+    generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "function ensureGenerationSkeletons" in progress_content
+    assert "function setGenerationSkeletonsVisible" in progress_content
+    assert "data-generation-skeletons" in progress_content
+    assert "generation-skeleton-card" in progress_content
+    assert "setGenerationSkeletonsVisible(true)" in progress_content
+    assert progress_content.count("setGenerationSkeletonsVisible(false)") >= 2
+    assert 'failGenerationProgress("validate")' in generation_content
+    assert "Вопрос 1" not in progress_content
+    assert "question-card" not in progress_content
+
+
+def test_frontend_styles_compact_generation_skeletons() -> None:
+    feedback_content = (FRONTEND_DIR / "feedback.css").read_text(encoding="utf-8")
+    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert ".generation-skeleton-stream" in feedback_content
+    assert ".generation-skeleton-card" in feedback_content
+    assert ".generation-skeleton-bar" in feedback_content
+    assert "generation-skeleton-shimmer" in feedback_content
+    assert ".compact-workspace .panel-status" in layout_content
+
+
+def test_frontend_progress_clears_stale_autohide_before_retry() -> None:
+    content = PROGRESS_JS.read_text(encoding="utf-8")
+
+    assert "let progressAutoHideTimeoutId = null" in content
+    assert "function clearProgressAutoHide" in content
+    assert "clearProgressAutoHide()" in content
+    assert "progressAutoHideTimeoutId = windowRef.setTimeout" in content
+
+
+def test_frontend_generation_polling_ignores_terminal_late_events() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "generationEventPollingRequestId" in content
+    assert "pollGenerationEvents(requestId, { force = false } = {})" in content
+    assert "flush = true" in content
+    assert "flush: shouldFlushGenerationEvents" in content
+
+
+def test_frontend_generation_flushes_terminal_non_displayable_payload_events() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    failed_payload_handler = (
+        'if (!isDisplayableGenerationResult(generationPayload)) {\n'
+        "        shouldFlushGenerationEvents = true;\n"
+        '        failGenerationProgress("validate");'
+    )
+    successful_render = (
+        "renderQuizResult(generationPayload);\n"
+        "      shouldFlushGenerationEvents = true;"
+    )
+
+    assert failed_payload_handler in content
+    assert successful_render in content
+
+
+def test_frontend_generation_file_read_observes_abort_signal() -> None:
+    content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
+
+    assert "async function readFileArrayBuffer" in content
+    assert "file.stream()" in content
+    assert 'signal?.addEventListener("abort"' in content
+    assert "reader.cancel()" in content
+    assert "throwIfGenerationAborted(signal)" in content
+    assert "content: await readFileArrayBuffer(file, abortController.signal)" in content
+
+
 def test_frontend_split_css_keeps_responsive_rules() -> None:
     content = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
 

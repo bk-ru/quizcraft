@@ -516,6 +516,14 @@
   box-shadow: var(--shadow-md);
 }
 
+.compact-workspace .panel-status {
+  overflow: hidden;
+  border-color: color-mix(in oklab, var(--brand) 28%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--brand) 7%, transparent), transparent 42%),
+    var(--surface);
+}
+
 .panel-heading {
   display: flex;
   align-items: flex-start;
