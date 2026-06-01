@@ -23,6 +23,7 @@ export function createToastController(toastRegion, windowRef = window, documentR
     close.className = "toast-close";
     close.type = "button";
     close.setAttribute("aria-label", "Закрыть уведомление");
+    close.title = "Закрыть уведомление";
     close.textContent = "×";
     close.addEventListener("click", () => toast.remove());
 

@@ -30,8 +30,10 @@ export function createSidebarController({
     const next = Boolean(collapsed);
     sidebar.dataset.collapsed = String(next);
     if (toggleButton) {
+      const label = next ? "Развернуть боковую панель" : "Свернуть боковую панель";
       toggleButton.setAttribute("aria-expanded", String(!next));
-      toggleButton.setAttribute("aria-label", next ? "Развернуть боковую панель" : "Свернуть боковую панель");
+      toggleButton.setAttribute("aria-label", label);
+      toggleButton.title = label;
     }
     return next;
   }

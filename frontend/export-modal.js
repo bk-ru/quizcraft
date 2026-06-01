@@ -213,6 +213,7 @@ export function createExportModal({
     closeButton.className = "quiz-export-close";
     closeButton.textContent = "×";
     closeButton.setAttribute("aria-label", "Закрыть экспорт");
+    closeButton.title = "Закрыть экспорт";
     heading.append(title, closeButton);
 
     const form = documentRef.createElement("form");

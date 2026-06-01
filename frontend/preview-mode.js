@@ -286,6 +286,7 @@ export function createPlayablePreview({
     closeButton.className = "quiz-preview-close";
     closeButton.textContent = "×";
     closeButton.setAttribute("aria-label", "Закрыть предпросмотр");
+    closeButton.title = "Закрыть предпросмотр";
     heading.append(title, closeButton);
 
     const form = documentRef.createElement("form");

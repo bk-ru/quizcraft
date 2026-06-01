@@ -459,6 +459,7 @@ export function createQuizEditor({
     moveUpButton.disabled = index === 0;
     moveUpButton.setAttribute("data-editor-action", "move-question-up");
     moveUpButton.setAttribute("aria-label", `Переместить вопрос ${index + 1} вверх`);
+    moveUpButton.title = "Переместить вопрос вверх";
     const moveDownButton = documentRef.createElement("button");
     moveDownButton.className = "question-reorder-action";
     moveDownButton.type = "button";
@@ -466,6 +467,7 @@ export function createQuizEditor({
     moveDownButton.disabled = index === questionCount - 1;
     moveDownButton.setAttribute("data-editor-action", "move-question-down");
     moveDownButton.setAttribute("aria-label", `Переместить вопрос ${index + 1} вниз`);
+    moveDownButton.title = "Переместить вопрос вниз";
     reorderActions.append(moveUpButton, moveDownButton);
 
     const cardActions = documentRef.createElement("div");
@@ -900,6 +902,13 @@ export function createQuizEditor({
       const quiz = payload.quiz ?? {};
 
       presentQuizInline(quiz, { language: payload.language });
+      if (typeof renderQuizResult === "function") {
+        renderQuizResult({
+          ...payload,
+          quiz_id: payload.quiz_id ?? quiz.quiz_id ?? quizId,
+          quiz,
+        });
+      }
       setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
       setExportAvailability(payload.quiz_id ?? quiz.quiz_id ?? quizId);
       if (typeof saveQuizToHistory === "function") {

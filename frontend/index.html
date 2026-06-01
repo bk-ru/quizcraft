@@ -21,11 +21,11 @@
           <span class="brand-mark" aria-hidden="true"></span>
           <span>QuizCraft</span>
         </a>
-        <button id="sidebar-toggle" class="workspace-sidebar-toggle" type="button" aria-label="Свернуть боковую панель" aria-expanded="true">
+        <button id="sidebar-toggle" class="workspace-sidebar-toggle" type="button" aria-label="Свернуть боковую панель" title="Свернуть боковую панель" aria-expanded="true">
           <span aria-hidden="true">‹</span>
         </button>
       </div>
-      <button id="sidebar-new-quiz" class="workspace-sidebar-new" type="button">
+      <button id="sidebar-new-quiz" class="workspace-sidebar-new" type="button" title="Новый квиз">
         <span aria-hidden="true">+</span>
         <span>Новый квиз</span>
       </button>
@@ -35,11 +35,11 @@
           <p class="workspace-sidebar-empty">Сохранённые квизы появятся здесь.</p>
         </div>
       </section>
-      <button id="sidebar-status-cell" class="workspace-sidebar-status" type="button">
+      <button id="sidebar-status-cell" class="workspace-sidebar-status" type="button" title="Статус подключения">
         <span class="dot" aria-hidden="true"></span>
         <span>Статус подключения</span>
       </button>
-      <button id="theme-toggle" class="theme-toggle workspace-sidebar-theme" type="button" aria-label="Переключить тему оформления">
+      <button id="theme-toggle" class="theme-toggle workspace-sidebar-theme" type="button" aria-label="Переключить тему оформления" title="Переключить тему оформления">
         <svg class="theme-toggle-icon" data-theme-icon="auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="4" width="18" height="14" rx="2"></rect>
           <path d="M8 21h8M12 18v3"></path>
@@ -153,7 +153,7 @@
               <div id="doc-file-pill" class="doc-file-pill" hidden aria-live="polite">
                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                 <span id="doc-file-pill-name" class="doc-file-pill-name"></span>
-                <button id="doc-file-remove" class="doc-file-remove" type="button" aria-label="Убрать прикреплённый файл" hidden>✕</button>
+                <button id="doc-file-remove" class="doc-file-remove" type="button" aria-label="Убрать прикреплённый файл" title="Убрать прикреплённый файл" hidden>✕</button>
               </div>
             </div>
           </div>
@@ -366,7 +366,7 @@
               <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
               Скачать JSON
             </button>
-            <button class="secondary-action split-button-toggle" type="button" disabled id="export-split-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Другие форматы экспорта" aria-controls="export-split-menu">
+            <button class="secondary-action split-button-toggle" type="button" disabled id="export-split-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Другие форматы экспорта" title="Другие форматы экспорта" aria-controls="export-split-menu">
               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
             </button>
             <span id="export-json-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
@@ -482,7 +482,7 @@
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                 Скачать JSON
               </button>
-              <button class="secondary-action split-button-toggle" type="button" disabled id="editor-export-split-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Другие форматы экспорта" aria-controls="editor-export-split-menu">
+              <button class="secondary-action split-button-toggle" type="button" disabled id="editor-export-split-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Другие форматы экспорта" title="Другие форматы экспорта" aria-controls="editor-export-split-menu">
                 <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
               </button>
               <span id="editor-export-json-hint" class="visually-hidden">Доступно после загрузки или сохранения квиза.</span>
@@ -527,7 +527,7 @@
       <div class="workspace-modal-card">
         <div class="workspace-modal-heading">
           <h2 id="workspace-status-modal-title">Статус подключения</h2>
-          <button class="workspace-modal-close" type="button" data-workspace-modal-close aria-label="Закрыть окно статуса">×</button>
+          <button class="workspace-modal-close" type="button" data-workspace-modal-close aria-label="Закрыть окно статуса" title="Закрыть окно статуса">×</button>
         </div>
         <div class="settings-modal-grid">
           <div class="settings-status-grid" role="status" aria-live="polite">

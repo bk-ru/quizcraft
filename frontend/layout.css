@@ -344,6 +344,7 @@
 }
 
 .step {
+  min-width: 0;
   display: grid;
   border-radius: var(--radius-md);
   color: var(--muted);
@@ -352,6 +353,7 @@
 }
 
 .step-button {
+  min-width: 0;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 10px;
@@ -366,6 +368,10 @@
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.step-button > span:last-child {
+  min-width: 0;
 }
 
 .step-button:hover {

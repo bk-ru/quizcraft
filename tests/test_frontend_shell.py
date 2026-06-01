@@ -411,6 +411,19 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "Исправьте ошибки и повторите сохранение." in content
 
 
+def test_frontend_editor_load_renders_saved_quiz_result_actions() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    load_section = editor_content.split("async function loadQuizForEditing", 1)[1].split(
+        "async function regenerateQuizQuestion",
+        1,
+    )[0]
+
+    assert "renderQuizResult({" in load_section
+    assert "...payload," in load_section
+    assert "quiz_id: payload.quiz_id ?? quiz.quiz_id ?? quizId," in load_section
+    assert "quiz," in load_section
+
+
 def test_frontend_wires_capability_driven_advanced_exports() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
@@ -1826,6 +1839,14 @@ def test_frontend_stepper_exposes_failed_state_on_generation_error() -> None:
     )
 
 
+def test_frontend_stepper_can_shrink_without_mobile_horizontal_overflow() -> None:
+    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert ".step {\n  min-width: 0;" in layout_content
+    assert ".step-button {\n  min-width: 0;" in layout_content
+    assert ".step-button > span:last-child {\n  min-width: 0;" in layout_content
+
+
 def test_frontend_model_picker_and_temperature_slider_are_wired_to_backend() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     settings_content = GENERATION_SETTINGS_JS.read_text(encoding="utf-8")
@@ -2219,6 +2240,34 @@ def test_frontend_inline_editor_exposes_structural_actions_and_undo() -> None:
     assert "quizEditor.undoLastStructuralEdit" in app_content
     assert ".question-reorder-actions" in quiz_css
     assert ".editor-card:focus-within .question-reorder-actions" in quiz_css
+
+
+def test_frontend_icon_only_actions_expose_tooltips() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    sidebar_content = SIDEBAR_JS.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    toast_content = TOAST_JS.read_text(encoding="utf-8")
+    preview_content = PREVIEW_MODE_JS.read_text(encoding="utf-8")
+    export_content = EXPORT_MODAL_JS.read_text(encoding="utf-8")
+
+    for action_id in (
+        "sidebar-toggle",
+        "sidebar-new-quiz",
+        "sidebar-status-cell",
+        "theme-toggle",
+        "doc-file-remove",
+        "export-split-toggle",
+        "editor-export-split-toggle",
+    ):
+        element = index_content.split(f'id="{action_id}"', 1)[1].split(">", 1)[0]
+        assert "title=" in element
+    assert 'data-workspace-modal-close aria-label="Закрыть окно статуса" title=' in index_content
+    assert "toggleButton.title = label;" in sidebar_content
+    assert 'moveUpButton.title = "Переместить вопрос вверх";' in editor_content
+    assert 'moveDownButton.title = "Переместить вопрос вниз";' in editor_content
+    assert 'close.title = "Закрыть уведомление";' in toast_content
+    assert 'closeButton.title = "Закрыть предпросмотр";' in preview_content
+    assert 'closeButton.title = "Закрыть экспорт";' in export_content
 
 
 def test_frontend_matching_editor_uses_dedicated_pair_rows_without_distractors() -> None:
