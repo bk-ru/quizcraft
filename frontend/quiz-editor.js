@@ -125,13 +125,26 @@ export function createQuizEditor({
     return Boolean(savedQuiz) && JSON.stringify(quiz) === JSON.stringify(savedQuiz);
   }
 
+  function refreshQuestionDirtyStates(quiz) {
+    const savedQuestions = Array.isArray(savedQuiz?.questions) ? savedQuiz.questions : [];
+    const questions = Array.isArray(quiz?.questions) ? quiz.questions : [];
+    quizEditorFields?.querySelectorAll(".editor-card").forEach((card, index) => {
+      const question = questions[index];
+      const savedQuestion = savedQuestions.find((candidate) => candidate.question_id === question?.question_id);
+      const isDirty = Boolean(savedQuestion) && JSON.stringify(question) !== JSON.stringify(savedQuestion);
+      card.classList.toggle("is-dirty", isDirty);
+      const revertButton = card.querySelector('[data-editor-action="revert-question"]');
+      if (revertButton instanceof HTMLButtonElement) {
+        revertButton.hidden = !isDirty;
+      }
+    });
+  }
+
   function setLocalQuizState(quiz, message) {
     renderQuizEditor(quiz);
     const hasUnsavedChanges = !isSavedQuiz(quiz);
     editorState.isDirty = hasUnsavedChanges;
-    if (hasUnsavedChanges) {
-      quizEditorFields?.querySelectorAll(".editor-card").forEach((card) => card.classList.add("is-dirty"));
-    }
+    refreshQuestionDirtyStates(quiz);
     setEditorSaveState({ disabled: !hasUnsavedChanges });
     setEditorStatus(
       hasUnsavedChanges ? message : "Все локальные изменения отменены.",
@@ -173,8 +186,7 @@ export function createQuizEditor({
     const cancelButton = card?.querySelector('[data-editor-action="cancel-regenerate-question"]');
     const status = card?.querySelector('[data-regeneration-status="question"]');
     if (button instanceof HTMLButtonElement) {
-      button.disabled = Boolean(busy);
-      button.textContent = busy ? "Перегенерируем вопрос…" : "Перегенерировать вопрос";
+      button.hidden = Boolean(busy);
     }
     if (cancelButton instanceof HTMLButtonElement) {
       cancelButton.hidden = !busy;
@@ -188,6 +200,11 @@ export function createQuizEditor({
       } else {
         delete status.dataset.statusTone;
       }
+    }
+    card?.classList.toggle("is-regenerating", Boolean(busy));
+    const body = card?.querySelector(".editor-card-body");
+    if (body instanceof HTMLElement) {
+      body.setAttribute("aria-busy", String(Boolean(busy)));
     }
   }
 
@@ -266,16 +283,17 @@ export function createQuizEditor({
     if (!original) {
       return;
     }
-    const index = questions.indexOf(original);
-    const freshCard = buildQuestionEditor(original, index, questions.length);
+    const questionCards = Array.from(quizEditorFields.querySelectorAll(".editor-card"));
+    const index = questionCards.indexOf(card);
+    const freshCard = buildQuestionEditor(original, index, questionCards.length);
     card.replaceWith(freshCard);
-    const anyDirty = Boolean(quizEditorFields?.querySelector(".editor-card.is-dirty"));
-    if (!anyDirty) {
-      editorState.isDirty = false;
-      setEditorSaveState({ disabled: true });
+    currentClientQuiz = buildQuizUpdatePayload();
+    editorState.isDirty = !isSavedQuiz(currentClientQuiz);
+    refreshQuestionDirtyStates(currentClientQuiz);
+    setEditorSaveState({ disabled: !editorState.isDirty });
+    if (!editorState.isDirty) {
       setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
     }
-    currentClientQuiz = buildQuizUpdatePayload();
   }
 
   function setQuizEditorSummary(quiz) {
@@ -383,20 +401,22 @@ export function createQuizEditor({
     note.textContent = "После редактирования это содержимое можно сохранить.";
 
     const regenerateButton = documentRef.createElement("button");
-    regenerateButton.className = "ghost-action question-regenerate-action";
+    regenerateButton.className = "question-icon-action question-regenerate-action";
     regenerateButton.type = "button";
-    regenerateButton.textContent = "Перегенерировать вопрос";
+    regenerateButton.textContent = "↻";
     regenerateButton.setAttribute("data-editor-action", "regenerate-question");
     regenerateButton.dataset.questionId = article.dataset.questionId;
     regenerateButton.setAttribute("aria-label", `Перегенерировать вопрос ${index + 1}`);
+    regenerateButton.title = "Перегенерировать вопрос";
 
     const cancelRegenerateButton = documentRef.createElement("button");
-    cancelRegenerateButton.className = "ghost-action question-regenerate-cancel";
+    cancelRegenerateButton.className = "question-icon-action question-regenerate-cancel";
     cancelRegenerateButton.type = "button";
-    cancelRegenerateButton.textContent = "Отменить";
+    cancelRegenerateButton.textContent = "■";
     cancelRegenerateButton.setAttribute("data-editor-action", "cancel-regenerate-question");
     cancelRegenerateButton.dataset.questionId = article.dataset.questionId;
     cancelRegenerateButton.setAttribute("aria-label", `Отменить перегенерацию вопроса ${index + 1}`);
+    cancelRegenerateButton.title = "Остановить перегенерацию";
     cancelRegenerateButton.hidden = true;
     cancelRegenerateButton.disabled = true;
 
@@ -407,12 +427,13 @@ export function createQuizEditor({
     regenerationStatus.hidden = true;
 
     const revertButton = documentRef.createElement("button");
-    revertButton.className = "ghost-action question-revert-action";
+    revertButton.className = "question-icon-action question-revert-action";
     revertButton.type = "button";
-    revertButton.textContent = "Отменить правки";
+    revertButton.textContent = "↶";
     revertButton.setAttribute("data-editor-action", "revert-question");
     revertButton.dataset.questionId = article.dataset.questionId;
     revertButton.setAttribute("aria-label", `Отменить правки вопроса ${index + 1}`);
+    revertButton.title = "Отменить правки вопроса";
     revertButton.hidden = true;
 
     const duplicateButton = documentRef.createElement("button");
@@ -449,14 +470,32 @@ export function createQuizEditor({
 
     const cardActions = documentRef.createElement("div");
     cardActions.className = "question-structure-actions";
-    cardActions.append(questionTypeSelect, duplicateButton, deleteButton);
+    cardActions.append(
+      questionTypeSelect,
+      duplicateButton,
+      deleteButton,
+      regenerateButton,
+      cancelRegenerateButton,
+      revertButton,
+    );
 
-    header.append(badge, cardActions, note, regenerateButton, cancelRegenerateButton, regenerationStatus, revertButton);
-    article.append(header, reorderActions);
+    header.append(badge, cardActions, note, regenerationStatus);
+
+    const body = documentRef.createElement("div");
+    body.className = "editor-card-body";
+    body.setAttribute("aria-busy", "false");
+    const content = documentRef.createElement("div");
+    content.className = "editor-card-content";
+    const overlay = documentRef.createElement("div");
+    overlay.className = "question-regenerate-overlay";
+    overlay.textContent = "Перегенерируем вопрос…";
+    overlay.setAttribute("aria-hidden", "true");
+    body.append(content, overlay);
+    article.append(header, reorderActions, body);
 
     const promptField = createEditorField("Текст вопроса", createEditorTextarea(question.prompt ?? "", 3));
     promptField.querySelector("textarea")?.setAttribute("data-editor-field", "prompt");
-    article.append(promptField);
+    content.append(promptField);
 
     const options = Array.isArray(question.options) ? question.options : [];
     if (CHOICE_QUESTION_TYPES.includes(question.question_type ?? "single_choice")) {
@@ -487,7 +526,7 @@ export function createQuizEditor({
         optionRow.append(optionField, deleteOptionButton);
         optionsGrid.append(optionRow);
       });
-      article.append(optionsGrid);
+      content.append(optionsGrid);
 
       if (question.question_type === "single_choice") {
         const addOptionButton = documentRef.createElement("button");
@@ -496,7 +535,7 @@ export function createQuizEditor({
         addOptionButton.textContent = "Добавить вариант";
         addOptionButton.disabled = options.length >= 4;
         addOptionButton.setAttribute("data-editor-action", "add-option");
-        article.append(addOptionButton);
+        content.append(addOptionButton);
       }
 
       const correctAnswerSelect = documentRef.createElement("select");
@@ -510,7 +549,7 @@ export function createQuizEditor({
         correctAnswerSelect.append(selectOption);
       });
       correctAnswerSelect.setAttribute("data-editor-field", "correct-option-index");
-      article.append(createEditorField("Правильный ответ", correctAnswerSelect));
+      content.append(createEditorField("Правильный ответ", correctAnswerSelect));
       updateCorrectOptionState(article);
     } else if (question.question_type === "matching") {
       const pairsGrid = documentRef.createElement("div");
@@ -557,26 +596,82 @@ export function createQuizEditor({
         pairRow.append(leftField, link, rightField, deletePairButton);
         pairsGrid.append(pairRow);
       });
-      article.append(pairsGrid);
+      content.append(pairsGrid);
 
       const addPairButton = documentRef.createElement("button");
       addPairButton.className = "ghost-action matching-pair-add";
       addPairButton.type = "button";
       addPairButton.textContent = "Добавить пару";
       addPairButton.setAttribute("data-editor-action", "add-matching-pair");
-      article.append(addPairButton);
+      content.append(addPairButton);
     } else {
       const correctAnswerField = createEditorField("Правильный ответ", createEditorInput(question.correct_answer ?? ""));
       correctAnswerField.querySelector("input")?.setAttribute("data-editor-field", "correct-answer");
-      article.append(correctAnswerField);
+      content.append(correctAnswerField);
     }
 
     const explanationText = question.explanation?.text ?? "";
     const explanationField = createEditorField("Пояснение", createEditorTextarea(explanationText, 4));
     explanationField.querySelector("textarea")?.setAttribute("data-editor-field", "explanation");
-    article.append(explanationField);
+    content.append(explanationField);
 
     return article;
+  }
+
+  function normalizeRegeneratedQuestion(regeneratedQuestion, stableQuestion) {
+    const questionType = regeneratedQuestion?.question_type ?? stableQuestion?.question_type;
+    const normalized = {
+      ...cloneQuizPayload(stableQuestion),
+      ...cloneQuizPayload(regeneratedQuestion),
+      question_type: questionType,
+      prompt: typeof regeneratedQuestion?.prompt === "string" ? regeneratedQuestion.prompt : "",
+      explanation: regeneratedQuestion?.explanation?.text
+        ? { text: regeneratedQuestion.explanation.text }
+        : null,
+      options: Array.isArray(regeneratedQuestion?.options)
+        ? regeneratedQuestion.options.map((option) => ({
+          option_id: option.option_id,
+          text: option.text ?? "",
+        }))
+        : [],
+      matching_pairs: Array.isArray(regeneratedQuestion?.matching_pairs)
+        ? regeneratedQuestion.matching_pairs.map((pair) => ({
+          left: pair.left ?? "",
+          right: pair.right ?? "",
+        }))
+        : [],
+    };
+    if (CHOICE_QUESTION_TYPES.includes(questionType)) {
+      normalized.correct_answer = null;
+      normalized.matching_pairs = [];
+    } else if (questionType === "matching") {
+      normalized.options = [];
+      normalized.correct_option_index = null;
+      normalized.correct_answer = null;
+    } else {
+      normalized.options = [];
+      normalized.correct_option_index = null;
+      normalized.matching_pairs = [];
+    }
+    return normalized;
+  }
+
+  function restoreStableQuestionCard(card, stableQuestion) {
+    if (!(card instanceof HTMLElement) || !stableQuestion || !quizEditorFields) {
+      return null;
+    }
+    const questionCards = Array.from(quizEditorFields.querySelectorAll(".editor-card"));
+    const index = questionCards.indexOf(card);
+    if (index < 0) {
+      return null;
+    }
+    const freshCard = buildQuestionEditor(stableQuestion, index, questionCards.length);
+    card.replaceWith(freshCard);
+    currentClientQuiz = buildQuizUpdatePayload();
+    editorState.isDirty = !isSavedQuiz(currentClientQuiz);
+    refreshQuestionDirtyStates(currentClientQuiz);
+    setEditorSaveState({ disabled: !editorState.isDirty });
+    return freshCard;
   }
 
   function replaceRegeneratedQuestion(quiz, regeneratedQuestion) {
@@ -839,6 +934,11 @@ export function createQuizEditor({
       setEditorStatus("Сначала откройте сохранённый квиз и выберите вопрос для перегенерации.", "bad");
       return;
     }
+    if (activeRegenerationController && !activeRegenerationController.signal.aborted) {
+      setEditorStatus("Дождитесь завершения текущей перегенерации или остановите её.", "warn");
+      showToast("Уже выполняется перегенерация другого вопроса.", "warn");
+      return;
+    }
 
     const confirmed = await askForConfirmation({
       title: REGENERATE_CONFIRM_TITLE,
@@ -854,9 +954,15 @@ export function createQuizEditor({
 
     const abortController = new AbortController();
     activeRegenerationController = abortController;
+    let stableQuestion = null;
     try {
       const hadUnsavedEdits = editorState.isDirty;
       const displayedQuiz = buildQuizUpdatePayload();
+      const displayedQuestion = displayedQuiz.questions.find((question) => question.question_id === questionId);
+      if (!displayedQuestion) {
+        throw new Error("Не удалось найти вопрос в текущем квизе.");
+      }
+      stableQuestion = cloneQuizPayload(displayedQuestion);
       setRegenerationActionState(card, {
         busy: true,
         text: "Перегенерируем вопрос…",
@@ -880,6 +986,7 @@ export function createQuizEditor({
       if (!regeneratedQuestion?.question_id) {
         throw new Error("Backend не вернул обновлённый вопрос.");
       }
+      const normalizedRegeneratedQuestion = normalizeRegeneratedQuestion(regeneratedQuestion, stableQuestion);
       const persistedQuiz = response.quiz ?? editorState.loadedQuiz;
       const updatedQuiz = replaceRegeneratedQuestion({
         ...displayedQuiz,
@@ -887,11 +994,12 @@ export function createQuizEditor({
         document_id: persistedQuiz.document_id ?? displayedQuiz.document_id,
         version: persistedQuiz.version ?? displayedQuiz.version,
         last_edited_at: persistedQuiz.last_edited_at ?? displayedQuiz.last_edited_at,
-      }, regeneratedQuestion);
+      }, normalizedRegeneratedQuestion);
 
       pushUndoSnapshot(displayedQuiz);
       savedQuiz = cloneQuizPayload(response.quiz ?? updatedQuiz);
       renderQuizEditor(updatedQuiz);
+      refreshQuestionDirtyStates(updatedQuiz);
       setQuizEditorSummary(updatedQuiz);
       setTextContent("last-quiz-id", response.quiz_id ?? updatedQuiz.quiz_id ?? quizId);
       setTextContent("last-request-id", response.request_id ?? "Ещё нет");
@@ -922,8 +1030,9 @@ export function createQuizEditor({
       const wasCancelled = abortController.signal.aborted
         && error instanceof QuizCraftApiError
         && error.status === 0;
+      const restoredCard = stableQuestion ? restoreStableQuestionCard(card, stableQuestion) : card;
       if (wasCancelled) {
-        setRegenerationActionState(card, {
+        setRegenerationActionState(restoredCard, {
           busy: false,
           text: "Регенерация отменена. Вопрос остался без изменений.",
           tone: "warn",
@@ -931,7 +1040,7 @@ export function createQuizEditor({
         setEditorStatus("Регенерация отменена пользователем.", "warn");
         showToast("Регенерация вопроса отменена.", "warn");
       } else {
-        setRegenerationActionState(card, {
+        setRegenerationActionState(restoredCard, {
           busy: false,
           text: `Не удалось перегенерировать вопрос: ${describeError(error)}`,
           tone: "bad",

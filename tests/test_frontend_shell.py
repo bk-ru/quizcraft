@@ -2122,6 +2122,28 @@ def test_frontend_matching_editor_uses_dedicated_pair_rows_without_distractors()
     assert ".matching-pair-row:focus-within .matching-pair-delete" in quiz_css
 
 
+def test_frontend_question_regeneration_uses_stable_snapshot_and_compact_busy_state() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+
+    assert 'regenerateButton.textContent = "↻"' in editor_content
+    assert 'cancelRegenerateButton.textContent = "■"' in editor_content
+    assert 'revertButton.textContent = "↶"' in editor_content
+    assert 'body.className = "editor-card-body"' in editor_content
+    assert 'content.className = "editor-card-content"' in editor_content
+    assert 'overlay.className = "question-regenerate-overlay"' in editor_content
+    assert '.classList.toggle("is-regenerating", Boolean(busy))' in editor_content
+    assert "stableQuestion = cloneQuizPayload(displayedQuestion)" in editor_content
+    assert "function normalizeRegeneratedQuestion" in editor_content
+    assert "function restoreStableQuestionCard" in editor_content
+    assert "activeRegenerationController && !activeRegenerationController.signal.aborted" in editor_content
+    assert 'regenerateButton.textContent = "Перегенерировать вопрос"' not in editor_content
+    assert 'revertButton.textContent = "Отменить правки"' not in editor_content
+    assert ".editor-card.is-regenerating .editor-card-content" in quiz_css
+    assert ".question-regenerate-overlay" in quiz_css
+    assert "@keyframes question-regeneration-pulse" in quiz_css
+
+
 def test_frontend_app_warns_before_unloading_dirty_editor() -> None:
     app_content = APP_JS.read_text(encoding="utf-8")
 
