@@ -82,6 +82,8 @@ const generationEstimate = document.getElementById("generation-estimate");
 const difficultySelect = document.getElementById("difficulty");
 const difficultyButtons = [...document.querySelectorAll("[data-difficulty-value]")];
 const wordCountElement = document.getElementById("word-count");
+const wordCountSummaryElement = document.getElementById("word-count-summary");
+const charCountTopElement = document.getElementById("char-count-top");
 const exportSplitToggle = document.getElementById("export-split-toggle");
 const exportSplitMenu = document.getElementById("export-split-menu");
 const editorExportJsonButton = document.getElementById("editor-export-json-button");
@@ -395,6 +397,10 @@ function setExportAvailability(quizId) {
 }
 
 function getCurrentGenerationReadiness() {
+  const hasDocument = Boolean(fileInput?.files?.[0] || docTextInput?.value?.trim());
+  if (!hasDocument) {
+    return { ready: false, message: "Вставьте текст или прикрепите файл.", tone: "warn" };
+  }
   const backendState = generationConnectionState.backend;
   const providerState = generationConnectionState.provider;
   const backendReady = backendState === "ok";
@@ -425,7 +431,7 @@ function updateGenerationSubmitAvailability() {
     return;
   }
   const readiness = getCurrentGenerationReadiness();
-  if (!readiness.ready && readiness.tone === "bad") {
+  if (!readiness.ready) {
     submitButton.setAttribute("aria-disabled", "true");
     submitButton.dataset.disabledReason = readiness.message;
     submitButton.title = readiness.message;
@@ -495,12 +501,20 @@ function syncDifficulty(value = difficultySelect?.value) {
 }
 
 function updateDocWordCount() {
-  if (!wordCountElement) {
-    return;
-  }
   const text = docTextInput?.value?.trim() ?? "";
-  const count = text ? text.split(/\s+/u).length : 0;
-  wordCountElement.textContent = `${count.toLocaleString("ru-RU")} слов`;
+  const wordCount = text ? text.split(/\s+/u).length : 0;
+  const charCount = docTextInput?.value?.length ?? 0;
+  const localizedWordCount = wordCount.toLocaleString("ru-RU");
+  const localizedCharCount = charCount.toLocaleString("ru-RU");
+  if (wordCountElement) {
+    wordCountElement.textContent = `${localizedWordCount} слов`;
+  }
+  if (wordCountSummaryElement) {
+    wordCountSummaryElement.textContent = `· ${localizedWordCount} слов`;
+  }
+  if (charCountTopElement) {
+    charCountTopElement.textContent = `${localizedCharCount} символов`;
+  }
 }
 
 function formatEstimateDuration(durationMs) {
@@ -641,7 +655,10 @@ const generationFlow = createGenerationFlow({
   timerEtaValueElement: document.getElementById("timer-eta-value"),
   charCountElement: document.getElementById("char-count"),
   docLengthHintElement: document.getElementById("doc-length-hint"),
-  onDocInputSummaryChange: updateGenerationEstimate,
+  onDocInputSummaryChange: () => {
+    updateGenerationEstimate();
+    updateGenerationSubmitAvailability();
+  },
   genTiming,
   dropzoneFileName,
   dropzoneFileMeta,

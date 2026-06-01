@@ -2529,6 +2529,16 @@ def test_frontend_setup_markup_uses_mockup_control_structure() -> None:
     assert 'class="panel-heading visually-hidden"' in index_content
     assert 'id="word-count"' in index_content
     assert 'class="doc-input-meta"' in index_content
+    assert 'class="textarea-wrap"' in index_content
+    assert 'class="doc-toolbar source-toolbar"' in index_content
+    assert 'class="slider-rail-marks"' in index_content
     assert 'class="difficulty-segment"' in index_content
     assert 'data-difficulty-value="medium"' in index_content
     assert 'class="question-type-option question-type-chip"' in index_content
+
+
+def test_frontend_sidebar_uses_mockup_collapse_transition() -> None:
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
+
+    assert "transition: width var(--duration-base) var(--easing);" in fidelity_css
+    assert "transition: transform var(--duration-base) var(--easing);" in fidelity_css

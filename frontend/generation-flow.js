@@ -562,7 +562,7 @@ export function createGenerationFlow({
         docFilePillMeta.textContent = "";
       }
       if (docTextInput) {
-        docTextInput.placeholder = "Вставьте текст, чтобы создать викторину…";
+        docTextInput.placeholder = "Вставьте текст конспекта, статьи или главы учебника… Можно также прикрепить TXT, DOCX или PDF через кнопку ниже.";
       }
       const hasText = Boolean(docTextInput?.value?.trim());
       setTextContent("file-summary", hasText ? "Текст готов к генерации." : "Вставьте текст или прикрепите файл.");
