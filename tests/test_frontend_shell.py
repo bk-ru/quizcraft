@@ -258,7 +258,7 @@ def test_frontend_index_exposes_supported_question_type_labels() -> None:
     assert 'class="question-type-label"' in content
     assert 'class="required-marker" aria-hidden="true">*</span>' in content
     assert 'class="question-type-list"' in content
-    assert 'class="question-type-option"' in content
+    assert 'class="question-type-option question-type-chip"' in content
     assert "checkbox-grid" not in content
     assert "checkbox-option" not in content
     assert "quiz-type-hint" not in content
@@ -1596,8 +1596,8 @@ def test_frontend_hero_is_compact_and_pulse_is_not_infinite() -> None:
     layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
     generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
 
-    assert 'class="hero-copy"' not in index_content, (
-        "the hero must not duplicate the upload-panel copy"
+    assert 'class="hero-copy"' in index_content, (
+        "the mockup fidelity shell must expose the compact hero subtitle"
     )
 
     assert "padding: 28px 0 20px;" in layout_css, (
@@ -2521,3 +2521,14 @@ def test_frontend_compact_workspace_uses_mockup_fidelity_layout() -> None:
     assert "padding: 22px 22px 26px;" in fidelity_css
     assert "padding: 22px 22px 18px;" in fidelity_css
     assert "text-align: center;" in fidelity_css
+
+
+def test_frontend_setup_markup_uses_mockup_control_structure() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+
+    assert 'class="panel-heading visually-hidden"' in index_content
+    assert 'id="word-count"' in index_content
+    assert 'class="doc-input-meta"' in index_content
+    assert 'class="difficulty-segment"' in index_content
+    assert 'data-difficulty-value="medium"' in index_content
+    assert 'class="question-type-option question-type-chip"' in index_content

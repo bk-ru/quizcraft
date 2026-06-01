@@ -79,6 +79,9 @@ const generationTemperatureValue = document.getElementById("generation-temperatu
 const questionCountRange = document.getElementById("question-count-range");
 const questionCountInput = document.getElementById("question-count");
 const generationEstimate = document.getElementById("generation-estimate");
+const difficultySelect = document.getElementById("difficulty");
+const difficultyButtons = [...document.querySelectorAll("[data-difficulty-value]")];
+const wordCountElement = document.getElementById("word-count");
 const exportSplitToggle = document.getElementById("export-split-toggle");
 const exportSplitMenu = document.getElementById("export-split-menu");
 const editorExportJsonButton = document.getElementById("editor-export-json-button");
@@ -481,6 +484,25 @@ function syncQuestionCount(source = questionCountInput, target = questionCountRa
   target.value = String(normalizedValue);
 }
 
+function syncDifficulty(value = difficultySelect?.value) {
+  const normalizedValue = typeof value === "string" ? value : "";
+  if (difficultySelect && normalizedValue) {
+    difficultySelect.value = normalizedValue;
+  }
+  for (const button of difficultyButtons) {
+    button.setAttribute("aria-pressed", String(button.dataset.difficultyValue === normalizedValue));
+  }
+}
+
+function updateDocWordCount() {
+  if (!wordCountElement) {
+    return;
+  }
+  const text = docTextInput?.value?.trim() ?? "";
+  const count = text ? text.split(/\s+/u).length : 0;
+  wordCountElement.textContent = `${count.toLocaleString("ru-RU")} слов`;
+}
+
 function formatEstimateDuration(durationMs) {
   const seconds = Math.max(1, Math.round(durationMs / 1000));
   if (seconds < 60) {
@@ -530,6 +552,8 @@ function updateProviderModelStatus(defaultModel = "", models = []) {
 syncGenerationTemperatureValue();
 generationTemperatureInput?.addEventListener("input", syncGenerationTemperatureValue);
 syncQuestionCount();
+syncDifficulty();
+updateDocWordCount();
 updateGenerationEstimate();
 updateLMStudioConnectionVisibility();
 questionCountRange?.addEventListener("input", () => {
@@ -539,6 +563,9 @@ questionCountRange?.addEventListener("input", () => {
 questionCountInput?.addEventListener("change", () => {
   syncQuestionCount(questionCountInput, questionCountRange);
   updateGenerationEstimate();
+});
+difficultyButtons.forEach((button) => {
+  button.addEventListener("click", () => syncDifficulty(button.dataset.difficultyValue));
 });
 
 const generationSettings = createGenerationSettingsController({
@@ -687,6 +714,7 @@ async function startNewQuiz() {
   }
   generationFlow.removeSelectedFile();
   generationFlow.updateDocInputSummary();
+  updateDocWordCount();
   quizRenderer.clearQuizResult();
   quizEditor.clearQuizEditor();
   editorState.isDirty = false;
@@ -755,6 +783,7 @@ copyButtons.register();
 
 async function bootstrapShell() {
   generationFlow.updateDocInputSummary();
+  updateDocWordCount();
   quizRenderer.clearQuizResult();
   quizEditor.clearQuizEditor();
   setEditorStatus("Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.", null);
@@ -1085,6 +1114,7 @@ fileInput?.addEventListener("change", () => {
 
 docTextInput?.addEventListener("input", () => {
   generationFlow.updateDocInputSummary();
+  updateDocWordCount();
 });
 
 const DOC_EXAMPLE_TEXT = `Фотосинтез — это процесс, при котором зелёные растения, водоросли и некоторые бактерии создают органические вещества из углекислого газа и воды, используя энергию света. Его часто называют основой жизни на Земле, потому что именно благодаря фотосинтезу в биосфере постоянно образуются углеводы и выделяется кислород. Без этого процесса большинство животных, грибов и людей не имели бы ни пищи, ни достаточного количества кислорода для дыхания.
@@ -1125,6 +1155,7 @@ docClearButton?.addEventListener("click", () => {
     }
   }
   generationFlow.updateDocInputSummary();
+  updateDocWordCount();
   toastController.showToast("Текст удалён из формы.", "warn");
   docTextInput?.focus();
 });

@@ -507,7 +507,7 @@ export function createGenerationFlow({
       } else {
         const text = docTextInput?.value ?? "";
         const count = text.length;
-        charCountElement.textContent = count > 0 ? `${count.toLocaleString("ru-RU")} символов` : "";
+        charCountElement.textContent = `${count.toLocaleString("ru-RU")} символов`;
       }
     }
     if (docLengthHintElement) {
