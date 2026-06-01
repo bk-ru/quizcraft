@@ -65,7 +65,7 @@ export function createQuizEditor({
   setEditorStatus,
   setLogMessage,
   setExportAvailability,
-  advanceStepper,
+  activateWorkflowStage,
   renderQuizResult,
   showToast,
   describeError,
@@ -732,7 +732,7 @@ export function createQuizEditor({
     if (typeof language === "string" && language.trim()) {
       editorState.loadedQuizLanguage = language.trim();
     }
-    advanceStepper("result");
+    activateWorkflowStage("result");
   }
 
   function buildQuizUpdatePayload() {

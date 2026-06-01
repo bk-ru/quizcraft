@@ -64,7 +64,6 @@ const docClearButton = document.getElementById("doc-clear-button");
 const docExampleButton = document.getElementById("doc-example-button");
 const documentDropOverlay = document.getElementById("document-drop-overlay");
 const toastRegion = document.getElementById("toast-region");
-const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
 const generationLiveJournal = document.getElementById("generation-live-journal");
 const cancelGenerationButton = document.getElementById("cancel-generation-button");
@@ -451,7 +450,7 @@ const toastController = createToastController(toastRegion);
 const confirmModal = createConfirmModal({ modalRegion });
 const stageFlow = createStageFlowController({ root: stageRoot });
 const workspaceController = createWorkspaceController({ root: workspaceRoot, stageFlow });
-const progressController = createProgressController({ stepper, generationProgressPanel, stageFlow });
+const progressController = createProgressController({ generationProgressPanel, stageFlow });
 const themeController = createThemeController({ themeToggleLabel });
 const quizHistory = createQuizHistory({
   datalistElement: document.getElementById("quiz-history-options"),
@@ -556,7 +555,7 @@ const quizRenderer = createQuizRenderer({
   questionList: null,
   setTextContent,
   setExportAvailability,
-  advanceStepper: progressController.advanceStepper,
+  activateWorkflowStage: progressController.activateWorkflowStage,
 });
 
 function focusResultView() {
@@ -582,7 +581,7 @@ const quizEditor = createQuizEditor({
   setEditorStatus,
   setLogMessage,
   setExportAvailability,
-  advanceStepper: progressController.advanceStepper,
+  activateWorkflowStage: progressController.activateWorkflowStage,
   renderQuizResult: quizRenderer.renderQuizResult,
   showToast: toastController.showToast,
   describeError,
@@ -631,8 +630,8 @@ const generationFlow = createGenerationFlow({
   renderQuizResult: quizRenderer.renderQuizResult,
   presentQuizInline: quizEditor.presentQuizInline,
   focusResultView,
-  advanceStepper: progressController.advanceStepper,
-  markStepperFailed: progressController.markStepperFailed,
+  activateWorkflowStage: progressController.activateWorkflowStage,
+  markWorkflowStageFailed: progressController.markWorkflowStageFailed,
   startGenerationProgress: progressController.startGenerationProgress,
   advanceGenerationProgress: progressController.advanceGenerationProgress,
   applyBackendGenerationStatusEvidence: progressController.applyBackendGenerationStatusEvidence,
@@ -1004,16 +1003,6 @@ applyLMStudioConnectionButton?.addEventListener("click", () => {
 });
 submitButton?.addEventListener("pointerenter", showSubmitUnavailableReason);
 submitButton?.addEventListener("focus", showSubmitUnavailableReason);
-stepper?.addEventListener("click", (event) => {
-  const target = event.target instanceof Element
-    ? event.target.closest("[data-stage-target]")
-    : null;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  progressController.advanceStepper(target.dataset.stageTarget, { focus: true });
-});
-
 window.addEventListener("beforeunload", (event) => {
   if (!editorState.isDirty) {
     return;
@@ -1090,7 +1079,7 @@ docFileRemoveButton?.addEventListener("click", (event) => {
 fileInput?.addEventListener("change", () => {
   generationFlow.updateDocInputSummary();
   if (fileInput.files?.[0]) {
-    progressController.advanceStepper("setup");
+    progressController.activateWorkflowStage("setup");
   }
 });
 

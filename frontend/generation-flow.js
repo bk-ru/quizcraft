@@ -115,8 +115,8 @@ export function createGenerationFlow({
   renderQuizResult,
   presentQuizInline = null,
   focusResultView = null,
-  advanceStepper,
-  markStepperFailed,
+  activateWorkflowStage,
+  markWorkflowStageFailed,
   startGenerationProgress,
   advanceGenerationProgress,
   applyBackendGenerationStatusEvidence = null,
@@ -595,7 +595,7 @@ export function createGenerationFlow({
       fileInput.value = "";
     }
     updateDocInputSummary();
-    advanceStepper("upload");
+    activateWorkflowStage("upload");
     showToast("Файл удалён из формы.", "warn");
   }
 
@@ -650,7 +650,7 @@ export function createGenerationFlow({
       return false;
     }
     updateDocInputSummary();
-    advanceStepper("setup");
+    activateWorkflowStage("setup");
     showToast(`Файл «${file.name}» готов к загрузке.`, "ok");
     return true;
   }
@@ -777,7 +777,7 @@ export function createGenerationFlow({
       setBusyState(true);
       setExportAvailability(null);
       clearGenerationJournal();
-      advanceStepper("generation", { focus: true });
+      activateWorkflowStage("generation", { focus: true });
       startGenerationProgress();
       const inputCharCount = (docTextInput?.value ?? "").length;
       startTimer(inputCharCount);
@@ -878,7 +878,7 @@ export function createGenerationFlow({
         setResultState("Генерация отменена. Запустите повторно, когда будете готовы.", "warn", "Отменено");
         setLogMessage("Генерация отменена пользователем.", "warn");
         showToast("Генерация отменена.", "warn");
-        advanceStepper("setup", { focus: true });
+        activateWorkflowStage("setup", { focus: true });
       } else {
         failGenerationProgress(failedStep);
         const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
@@ -887,8 +887,8 @@ export function createGenerationFlow({
         setResultState(`Результат не получен: ${message}`, "bad", "Ошибка");
         setLogMessage(`Генерация завершилась ошибкой: ${message}`, "bad");
         showToast(message, "bad");
-        if (typeof markStepperFailed === "function") {
-          markStepperFailed("generation");
+        if (typeof markWorkflowStageFailed === "function") {
+          markWorkflowStageFailed("generation");
         }
       }
     } finally {

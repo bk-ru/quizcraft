@@ -1,6 +1,5 @@
 import { normalizeWorkflowStage } from "./stage-flow.js";
 
-const STEPPER_ORDER = ["setup", "generation", "result", "edit"];
 const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "persist"];
 const BACKEND_STEP_TO_PROGRESS_STEP = Object.freeze({
   parse: "parse",
@@ -26,7 +25,10 @@ const SUCCESSFUL_GENERATION_EVIDENCE = Object.freeze([
 const PROGRESS_SUCCESS_AUTOHIDE_MS = 900;
 const PROGRESS_FAILURE_AUTOHIDE_MS = 2400;
 
-export function createProgressController({ stepper, generationProgressPanel, stageFlow }, windowRef = window) {
+export function createProgressController(
+  { generationProgressPanel, stageFlow },
+  windowRef = window,
+) {
   let progressAutoHideTimeoutId = null;
 
   function clearProgressAutoHide() {
@@ -36,49 +38,26 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     }
   }
 
-  function setStepState(step, state) {
-    if (!stepper) {
-      return;
-    }
-    const target = stepper.querySelector(`.step[data-step="${step}"]`);
-    if (!target) {
-      return;
-    }
-    if (state) {
-      target.dataset.state = state;
-    } else {
-      delete target.dataset.state;
-    }
-    if (state === "active") {
-      target.setAttribute("aria-current", "step");
-    } else {
-      target.removeAttribute("aria-current");
-    }
-  }
-
-  function advanceStepper(stageName, options = {}) {
+  function activateWorkflowStage(
+    stageName,
+    { focus = false, state = null } = {},
+  ) {
     const normalizedStageName = normalizeWorkflowStage(stageName);
-    const activeIndex = STEPPER_ORDER.indexOf(normalizedStageName);
-    if (activeIndex < 0 || !stepper) {
-      return;
+    if (stageFlow && typeof stageFlow.activateStage === "function") {
+      stageFlow.activateStage(normalizedStageName, { focus: Boolean(focus) });
     }
-    const activeState = options && options.state === "failed" ? "failed" : "active";
-    for (const [index, step] of STEPPER_ORDER.entries()) {
-      if (index < activeIndex) {
-        setStepState(step, "done");
-      } else if (index === activeIndex) {
-        setStepState(step, activeState);
-      } else {
-        setStepState(step, null);
+    if (stageFlow?.root?.dataset) {
+      if (state === "failed") {
+        stageFlow.root.dataset.failedStage = normalizedStageName;
+      } else if (stageFlow.root.dataset.failedStage === normalizedStageName) {
+        delete stageFlow.root.dataset.failedStage;
       }
     }
-    if (stageFlow && typeof stageFlow.activateStage === "function") {
-      stageFlow.activateStage(normalizedStageName, { focus: Boolean(options.focus) });
-    }
+    return normalizedStageName;
   }
 
-  function markStepperFailed(stageName) {
-    advanceStepper(stageName, { state: "failed" });
+  function markWorkflowStageFailed(stageName) {
+    return activateWorkflowStage(stageName, { state: "failed", focus: true });
   }
 
   function setGenerationProgressVisible(visible) {
@@ -98,7 +77,9 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     if (!generationProgressPanel) {
       return null;
     }
-    const existing = generationProgressPanel.querySelector("[data-generation-skeletons]");
+    const existing = generationProgressPanel.querySelector(
+      "[data-generation-skeletons]",
+    );
     if (existing) {
       return existing;
     }
@@ -137,7 +118,9 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     if (!generationProgressPanel) {
       return;
     }
-    const target = generationProgressPanel.querySelector(`.progress-step[data-step="${step}"]`);
+    const target = generationProgressPanel.querySelector(
+      `.progress-step[data-step="${step}"]`,
+    );
     if (!target) {
       return;
     }
@@ -265,7 +248,10 @@ export function createProgressController({ stepper, generationProgressPanel, sta
         generationProgressPanel.dataset.currentStep = "failed";
       } else if (backendStatus === "done" && backendStep === "persist") {
         generationProgressPanel.dataset.currentStep = "done";
-      } else if (progressState === "active" || !generationProgressPanel.dataset.currentStep) {
+      } else if (
+        progressState === "active" ||
+        !generationProgressPanel.dataset.currentStep
+      ) {
         generationProgressPanel.dataset.currentStep = progressStep;
       }
       applied = true;
@@ -307,8 +293,8 @@ export function createProgressController({ stepper, generationProgressPanel, sta
   }
 
   return {
-    advanceStepper,
-    markStepperFailed,
+    activateWorkflowStage,
+    markWorkflowStageFailed,
     startGenerationProgress,
     advanceGenerationProgress,
     completeGenerationProgress,

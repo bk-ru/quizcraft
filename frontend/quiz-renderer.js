@@ -52,7 +52,7 @@ export function createQuizRenderer({
   questionList,
   setTextContent,
   setExportAvailability,
-  advanceStepper,
+  activateWorkflowStage,
 }, documentRef = document) {
   function setResultState(text, tone, badgeText) {
     const element = documentRef.getElementById("result-status");
@@ -168,7 +168,7 @@ export function createQuizRenderer({
         "Результат недоступен",
       );
       setExportAvailability(null);
-      advanceStepper("result");
+      activateWorkflowStage("result");
       return;
     }
     const quiz = generationPayload.quiz ?? {};
@@ -198,7 +198,7 @@ export function createQuizRenderer({
       setResultState("Результат готов. Квиз отображён ниже.", "ok", "Результат готов");
     }
     setExportAvailability(generationPayload.quiz_id ?? quiz.quiz_id ?? null);
-    advanceStepper("result");
+    activateWorkflowStage("result");
   }
 
   return { setResultState, clearQuizResult, renderQuizResult };

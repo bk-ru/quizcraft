@@ -1388,45 +1388,23 @@ def test_frontend_generation_timer_formats_and_warns_on_slow_generation() -> Non
     assert "clearInterval" in content
 
 
-def test_frontend_main_stepper_holds_four_product_phases() -> None:
+def test_frontend_compact_workspace_has_no_legacy_stepper() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    responsive_css = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
     progress_content = PROGRESS_JS.read_text(encoding="utf-8")
     generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
 
-    stepper_block = re.search(
-        r'<ol class="stepper"[^>]*id="stepper"[\s\S]+?</ol>',
-        index_content,
-    )
-    assert stepper_block is not None, "main stepper must exist in the index"
-    stepper_html = stepper_block.group(0)
-    stepper_steps = re.findall(r'data-step="([^"]+)"', stepper_html)
-    assert stepper_steps == ["setup", "generation", "result", "edit"], (
-        "main stepper must expose the four staged product phases"
-    )
-    assert 'data-step="generate"' not in stepper_html, (
-        "the technical generate stage must not duplicate the product stepper"
-    )
-    assert "Документ и параметры" in stepper_html, (
-        "the first stage must combine document upload and generation parameters"
-    )
-    assert "Генерация" in stepper_html, (
-        "the second stage must focus on request progress"
-    )
-    assert "Результат" in stepper_html, (
-        "the third stage must be labelled Результат"
-    )
-    assert "Редактирование и экспорт" in stepper_html
-
-    assert "grid-template-columns: repeat(4, minmax(0, 1fr));" in layout_css
-    assert 'STEPPER_ORDER = ["setup", "generation", "result", "edit"]' in progress_content
-    assert 'normalizeWorkflowStage(stageName)' in progress_content
-    assert 'advanceStepper("generate")' not in generation_content, (
-        "generation flow must drive the product stepper, not the technical generate slot"
-    )
-    assert 'advanceStepper("generation", { focus: true })' in generation_content
-    assert 'advanceStepper("setup", { focus: true })' in generation_content
-
+    assert 'id="stepper"' not in index_content
+    assert 'class="stepper"' not in index_content
+    assert 'data-stage-target=' not in index_content
+    assert ".stepper" not in layout_css
+    assert ".stepper" not in responsive_css
+    assert "advanceStepper" not in progress_content
+    assert "markStepperFailed" not in progress_content
+    assert "activateWorkflowStage" in progress_content
+    assert 'activateWorkflowStage("generation", { focus: true })' in generation_content
+    assert 'activateWorkflowStage("setup", { focus: true })' in generation_content
 
 def test_frontend_index_uses_staged_workflow_sections() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
@@ -1439,10 +1417,7 @@ def test_frontend_index_uses_staged_workflow_sections() -> None:
     assert 'data-workflow-stage="generation"' in index_content
     assert 'data-workflow-stage="result"' in index_content
     assert 'data-workflow-stage="edit"' in index_content
-    assert 'data-stage-target="setup"' in index_content
-    assert 'data-stage-target="generation"' in index_content
-    assert 'data-stage-target="result"' in index_content
-    assert 'data-stage-target="edit"' in index_content
+    assert 'data-stage-target=' not in index_content
     assert "panel-upload panel-form" in index_content
     assert "panel-params panel-form" in index_content
 
@@ -1455,25 +1430,17 @@ def test_frontend_index_uses_staged_workflow_sections() -> None:
 
     assert "const stageRoot = document.querySelector" in app_content
     assert "const stageFlow = createStageFlowController" in app_content
-    assert "progressController.advanceStepper(target.dataset.stageTarget" in app_content
+    assert "progressController.activateWorkflowStage" in app_content
     assert ".workflow-stage[hidden]" in layout_content
     assert "@keyframes stage-in" in layout_content
 
 
-def test_frontend_stepper_is_the_single_source_of_truth_for_phases() -> None:
+def test_frontend_panels_do_not_duplicate_stage_badges() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert "Шаг 5" not in content, (
-        "the stepper only has four phases, so Шаг 5 must not leak into the UI"
-    )
-    for step_label in ("Шаг 1", "Шаг 2", "Шаг 3", "Шаг 4"):
-        assert step_label not in content, (
-            f"panels must not duplicate the stepper with a '{step_label}' badge"
-        )
-    assert 'id="stepper"' in content, (
-        "the main stepper remains the single source of truth for the phase"
-    )
-
+    for step_label in ("Шаг 1", "Шаг 2", "Шаг 3", "Шаг 4", "Шаг 5"):
+        assert step_label not in content
+    assert 'id="stepper"' not in content
 
 def test_frontend_dropzone_surface_exposes_filled_preview_affordance() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
@@ -1811,41 +1778,25 @@ def test_frontend_result_panel_has_idle_empty_state_illustration() -> None:
     )
 
 
-def test_frontend_stepper_exposes_failed_state_on_generation_error() -> None:
+def test_frontend_generation_error_marks_workflow_stage_failed() -> None:
     progress_content = PROGRESS_JS.read_text(encoding="utf-8")
     generation_content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert "markWorkflowStageFailed" in progress_content
+    assert 'state: "failed"' in progress_content
+    assert "dataset.failedStage" in progress_content
+    assert "markWorkflowStageFailed: progressController.markWorkflowStageFailed" in app_content
+    assert 'markWorkflowStageFailed("generation")' in generation_content
+    assert 'activateWorkflowStage("setup", { focus: true })' in generation_content
+
+def test_frontend_legacy_stepper_styles_are_removed() -> None:
     layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    responsive_content = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
 
-    assert "markStepperFailed" in progress_content, (
-        "progress controller must expose a helper to mark a stepper phase as failed"
-    )
-    assert "options.state === \"failed\"" in progress_content, (
-        "advanceStepper must accept an explicit failed state option"
-    )
-
-    assert "markStepperFailed: progressController.markStepperFailed" in app_content, (
-        "the failed-step helper must be wired into the generation flow"
-    )
-    assert "markStepperFailed(\"generation\")" in generation_content, (
-        "generation flow must mark the generation phase as failed on real errors"
-    )
-    assert "advanceStepper(\"setup\", { focus: true })" in generation_content, (
-        "user-cancelled generation must roll the stepper back to setup, not failed"
-    )
-
-    assert ".step[data-state=\"failed\"]" in layout_content, (
-        "stylesheet must provide a visual for the failed step state"
-    )
-
-
-def test_frontend_stepper_can_shrink_without_mobile_horizontal_overflow() -> None:
-    layout_content = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
-
-    assert ".step {\n  min-width: 0;" in layout_content
-    assert ".step-button {\n  min-width: 0;" in layout_content
-    assert ".step-button > span:last-child {\n  min-width: 0;" in layout_content
-
+    assert ".stepper" not in layout_content
+    assert ".step-button" not in layout_content
+    assert ".stepper" not in responsive_content
 
 def test_frontend_model_picker_and_temperature_slider_are_wired_to_backend() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
@@ -2161,16 +2112,12 @@ def test_frontend_editor_falls_back_to_russian_when_language_is_unknown() -> Non
     assert "return DEFAULT_REGENERATION_LANGUAGE" in editor_content
 
 
-def test_frontend_progress_marks_active_step_with_aria_current() -> None:
+def test_frontend_progress_uses_stage_flow_without_aria_stepper() -> None:
     progress_content = PROGRESS_JS.read_text(encoding="utf-8")
 
-    assert 'target.setAttribute("aria-current", "step")' in progress_content, (
-        "active stepper item must announce itself as the current step"
-    )
-    assert 'target.removeAttribute("aria-current")' in progress_content, (
-        "non-active stepper items must drop aria-current"
-    )
-
+    assert "stageFlow.activateStage" in progress_content
+    assert "aria-current" not in progress_content
+    assert "stepper" not in progress_content.lower()
 
 def test_frontend_question_shape_exposes_backend_shaped_draft_helpers() -> None:
     content = QUESTION_SHAPE_JS.read_text(encoding="utf-8")
