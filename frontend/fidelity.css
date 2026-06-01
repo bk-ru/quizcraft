@@ -1,0 +1,184 @@
+.compact-workspace .shell-background {
+  background:
+    radial-gradient(60% 60% at 20% 10%, rgba(139, 125, 255, 0.18), transparent 60%),
+    radial-gradient(50% 50% at 80% 0%, rgba(255, 95, 174, 0.14), transparent 60%),
+    radial-gradient(40% 40% at 50% 30%, rgba(255, 190, 125, 0.08), transparent 60%),
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px),
+    var(--bg);
+  background-size: auto, auto, auto, 64px 64px, 64px 64px, auto;
+}
+
+.compact-workspace .workspace-sidebar {
+  gap: 12px;
+  padding: 14px 12px 12px;
+  background: color-mix(in oklab, var(--bg) 92%, transparent);
+  box-shadow: none;
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+.compact-workspace .workspace-sidebar-header {
+  padding: 4px 6px 14px;
+  margin-bottom: 6px;
+}
+
+.compact-workspace .workspace-sidebar-brand {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+.compact-workspace .workspace-sidebar-new {
+  padding: 10px 12px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  font-weight: 600;
+}
+
+.compact-workspace .workspace-sidebar-history {
+  padding: 10px 0 0;
+}
+
+.compact-workspace .workspace-sidebar-status {
+  padding: 10px 8px;
+}
+
+.compact-workspace .workspace-workbench {
+  width: min(1080px, calc(100vw - var(--sidebar-width) - 48px));
+  margin-right: 24px;
+  margin-left: calc(var(--sidebar-width) + 24px);
+  padding: 56px 0 120px;
+}
+
+.compact-workspace:has(.workspace-sidebar[data-collapsed="true"]) .workspace-workbench {
+  width: min(1080px, calc(100vw - var(--sidebar-width-mobile) - 48px));
+}
+
+.compact-workspace .hero {
+  justify-items: center;
+  margin-bottom: 48px;
+  padding: 0;
+  text-align: center;
+}
+
+.compact-workspace .hero-heading {
+  justify-items: center;
+  max-width: 760px;
+}
+
+.compact-workspace .hero h1 {
+  font-size: clamp(2.6rem, 5vw, 4.2rem);
+  font-weight: 600;
+  line-height: 1.03;
+}
+
+.compact-workspace .hero-copy {
+  max-width: 620px;
+  font-size: 1rem;
+}
+
+.compact-workspace .workspace {
+  margin-top: 0;
+}
+
+.compact-workspace .workspace-grid {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.compact-workspace .workspace-grid > .panel-upload,
+.compact-workspace .workspace-grid > .panel-params {
+  grid-column: auto;
+}
+
+.compact-workspace .panel {
+  backdrop-filter: blur(20px) saturate(130%);
+  -webkit-backdrop-filter: blur(20px) saturate(130%);
+  box-shadow: var(--shadow-md);
+}
+
+.compact-workspace .panel-upload {
+  padding: 22px 22px 26px;
+}
+
+.compact-workspace .panel-params {
+  padding: 22px 22px 18px;
+}
+
+.compact-workspace .panel-form::before,
+.compact-workspace .panel-status::before {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0));
+  content: "";
+  pointer-events: none;
+}
+
+.compact-workspace .panel-form > *,
+.compact-workspace .panel-status > * {
+  position: relative;
+}
+
+.compact-workspace .doc-textarea {
+  min-height: 200px;
+  padding: 16px 18px;
+  background: var(--surface-sunken);
+}
+
+.compact-workspace .form-grid {
+  grid-template-columns: minmax(260px, 1.25fr) minmax(220px, 1fr) minmax(220px, 1fr);
+  gap: 18px 22px;
+}
+
+.compact-workspace .question-type-field {
+  grid-column: 1 / -1;
+}
+
+.compact-workspace .form-actions {
+  justify-content: flex-end;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .compact-workspace .workspace-workbench {
+    width: calc(100vw - var(--sidebar-width-mobile) - 32px);
+    margin-right: 16px;
+    margin-left: calc(var(--sidebar-width-mobile) + 16px);
+    padding-top: 32px;
+  }
+
+  .compact-workspace .hero {
+    margin-bottom: 36px;
+  }
+
+  .compact-workspace .form-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+  .compact-workspace .hero h1 {
+    font-size: 2.4rem;
+  }
+
+  .compact-workspace .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-workspace .form-actions {
+    position: sticky;
+    bottom: 12px;
+    z-index: 5;
+    margin: 0 -22px -18px;
+    padding: 14px 22px;
+    background: color-mix(in oklab, var(--bg) 85%, transparent);
+    backdrop-filter: blur(14px);
+    border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  }
+
+  .compact-workspace .form-actions .primary-action {
+    width: 100%;
+  }
+}

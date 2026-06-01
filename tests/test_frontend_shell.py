@@ -2506,3 +2506,15 @@ def test_frontend_app_wires_enable_model_picker_flag() -> None:
         "app.js must read enableModelPicker from config"
     )
     assert "modelPickerField" in app_content
+
+
+def test_frontend_compact_workspace_uses_mockup_fidelity_layout() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
+
+    assert '<link rel="stylesheet" href="./fidelity.css">' in index_content
+    assert "width: min(1080px, calc(100vw - var(--sidebar-width) - 48px));" in fidelity_css
+    assert "grid-template-columns: minmax(0, 1fr);" in fidelity_css
+    assert "padding: 22px 22px 26px;" in fidelity_css
+    assert "padding: 22px 22px 18px;" in fidelity_css
+    assert "text-align: center;" in fidelity_css
