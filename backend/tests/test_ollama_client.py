@@ -7,12 +7,15 @@ from urllib.error import URLError
 import pytest
 
 from backend.app.domain.errors import LLMConnectionError
+from backend.app.domain.errors import GenerationCancelledError
 from backend.app.domain.errors import LLMRequestError
 from backend.app.domain.errors import LLMResponseFormatError
 from backend.app.domain.errors import LLMServerError
 from backend.app.domain.errors import LLMTimeoutError
 from backend.app.domain.models import EmbeddingRequest
 from backend.app.domain.models import StructuredGenerationRequest
+from backend.app.generation.cancellation import GenerationCancellationRegistry
+from backend.app.generation.cancellation import bind_generation_cancellation
 from backend.app.llm.ollama import OllamaClient
 from backend.app.llm.retry import RetryPolicy
 
@@ -21,12 +24,18 @@ class FakeHTTPResponse:
     """Минимальный ответ context manager, используемый для stub вызовов urllib."""
 
     def __init__(self, payload: bytes | dict[str, object]) -> None:
-        self._payload = payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
+        raw_payload = payload if isinstance(payload, bytes) else json.dumps(payload).encode("utf-8")
+        self._stream = io.BytesIO(raw_payload)
 
     def read(self) -> bytes:
         """Вернуть подготовленный raw payload ответа."""
 
-        return self._payload
+        return self._stream.read()
+
+    def readline(self) -> bytes:
+        """Вернуть следующую строку streaming payload."""
+
+        return self._stream.readline()
 
     def __enter__(self) -> "FakeHTTPResponse":
         """Вернуть ответ для использования context manager."""
@@ -119,7 +128,7 @@ def test_generate_structured_posts_schema_and_preserves_cyrillic(monkeypatch: py
             {"role": "system", "content": "Создай тест по документу и верни JSON."},
             {"role": "user", "content": "Документ: Москва — столица России."},
         ],
-        "stream": False,
+        "stream": True,
         "format": build_request().schema,
         "options": {"temperature": 0.2, "num_predict": 256},
     }
@@ -152,6 +161,68 @@ def test_generate_structured_allows_explicit_model(monkeypatch: pytest.MonkeyPat
 
     assert response.model_name == "mistral:7b"
     assert captured["payload"]["model"] == "mistral:7b"
+
+
+def test_generate_structured_collects_streamed_ndjson_and_preserves_cyrillic(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    streamed_payload = "\n".join(
+        json.dumps(chunk, ensure_ascii=False)
+        for chunk in (
+            {"model": "qwen2.5:7b", "message": {"content": '{"questions":[{"prompt":"Что '}},
+            {"model": "qwen2.5:7b", "message": {"content": 'является столицей России?"}]}'}, "done": True},
+        )
+    ).encode("utf-8")
+
+    monkeypatch.setattr(
+        "backend.app.llm.ollama.urlopen",
+        lambda request, timeout: FakeHTTPResponse(streamed_payload),
+    )
+
+    response = build_client().generate_structured(build_request())
+
+    assert response.content == {"questions": [{"prompt": "Что является столицей России?"}]}
+
+
+def test_generate_structured_closes_stream_after_cancel_without_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry = GenerationCancellationRegistry()
+    token = registry.start_run("run-ollama-cancel", document_id="документ-ollama")
+    call_count = 0
+
+    class CancellingHTTPResponse:
+        def __init__(self) -> None:
+            self.closed = False
+
+        def readline(self) -> bytes:
+            registry.cancel(token.request_id)
+            raise OSError("closed stream")
+
+        def close(self) -> None:
+            self.closed = True
+
+        def __enter__(self) -> "CancellingHTTPResponse":
+            return self
+
+        def __exit__(self, exc_type, exc, traceback) -> bool:
+            return False
+
+    response = CancellingHTTPResponse()
+
+    def fake_urlopen(request, timeout):
+        nonlocal call_count
+        call_count += 1
+        return response
+
+    monkeypatch.setattr("backend.app.llm.ollama.urlopen", fake_urlopen)
+
+    with bind_generation_cancellation(token):
+        with pytest.raises(GenerationCancelledError):
+            build_client(max_retries=2).generate_structured(build_request())
+
+    assert response.closed is True
+    assert call_count == 1
 
 
 def test_embed_posts_batch_and_preserves_cyrillic(monkeypatch: pytest.MonkeyPatch) -> None:
