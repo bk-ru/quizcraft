@@ -1,4 +1,5 @@
 import { QuizCraftApiError } from "./api/client.js";
+import { validateEditableQuiz } from "./question-shape.js";
 
 export function cloneQuizPayload(quiz) {
   if (typeof structuredClone === "function") {
@@ -19,6 +20,13 @@ function defaultConfirmAction() {
 
 const DEFAULT_REGENERATION_LANGUAGE = "ru";
 const CHOICE_QUESTION_TYPES = Object.freeze(["single_choice", "true_false"]);
+const QUESTION_TYPE_LABELS = Object.freeze({
+  single_choice: "Одиночный выбор",
+  true_false: "Верно / Неверно",
+  fill_blank: "Заполнить пропуск",
+  short_answer: "Краткий ответ",
+  matching: "Сопоставление",
+});
 
 export function createQuizEditor({
   editorState,
@@ -114,12 +122,27 @@ export function createQuizEditor({
       ? event.target.closest(".editor-card")
       : null;
     if (card instanceof HTMLElement) {
+      updateCorrectOptionState(card);
       card.classList.add("is-dirty");
       const revertBtn = card.querySelector('[data-editor-action="revert-question"]');
       if (revertBtn) {
         revertBtn.hidden = false;
       }
     }
+  }
+
+  function updateCorrectOptionState(card) {
+    const select = card?.querySelector('[data-editor-field="correct-option-index"]');
+    const selectedIndex = select instanceof HTMLSelectElement
+      ? Number.parseInt(select.value, 10)
+      : -1;
+    card?.querySelectorAll(".editor-option-row").forEach((row, optionIndex) => {
+      if (optionIndex === selectedIndex) {
+        row.dataset.correct = "true";
+      } else {
+        delete row.dataset.correct;
+      }
+    });
   }
 
   function revertQuestionEdits(event) {
@@ -220,7 +243,7 @@ export function createQuizEditor({
 
     const badge = documentRef.createElement("span");
     badge.className = "question-index";
-    badge.textContent = `Вопрос ${index + 1}`;
+    badge.textContent = `Вопрос ${index + 1} · ${QUESTION_TYPE_LABELS[question.question_type] ?? "Тип не указан"}`;
 
     const note = documentRef.createElement("p");
     note.className = "panel-copy";
@@ -272,6 +295,8 @@ export function createQuizEditor({
       optionsGrid.className = "editor-options";
 
       options.forEach((option, optionIndex) => {
+        const optionRow = documentRef.createElement("div");
+        optionRow.className = "editor-option-row";
         const optionField = createEditorField(
           `Вариант ${optionIndex + 1}`,
           createEditorInput(option.text ?? ""),
@@ -279,7 +304,15 @@ export function createQuizEditor({
         optionField.dataset.optionId = option.option_id ?? `option-${optionIndex + 1}`;
         optionField.querySelector("input")?.setAttribute("data-editor-field", "option-text");
         optionField.querySelector("input")?.setAttribute("data-option-id", option.option_id ?? `option-${optionIndex + 1}`);
-        optionsGrid.append(optionField);
+        const deleteOptionButton = documentRef.createElement("button");
+        deleteOptionButton.className = "option-delete-action";
+        deleteOptionButton.type = "button";
+        deleteOptionButton.textContent = "×";
+        deleteOptionButton.setAttribute("aria-label", `Удалить вариант ${optionIndex + 1}`);
+        deleteOptionButton.setAttribute("aria-disabled", "true");
+        deleteOptionButton.title = "Удаление вариантов будет доступно на следующем этапе.";
+        optionRow.append(optionField, deleteOptionButton);
+        optionsGrid.append(optionRow);
       });
       article.append(optionsGrid);
 
@@ -295,6 +328,7 @@ export function createQuizEditor({
       });
       correctAnswerSelect.setAttribute("data-editor-field", "correct-option-index");
       article.append(createEditorField("Правильный ответ", correctAnswerSelect));
+      updateCorrectOptionState(article);
     } else if (question.question_type === "matching") {
       const pairsGrid = documentRef.createElement("div");
       pairsGrid.className = "editor-options";
@@ -366,6 +400,16 @@ export function createQuizEditor({
     setEditorSaveState({ disabled: true });
   }
 
+  function presentQuizInline(quiz, { language } = {}) {
+    renderQuizEditor(quiz);
+    setQuizEditorSummary(quiz);
+    editorState.loadedQuizLanguage = resolveQuizLanguage(quiz.quiz_id);
+    if (typeof language === "string" && language.trim()) {
+      editorState.loadedQuizLanguage = language.trim();
+    }
+    advanceStepper("result");
+  }
+
   function buildQuizUpdatePayload() {
     if (!editorState.loadedQuiz || !quizEditorFields) {
       throw new Error("Сначала загрузите квиз для редактирования.");
@@ -435,12 +479,9 @@ export function createQuizEditor({
       const payload = await client.getQuiz(quizId);
       const quiz = payload.quiz ?? {};
 
-      renderQuizEditor(quiz);
-      setQuizEditorSummary(quiz);
-      editorState.loadedQuizLanguage = resolveQuizLanguage(payload.quiz_id ?? quiz.quiz_id ?? quizId);
+      presentQuizInline(quiz, { language: payload.language });
       setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
       setExportAvailability(payload.quiz_id ?? quiz.quiz_id ?? quizId);
-      advanceStepper("edit");
       if (typeof saveQuizToHistory === "function") {
         saveQuizToHistory({
           quiz_id: payload.quiz_id ?? quiz.quiz_id ?? quizId,
@@ -588,6 +629,10 @@ export function createQuizEditor({
       setEditorSaveState({ disabled: true, busy: true });
       setEditorStatus("Сохраняем изменения…", "warn");
       const updatePayload = buildQuizUpdatePayload();
+      const validationErrors = validateEditableQuiz(updatePayload);
+      if (validationErrors.length > 0) {
+        throw new Error(`Исправьте структуру квиза:\n${validationErrors.join("\n")}`);
+      }
       const saveResponse = await client.updateQuiz(editorState.loadedQuiz.quiz_id, { quiz: updatePayload });
       const reloadResponse = await client.getQuiz(saveResponse.quiz_id ?? editorState.loadedQuiz.quiz_id);
       const persistedQuiz = reloadResponse.quiz ?? saveResponse.quiz ?? updatePayload;
@@ -622,6 +667,7 @@ export function createQuizEditor({
   return {
     clearQuizEditor,
     renderQuizEditor,
+    presentQuizInline,
     setQuizEditorSummary,
     setEditorBusyState,
     setEditorSaveState,

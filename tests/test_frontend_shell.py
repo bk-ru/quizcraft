@@ -18,6 +18,7 @@ API_CLIENT_JS = FRONTEND_DIR / "api" / "client.js"
 VALIDATION_ERRORS_JS = FRONTEND_DIR / "validation-errors.js"
 QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
 QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
+QUESTION_SHAPE_JS = FRONTEND_DIR / "question-shape.js"
 QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 SIDEBAR_JS = FRONTEND_DIR / "sidebar.js"
 WORKSPACE_JS = FRONTEND_DIR / "workspace.js"
@@ -35,6 +36,7 @@ FRONTEND_JS_MODULES = (
     VALIDATION_ERRORS_JS,
     QUIZ_RENDERER_JS,
     QUIZ_EDITOR_JS,
+    QUESTION_SHAPE_JS,
     QUIZ_HISTORY_JS,
     SIDEBAR_JS,
     WORKSPACE_JS,
@@ -607,22 +609,15 @@ def test_frontend_editor_preserves_displayed_state_outside_regenerated_question(
     assert "сохранены локально" in editor_content
 
 
-def test_frontend_generation_focuses_result_before_explicit_editor_open() -> None:
+def test_frontend_generation_renders_inline_editor_in_result_screen() -> None:
     content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
     index_content = INDEX_HTML.read_text(encoding="utf-8")
 
     assert "async function submitGeneration" in content
     assert "renderQuizResult(generationPayload)" in content
-    assert "renderQuizEditor(generatedQuiz)" not in content, (
-        "submitGeneration must not auto-present the freshly generated quiz in the editor"
-    )
-    assert "setQuizEditorSummary(generatedQuiz)" not in content, (
-        "submitGeneration must leave editor rendering to the explicit edit action"
-    )
-    assert "Квиз готов. Нажмите «Редактировать квиз», чтобы открыть редактор." in content, (
-        "generation completion must explain the explicit edit action in Russian"
-    )
+    assert "presentQuizInline(generatedQuiz" in content
+    assert "presentQuizInline: quizEditor.presentQuizInline" in app_content
     assert "focusResultView()" in content
     assert 'id="generation-result"' in index_content and 'tabindex="-1"' in index_content
     assert "function focusResultView" in app_content
@@ -2033,6 +2028,40 @@ def test_frontend_progress_marks_active_step_with_aria_current() -> None:
     assert 'target.removeAttribute("aria-current")' in progress_content, (
         "non-active stepper items must drop aria-current"
     )
+
+
+def test_frontend_question_shape_exposes_backend_shaped_draft_helpers() -> None:
+    content = QUESTION_SHAPE_JS.read_text(encoding="utf-8")
+
+    for helper in (
+        "createEmptyQuestion",
+        "changeQuestionType",
+        "validateEditableQuiz",
+        "moveQuestionById",
+    ):
+        assert f"export function {helper}" in content
+    assert "correct_option_index" in content
+    assert "correct_answer" in content
+    assert "matching_pairs" in content
+    assert "Верно" in content
+    assert "Неверно" in content
+
+
+def test_frontend_result_screen_hosts_canonical_inline_editor() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+
+    result_section = index_content.split('<section id="generation-result"', 1)[1].split("</section>", 1)[0]
+    assert 'id="quiz-editor-fields"' in result_section
+    assert 'id="save-quiz-button"' in result_section
+    assert 'import { validateEditableQuiz } from "./question-shape.js";' in editor_content
+    assert "validateEditableQuiz(updatePayload)" in editor_content
+    assert 'deleteOptionButton.textContent = "×"' in editor_content
+    assert 'deleteOptionButton.setAttribute("aria-label"' in editor_content
+    assert 'deleteOptionButton.setAttribute("aria-disabled", "true")' in editor_content
+    assert '.editor-option-row[data-correct="true"]' in quiz_css
+    assert ".option-delete-action:focus-visible" in quiz_css
 
 
 def test_frontend_app_warns_before_unloading_dirty_editor() -> None:

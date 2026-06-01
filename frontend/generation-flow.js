@@ -113,6 +113,7 @@ export function createGenerationFlow({
   setExportAvailability,
   clearQuizResult,
   renderQuizResult,
+  presentQuizInline = null,
   focusResultView = null,
   advanceStepper,
   markStepperFailed,
@@ -825,6 +826,9 @@ export function createGenerationFlow({
       renderQuizResult(generationPayload);
       shouldFlushGenerationEvents = true;
       const generatedQuiz = generationPayload.quiz ?? {};
+      if (typeof presentQuizInline === "function") {
+        presentQuizInline(generatedQuiz, { language: generationBody.language });
+      }
       if (typeof saveQuizToHistory === "function") {
         saveQuizToHistory({
           quiz_id: generationPayload.quiz_id ?? generatedQuiz.quiz_id,

@@ -314,3 +314,34 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
+
+.editor-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.editor-option-row[data-correct="true"] {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.option-delete-action {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+  color: var(--ink-3);
+  font-size: 1.25rem;
+  cursor: not-allowed;
+}
+
+.option-delete-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

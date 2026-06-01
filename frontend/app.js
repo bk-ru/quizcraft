@@ -546,7 +546,7 @@ const generationSettings = createGenerationSettingsController({
 const quizRenderer = createQuizRenderer({
   resultPanel,
   resultStateBadge,
-  questionList,
+  questionList: null,
   setTextContent,
   setExportAvailability,
   advanceStepper: progressController.advanceStepper,
@@ -619,6 +619,7 @@ const generationFlow = createGenerationFlow({
   setExportAvailability,
   clearQuizResult: quizRenderer.clearQuizResult,
   renderQuizResult: quizRenderer.renderQuizResult,
+  presentQuizInline: quizEditor.presentQuizInline,
   focusResultView,
   advanceStepper: progressController.advanceStepper,
   markStepperFailed: progressController.markStepperFailed,
@@ -686,6 +687,7 @@ async function openQuizFromHistory(quizId) {
       quiz_id: normalizedQuizId,
       quiz: payload.quiz ?? {},
     });
+    quizEditor.presentQuizInline(payload.quiz ?? {}, { language: payload.language });
     quizHistory.saveQuizToHistory({
       quiz_id: normalizedQuizId,
       title: payload.quiz?.title,

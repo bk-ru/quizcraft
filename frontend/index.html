@@ -392,6 +392,13 @@
           <button id="edit-quiz-shortcut" class="ghost-action" type="button" disabled aria-describedby="edit-shortcut-hint">Редактировать квиз</button>
           <span id="edit-shortcut-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
         </div>
+        <div id="quiz-editor-actions" class="form-actions inline-editor-actions">
+          <button id="save-quiz-button" class="primary-action" type="button" disabled aria-describedby="save-quiz-hint">Сохранить изменения<span class="visually-hidden"> (<kbd>Ctrl/⌘</kbd> + <kbd>S</kbd>)</span></button>
+          <span id="save-quiz-hint" class="visually-hidden">Доступно после загрузки квиза и изменения хотя бы одного поля.</span>
+        </div>
+        <div id="quiz-editor-fields" class="editor-fields inline-editor-fields" aria-live="polite">
+          <p class="field-hint">После генерации или загрузки квиза здесь появятся редактируемые поля.</p>
+        </div>
         <ol id="quiz-question-list" class="question-list" aria-live="polite"></ol>
       </section>
 
@@ -453,13 +460,6 @@
               </div>
             </dl>
           </details>
-          <div id="quiz-editor-actions" class="form-actions">
-            <button id="save-quiz-button" class="primary-action" type="button" disabled aria-describedby="save-quiz-hint">Сохранить изменения<span class="visually-hidden"> (<kbd>Ctrl/⌘</kbd> + <kbd>S</kbd>)</span></button>
-            <span id="save-quiz-hint" class="visually-hidden">Доступно после загрузки квиза и изменения хотя бы одного поля.</span>
-          </div>
-          <div id="quiz-editor-fields" class="editor-fields" aria-live="polite">
-            <p class="field-hint">После загрузки квиза здесь появятся редактируемые поля.</p>
-          </div>
           <div class="result-actions editor-export-actions" id="editor-export-actions" hidden>
             <div class="split-button" id="editor-export-split">
               <button id="editor-export-json-button" class="secondary-action split-button-main" type="button" disabled aria-describedby="editor-export-json-hint">
