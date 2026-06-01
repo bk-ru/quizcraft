@@ -1,9 +1,11 @@
 import { QuizCraftApiError } from "./api/client.js";
 import {
+  addMatchingPair,
   changeQuestionType,
   createEmptyQuestion,
   duplicateQuestion,
   moveQuestionById,
+  removeMatchingPair,
   validateEditableQuiz,
 } from "./question-shape.js";
 import { createUndoStack } from "./undo-stack.js";
@@ -43,6 +45,8 @@ const STRUCTURAL_ACTIONS = new Set([
   "add-question",
   "add-option",
   "delete-option",
+  "add-matching-pair",
+  "delete-matching-pair",
   "undo-structural-edit",
 ]);
 
@@ -345,6 +349,17 @@ export function createQuizEditor({
     });
   }
 
+  function getAlphabeticBadge(index) {
+    let value = index + 1;
+    let badge = "";
+    while (value > 0) {
+      value -= 1;
+      badge = String.fromCharCode(65 + (value % 26)) + badge;
+      value = Math.floor(value / 26);
+    }
+    return badge;
+  }
+
   function buildQuestionEditor(question, index, questionCount) {
     const article = documentRef.createElement("article");
     article.className = "editor-card";
@@ -499,16 +514,57 @@ export function createQuizEditor({
       updateCorrectOptionState(article);
     } else if (question.question_type === "matching") {
       const pairsGrid = documentRef.createElement("div");
-      pairsGrid.className = "editor-options";
+      pairsGrid.className = "matching-pairs-editor";
       const pairs = Array.isArray(question.matching_pairs) ? question.matching_pairs : [];
       pairs.forEach((pair, pairIndex) => {
+        const pairRow = documentRef.createElement("div");
+        pairRow.className = "matching-pair-row";
         const leftField = createEditorField(`Левая часть ${pairIndex + 1}`, createEditorInput(pair.left ?? ""));
+        leftField.classList.add("matching-pair-cell");
         leftField.querySelector("input")?.setAttribute("data-editor-field", "matching-left");
+        leftField.querySelector("input")?.setAttribute("aria-label", `Левая часть пары ${pairIndex + 1}`);
+        const leftBadge = documentRef.createElement("span");
+        leftBadge.className = "matching-pair-badge";
+        leftBadge.textContent = String(pairIndex + 1);
+        leftField.querySelector(".field-label")?.after(leftBadge);
+
+        const link = documentRef.createElement("span");
+        link.className = "matching-pair-link";
+        link.textContent = "↔";
+        link.setAttribute("aria-hidden", "true");
+
         const rightField = createEditorField(`Правая часть ${pairIndex + 1}`, createEditorInput(pair.right ?? ""));
+        rightField.classList.add("matching-pair-cell");
         rightField.querySelector("input")?.setAttribute("data-editor-field", "matching-right");
-        pairsGrid.append(leftField, rightField);
+        rightField.querySelector("input")?.setAttribute("aria-label", `Правая часть пары ${pairIndex + 1}`);
+        const rightBadge = documentRef.createElement("span");
+        rightBadge.className = "matching-pair-badge";
+        rightBadge.textContent = getAlphabeticBadge(pairIndex);
+        rightField.querySelector(".field-label")?.after(rightBadge);
+
+        const deletePairButton = documentRef.createElement("button");
+        deletePairButton.className = "matching-pair-delete";
+        deletePairButton.type = "button";
+        deletePairButton.textContent = "×";
+        deletePairButton.disabled = pairs.length <= 4;
+        deletePairButton.dataset.pairIndex = String(pairIndex);
+        deletePairButton.setAttribute("data-editor-action", "delete-matching-pair");
+        deletePairButton.setAttribute("aria-label", `Удалить пару ${pairIndex + 1}`);
+        deletePairButton.title = deletePairButton.disabled
+          ? "Для сопоставления нужны минимум 4 пары."
+          : "Удалить пару.";
+
+        pairRow.append(leftField, link, rightField, deletePairButton);
+        pairsGrid.append(pairRow);
       });
       article.append(pairsGrid);
+
+      const addPairButton = documentRef.createElement("button");
+      addPairButton.className = "ghost-action matching-pair-add";
+      addPairButton.type = "button";
+      addPairButton.textContent = "Добавить пару";
+      addPairButton.setAttribute("data-editor-action", "add-matching-pair");
+      article.append(addPairButton);
     } else {
       const correctAnswerField = createEditorField("Правильный ответ", createEditorInput(question.correct_answer ?? ""));
       correctAnswerField.querySelector("input")?.setAttribute("data-editor-field", "correct-answer");
@@ -701,6 +757,16 @@ export function createQuizEditor({
       }
     } else if (actionName === "add-option" && question?.question_type === "single_choice" && question.options.length < 4) {
       question.options.push(createEmptyQuestion("single_choice").options[0]);
+    } else if (actionName === "add-matching-pair" && question?.question_type === "matching") {
+      questions[questionIndex] = addMatchingPair(question);
+    } else if (actionName === "delete-matching-pair" && question?.question_type === "matching") {
+      const pairIndex = Number.parseInt(action.dataset.pairIndex ?? "", 10);
+      const updatedQuestion = removeMatchingPair(question, pairIndex);
+      if (updatedQuestion === question) {
+        setEditorStatus("Для сопоставления нужны минимум 4 пары.", "warn");
+        return;
+      }
+      questions[questionIndex] = updatedQuestion;
     } else {
       return;
     }

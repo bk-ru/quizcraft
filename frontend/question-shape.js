@@ -79,6 +79,31 @@ export function duplicateQuestion(question, { idFactory } = {}) {
   return copy;
 }
 
+export function addMatchingPair(question) {
+  if (question?.question_type !== "matching") {
+    throw new Error("Добавлять пары можно только в вопрос сопоставления.");
+  }
+  const pairs = Array.isArray(question.matching_pairs) ? question.matching_pairs : [];
+  return {
+    ...question,
+    matching_pairs: [...pairs, { left: "", right: "" }],
+  };
+}
+
+export function removeMatchingPair(question, pairIndex) {
+  if (question?.question_type !== "matching") {
+    throw new Error("Удалять пары можно только из вопроса сопоставления.");
+  }
+  const pairs = Array.isArray(question.matching_pairs) ? question.matching_pairs : [];
+  if (!Number.isInteger(pairIndex) || pairIndex < 0 || pairIndex >= pairs.length || pairs.length <= 4) {
+    return question;
+  }
+  return {
+    ...question,
+    matching_pairs: pairs.filter((_, index) => index !== pairIndex),
+  };
+}
+
 function addError(errors, questionIndex, message) {
   errors.push(`Вопрос ${questionIndex + 1}: ${message}`);
 }

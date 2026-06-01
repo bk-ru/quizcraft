@@ -2102,6 +2102,26 @@ def test_frontend_inline_editor_exposes_structural_actions_and_undo() -> None:
     assert ".editor-card:focus-within .question-reorder-actions" in quiz_css
 
 
+def test_frontend_matching_editor_uses_dedicated_pair_rows_without_distractors() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    shape_content = QUESTION_SHAPE_JS.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+
+    assert "export function addMatchingPair" in shape_content
+    assert "export function removeMatchingPair" in shape_content
+    assert 'pairsGrid.className = "matching-pairs-editor"' in editor_content
+    assert 'pairRow.className = "matching-pair-row"' in editor_content
+    assert '.className = "matching-pair-badge"' in editor_content
+    assert 'link.className = "matching-pair-link"' in editor_content
+    assert 'data-editor-action", "add-matching-pair"' in editor_content
+    assert 'data-editor-action", "delete-matching-pair"' in editor_content
+    assert "Для сопоставления нужны минимум 4 пары." in editor_content
+    assert "distractors" not in editor_content
+    assert "Лишние варианты" not in editor_content
+    assert ".matching-pair-row:hover .matching-pair-delete" in quiz_css
+    assert ".matching-pair-row:focus-within .matching-pair-delete" in quiz_css
+
+
 def test_frontend_app_warns_before_unloading_dirty_editor() -> None:
     app_content = APP_JS.read_text(encoding="utf-8")
 
