@@ -6,6 +6,7 @@ import { createGenerationSettingsController } from "./generation-settings.js";
 import { createKeyboardShortcuts } from "./keyboard.js";
 import { createConfirmModal } from "./modal.js";
 import { createProgressController } from "./progress.js";
+import { createPlayablePreview } from "./preview-mode.js";
 import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
 import { createGenTiming } from "./gen-timing.js";
@@ -42,6 +43,7 @@ const quizEditorFields = document.getElementById("quiz-editor-fields");
 const undoQuizEditButton = document.getElementById("undo-quiz-edit-button");
 const addQuestionButton = document.getElementById("add-question-button");
 const addQuestionTypeSelect = document.getElementById("add-question-type");
+const previewQuizButton = document.getElementById("preview-quiz-button");
 const exportJsonButton = document.getElementById("export-json-button");
 const exportDocxButton = document.getElementById("export-docx-button");
 const exportPptxButton = document.getElementById("export-pptx-button");
@@ -377,6 +379,7 @@ function setExportAvailability(quizId) {
     toggleUnavailableHint(exportButton.editorButton, exportButton.editorHintId, !(hasQuiz && supported));
   }
   toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !hasQuiz);
+  toggleUnavailableHint(previewQuizButton, "preview-quiz-hint", !hasQuiz);
   if (exportSplitToggle) {
     exportSplitToggle.disabled = !hasQuiz;
   }
@@ -647,6 +650,12 @@ const quizExporter = createQuizExporter({
   backendBaseUrl,
   client,
   editorState,
+  showToast: toastController.showToast,
+});
+
+const previewMode = createPlayablePreview({
+  modalRegion,
+  getQuizSnapshot: quizEditor.buildQuizUpdatePayload,
   showToast: toastController.showToast,
 });
 
@@ -1002,6 +1011,7 @@ window.addEventListener("beforeunload", (event) => {
   event.returnValue = "";
 });
 generationFlow.attachDropzone();
+previewQuizButton?.addEventListener("click", previewMode.open);
 exportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
 exportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
 exportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);

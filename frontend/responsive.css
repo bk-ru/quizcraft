@@ -71,6 +71,16 @@
 }
 
 @media (max-width: 620px) {
+  .quiz-preview-modal {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+  }
+
+  .preview-matching-row {
+    grid-template-columns: 1fr;
+  }
+
   .settings-status-grid {
     grid-template-columns: 1fr;
   }

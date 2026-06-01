@@ -20,6 +20,7 @@ QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
 QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
 QUESTION_SHAPE_JS = FRONTEND_DIR / "question-shape.js"
 UNDO_STACK_JS = FRONTEND_DIR / "undo-stack.js"
+PREVIEW_MODE_JS = FRONTEND_DIR / "preview-mode.js"
 QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 SIDEBAR_JS = FRONTEND_DIR / "sidebar.js"
 WORKSPACE_JS = FRONTEND_DIR / "workspace.js"
@@ -39,6 +40,7 @@ FRONTEND_JS_MODULES = (
     QUIZ_EDITOR_JS,
     QUESTION_SHAPE_JS,
     UNDO_STACK_JS,
+    PREVIEW_MODE_JS,
     QUIZ_HISTORY_JS,
     SIDEBAR_JS,
     WORKSPACE_JS,
@@ -2142,6 +2144,36 @@ def test_frontend_question_regeneration_uses_stable_snapshot_and_compact_busy_st
     assert ".editor-card.is-regenerating .editor-card-content" in quiz_css
     assert ".question-regenerate-overlay" in quiz_css
     assert "@keyframes question-regeneration-pulse" in quiz_css
+
+
+def test_frontend_playable_preview_supports_all_question_types_without_mutating_editor() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    preview_content = PREVIEW_MODE_JS.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    responsive_css = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
+
+    assert 'id="preview-quiz-button"' in index_content
+    assert 'id="preview-quiz-hint"' in index_content
+    assert 'import { createPlayablePreview } from "./preview-mode.js";' in app_content
+    assert "createPlayablePreview({" in app_content
+    assert 'previewQuizButton?.addEventListener("click", previewMode.open)' in app_content
+    assert "export function clonePreviewQuiz" in preview_content
+    assert "export function shufflePreviewValues" in preview_content
+    assert "function ensureChangedOrder" in preview_content
+    assert "export function gradeQuizPreview" in preview_content
+    assert "validateEditableQuiz" in preview_content
+    for question_type in ("single_choice", "true_false", "fill_blank", "short_answer", "matching"):
+        assert question_type in preview_content
+    assert "matching_pairs" in preview_content
+    assert "distractors" not in preview_content
+    assert 'dialog.addEventListener("cancel"' in preview_content
+    assert ".target === dialog" in preview_content
+    assert "restoreFocus" in preview_content
+    assert ".preview-question" in quiz_css
+    assert ".quiz-preview-modal" in layout_css
+    assert ".quiz-preview-modal" in responsive_css
 
 
 def test_frontend_app_warns_before_unloading_dirty_editor() -> None:
