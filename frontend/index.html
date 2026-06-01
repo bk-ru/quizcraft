@@ -394,10 +394,24 @@
         </div>
         <div id="quiz-editor-actions" class="form-actions inline-editor-actions">
           <button id="save-quiz-button" class="primary-action" type="button" disabled aria-describedby="save-quiz-hint">Сохранить изменения<span class="visually-hidden"> (<kbd>Ctrl/⌘</kbd> + <kbd>S</kbd>)</span></button>
+          <button id="undo-quiz-edit-button" class="secondary-action" type="button" data-editor-action="undo-structural-edit" disabled>Отменить последнее изменение</button>
           <span id="save-quiz-hint" class="visually-hidden">Доступно после загрузки квиза и изменения хотя бы одного поля.</span>
         </div>
         <div id="quiz-editor-fields" class="editor-fields inline-editor-fields" aria-live="polite">
           <p class="field-hint">После генерации или загрузки квиза здесь появятся редактируемые поля.</p>
+        </div>
+        <div class="form-actions inline-editor-add-actions">
+          <label class="field inline-editor-add-type">
+            <span class="field-label">Тип нового вопроса</span>
+            <select id="add-question-type" disabled>
+              <option value="single_choice">Одиночный выбор</option>
+              <option value="true_false">Верно / Неверно</option>
+              <option value="fill_blank">Заполнить пропуск</option>
+              <option value="short_answer">Краткий ответ</option>
+              <option value="matching">Сопоставление</option>
+            </select>
+          </label>
+          <button id="add-question-button" class="secondary-action" type="button" data-editor-action="add-question" disabled>Добавить вопрос</button>
         </div>
         <ol id="quiz-question-list" class="question-list" aria-live="polite"></ol>
       </section>

@@ -19,6 +19,7 @@ VALIDATION_ERRORS_JS = FRONTEND_DIR / "validation-errors.js"
 QUIZ_RENDERER_JS = FRONTEND_DIR / "quiz-renderer.js"
 QUIZ_EDITOR_JS = FRONTEND_DIR / "quiz-editor.js"
 QUESTION_SHAPE_JS = FRONTEND_DIR / "question-shape.js"
+UNDO_STACK_JS = FRONTEND_DIR / "undo-stack.js"
 QUIZ_HISTORY_JS = FRONTEND_DIR / "quiz-history.js"
 SIDEBAR_JS = FRONTEND_DIR / "sidebar.js"
 WORKSPACE_JS = FRONTEND_DIR / "workspace.js"
@@ -37,6 +38,7 @@ FRONTEND_JS_MODULES = (
     QUIZ_RENDERER_JS,
     QUIZ_EDITOR_JS,
     QUESTION_SHAPE_JS,
+    UNDO_STACK_JS,
     QUIZ_HISTORY_JS,
     SIDEBAR_JS,
     WORKSPACE_JS,
@@ -2055,13 +2057,49 @@ def test_frontend_result_screen_hosts_canonical_inline_editor() -> None:
     result_section = index_content.split('<section id="generation-result"', 1)[1].split("</section>", 1)[0]
     assert 'id="quiz-editor-fields"' in result_section
     assert 'id="save-quiz-button"' in result_section
-    assert 'import { validateEditableQuiz } from "./question-shape.js";' in editor_content
+    assert "validateEditableQuiz," in editor_content
+    assert '} from "./question-shape.js";' in editor_content
     assert "validateEditableQuiz(updatePayload)" in editor_content
     assert 'deleteOptionButton.textContent = "×"' in editor_content
     assert 'deleteOptionButton.setAttribute("aria-label"' in editor_content
-    assert 'deleteOptionButton.setAttribute("aria-disabled", "true")' in editor_content
+    assert 'data-editor-action", "delete-option"' in editor_content
     assert '.editor-option-row[data-correct="true"]' in quiz_css
     assert ".option-delete-action:focus-visible" in quiz_css
+
+
+def test_frontend_inline_editor_exposes_structural_actions_and_undo() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    undo_stack_content = UNDO_STACK_JS.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+
+    assert 'id="undo-quiz-edit-button"' in index_content
+    assert 'id="add-question-button"' in index_content
+    assert 'from "./undo-stack.js"' in editor_content
+    for helper in (
+        "createEmptyQuestion",
+        "changeQuestionType",
+        "duplicateQuestion",
+        "moveQuestionById",
+    ):
+        assert helper in editor_content
+    for action in (
+        "change-question-type",
+        "duplicate-question",
+        "delete-question",
+        "move-question-up",
+        "move-question-down",
+        "add-question",
+        "undo-structural-edit",
+    ):
+        assert action in editor_content
+    assert "createUndoStack" in undo_stack_content
+    assert "limit = 50" in undo_stack_content
+    assert "quizEditor.handleStructuralAction" in app_content
+    assert "quizEditor.undoLastStructuralEdit" in app_content
+    assert ".question-reorder-actions" in quiz_css
+    assert ".editor-card:focus-within .question-reorder-actions" in quiz_css
 
 
 def test_frontend_app_warns_before_unloading_dirty_editor() -> None:

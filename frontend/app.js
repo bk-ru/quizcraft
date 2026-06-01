@@ -39,6 +39,9 @@ const quizIdInput = document.getElementById("quiz-id-input");
 const loadQuizButton = document.getElementById("load-quiz-button");
 const saveQuizButton = document.getElementById("save-quiz-button");
 const quizEditorFields = document.getElementById("quiz-editor-fields");
+const undoQuizEditButton = document.getElementById("undo-quiz-edit-button");
+const addQuestionButton = document.getElementById("add-question-button");
+const addQuestionTypeSelect = document.getElementById("add-question-type");
 const exportJsonButton = document.getElementById("export-json-button");
 const exportDocxButton = document.getElementById("export-docx-button");
 const exportPptxButton = document.getElementById("export-pptx-button");
@@ -568,6 +571,9 @@ const quizEditor = createQuizEditor({
   loadQuizButton,
   saveQuizButton,
   quizEditorFields,
+  undoQuizEditButton,
+  addQuestionButton,
+  addQuestionTypeSelect,
   setTextContent,
   setEditorStatus,
   setLogMessage,
@@ -1123,6 +1129,10 @@ quizEditorFields?.addEventListener("input", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("change", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("click", quizEditor.regenerateQuizQuestion);
 quizEditorFields?.addEventListener("click", quizEditor.revertQuestionEdits);
+quizEditorFields?.addEventListener("click", quizEditor.handleStructuralAction);
+quizEditorFields?.addEventListener("change", quizEditor.handleStructuralAction);
+addQuestionButton?.addEventListener("click", quizEditor.handleStructuralAction);
+undoQuizEditButton?.addEventListener("click", quizEditor.undoLastStructuralEdit);
 saveQuizButton?.addEventListener("click", quizEditor.submitQuizEdits);
 quizEditorFields?.addEventListener("click", (event) => {
   const cancelTarget = event.target instanceof Element

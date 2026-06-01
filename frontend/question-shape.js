@@ -58,6 +58,27 @@ export function changeQuestionType(question, nextType, { idFactory } = {}) {
   };
 }
 
+export function duplicateQuestion(question, { idFactory } = {}) {
+  const copy = {
+    ...question,
+    question_id: createId(idFactory, "question"),
+    options: Array.isArray(question?.options)
+      ? question.options.map((option) => ({
+        ...option,
+        option_id: createId(idFactory, "option"),
+      }))
+      : [],
+    matching_pairs: Array.isArray(question?.matching_pairs)
+      ? question.matching_pairs.map((pair) => ({
+        left: pair?.left ?? "",
+        right: pair?.right ?? "",
+      }))
+      : [],
+    explanation: question?.explanation?.text ? { text: question.explanation.text } : null,
+  };
+  return copy;
+}
+
 function addError(errors, questionIndex, message) {
   errors.push(`Вопрос ${questionIndex + 1}: ${message}`);
 }

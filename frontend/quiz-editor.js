@@ -1,5 +1,12 @@
 import { QuizCraftApiError } from "./api/client.js";
-import { validateEditableQuiz } from "./question-shape.js";
+import {
+  changeQuestionType,
+  createEmptyQuestion,
+  duplicateQuestion,
+  moveQuestionById,
+  validateEditableQuiz,
+} from "./question-shape.js";
+import { createUndoStack } from "./undo-stack.js";
 
 export function cloneQuizPayload(quiz) {
   if (typeof structuredClone === "function") {
@@ -27,6 +34,17 @@ const QUESTION_TYPE_LABELS = Object.freeze({
   short_answer: "Краткий ответ",
   matching: "Сопоставление",
 });
+const STRUCTURAL_ACTIONS = new Set([
+  "change-question-type",
+  "duplicate-question",
+  "delete-question",
+  "move-question-up",
+  "move-question-down",
+  "add-question",
+  "add-option",
+  "delete-option",
+  "undo-structural-edit",
+]);
 
 export function createQuizEditor({
   editorState,
@@ -36,6 +54,9 @@ export function createQuizEditor({
   loadQuizButton,
   saveQuizButton,
   quizEditorFields,
+  undoQuizEditButton,
+  addQuestionButton,
+  addQuestionTypeSelect,
   setTextContent,
   setEditorStatus,
   setLogMessage,
@@ -51,7 +72,70 @@ export function createQuizEditor({
 }, documentRef = document) {
   const askForConfirmation = typeof confirmAction === "function" ? confirmAction : defaultConfirmAction;
   const lookupLanguage = typeof getLanguageForQuiz === "function" ? getLanguageForQuiz : null;
+  const undoStack = createUndoStack({});
   let activeRegenerationController = null;
+  let savedQuiz = null;
+  let currentClientQuiz = null;
+  let fieldEditTimer = null;
+  let fieldEditOpen = false;
+
+  function updateUndoButtonState() {
+    if (undoQuizEditButton) {
+      undoQuizEditButton.disabled = !undoStack.canUndo;
+    }
+  }
+
+  function setStructuralControlState(hasQuiz) {
+    if (addQuestionButton) {
+      addQuestionButton.disabled = !hasQuiz;
+    }
+    if (addQuestionTypeSelect) {
+      addQuestionTypeSelect.disabled = !hasQuiz;
+    }
+    updateUndoButtonState();
+  }
+
+  function closeFieldEditGroup() {
+    if (fieldEditTimer) {
+      clearTimeout(fieldEditTimer);
+      fieldEditTimer = null;
+    }
+    fieldEditOpen = false;
+  }
+
+  function resetUndoHistory() {
+    closeFieldEditGroup();
+    undoStack.clear();
+    updateUndoButtonState();
+  }
+
+  function pushUndoSnapshot(snapshot) {
+    if (!snapshot) {
+      return;
+    }
+    undoStack.push(snapshot);
+    updateUndoButtonState();
+  }
+
+  function isSavedQuiz(quiz) {
+    return Boolean(savedQuiz) && JSON.stringify(quiz) === JSON.stringify(savedQuiz);
+  }
+
+  function setLocalQuizState(quiz, message) {
+    renderQuizEditor(quiz);
+    const hasUnsavedChanges = !isSavedQuiz(quiz);
+    editorState.isDirty = hasUnsavedChanges;
+    if (hasUnsavedChanges) {
+      quizEditorFields?.querySelectorAll(".editor-card").forEach((card) => card.classList.add("is-dirty"));
+    }
+    setEditorSaveState({ disabled: !hasUnsavedChanges });
+    setEditorStatus(
+      hasUnsavedChanges ? message : "Все локальные изменения отменены.",
+      hasUnsavedChanges ? "warn" : "ok",
+    );
+    updateUndoButtonState();
+  }
+
   function setEditorBusyState(isBusy) {
     if (!quizEditorLoader) {
       return;
@@ -115,6 +199,19 @@ export function createQuizEditor({
     if (!editorState.loadedQuiz) {
       return;
     }
+    const target = event?.target instanceof Element ? event.target : null;
+    if (target?.matches('[data-editor-action="change-question-type"]')) {
+      return;
+    }
+    if (!fieldEditOpen) {
+      pushUndoSnapshot(currentClientQuiz ?? buildQuizUpdatePayload());
+      fieldEditOpen = true;
+    }
+    currentClientQuiz = buildQuizUpdatePayload();
+    if (fieldEditTimer) {
+      clearTimeout(fieldEditTimer);
+    }
+    fieldEditTimer = setTimeout(closeFieldEditGroup, 350);
     editorState.isDirty = true;
     setEditorSaveState({ disabled: false });
     setEditorStatus("Изменения пока не сохранены.", "warn");
@@ -158,15 +255,15 @@ export function createQuizEditor({
       return;
     }
     const questionId = card.dataset.questionId;
-    const questions = Array.isArray(editorState.loadedQuiz.questions)
-      ? editorState.loadedQuiz.questions
+    const questions = Array.isArray(savedQuiz?.questions)
+      ? savedQuiz.questions
       : [];
     const original = questions.find((q) => q.question_id === questionId);
     if (!original) {
       return;
     }
     const index = questions.indexOf(original);
-    const freshCard = buildQuestionEditor(original, index);
+    const freshCard = buildQuestionEditor(original, index, questions.length);
     card.replaceWith(freshCard);
     const anyDirty = Boolean(quizEditorFields?.querySelector(".editor-card.is-dirty"));
     if (!anyDirty) {
@@ -174,6 +271,7 @@ export function createQuizEditor({
       setEditorSaveState({ disabled: true });
       setEditorStatus("Квиз загружен в режим редактирования. Можно вносить изменения и сохранять их.", "ok");
     }
+    currentClientQuiz = buildQuizUpdatePayload();
   }
 
   function setQuizEditorSummary(quiz) {
@@ -187,6 +285,10 @@ export function createQuizEditor({
     editorState.loadedQuiz = null;
     editorState.isDirty = false;
     editorState.loadedQuizLanguage = null;
+    savedQuiz = null;
+    currentClientQuiz = null;
+    resetUndoHistory();
+    setStructuralControlState(false);
     setQuizEditorSummary({});
     setEditorSaveState({ disabled: true });
     if (quizEditorFields) {
@@ -233,7 +335,17 @@ export function createQuizEditor({
     return textarea;
   }
 
-  function buildQuestionEditor(question, index) {
+  function populateQuestionTypeOptions(select, selectedType) {
+    Object.entries(QUESTION_TYPE_LABELS).forEach(([questionType, label]) => {
+      const option = documentRef.createElement("option");
+      option.value = questionType;
+      option.textContent = label;
+      option.selected = questionType === selectedType;
+      select.append(option);
+    });
+  }
+
+  function buildQuestionEditor(question, index, questionCount) {
     const article = documentRef.createElement("article");
     article.className = "editor-card";
     article.dataset.questionId = question.question_id ?? `question-${index + 1}`;
@@ -244,6 +356,12 @@ export function createQuizEditor({
     const badge = documentRef.createElement("span");
     badge.className = "question-index";
     badge.textContent = `Вопрос ${index + 1} · ${QUESTION_TYPE_LABELS[question.question_type] ?? "Тип не указан"}`;
+
+    const questionTypeSelect = documentRef.createElement("select");
+    questionTypeSelect.className = "question-type-pill";
+    questionTypeSelect.setAttribute("data-editor-action", "change-question-type");
+    questionTypeSelect.setAttribute("aria-label", `Изменить тип вопроса ${index + 1}`);
+    populateQuestionTypeOptions(questionTypeSelect, question.question_type);
 
     const note = documentRef.createElement("p");
     note.className = "panel-copy";
@@ -282,8 +400,44 @@ export function createQuizEditor({
     revertButton.setAttribute("aria-label", `Отменить правки вопроса ${index + 1}`);
     revertButton.hidden = true;
 
-    header.append(badge, note, regenerateButton, cancelRegenerateButton, regenerationStatus, revertButton);
-    article.append(header);
+    const duplicateButton = documentRef.createElement("button");
+    duplicateButton.className = "ghost-action question-structure-action";
+    duplicateButton.type = "button";
+    duplicateButton.textContent = "Дублировать";
+    duplicateButton.setAttribute("data-editor-action", "duplicate-question");
+    duplicateButton.setAttribute("aria-label", `Дублировать вопрос ${index + 1}`);
+
+    const deleteButton = documentRef.createElement("button");
+    deleteButton.className = "ghost-action question-structure-action";
+    deleteButton.type = "button";
+    deleteButton.textContent = "Удалить";
+    deleteButton.setAttribute("data-editor-action", "delete-question");
+    deleteButton.setAttribute("aria-label", `Удалить вопрос ${index + 1}`);
+
+    const reorderActions = documentRef.createElement("div");
+    reorderActions.className = "question-reorder-actions";
+    const moveUpButton = documentRef.createElement("button");
+    moveUpButton.className = "question-reorder-action";
+    moveUpButton.type = "button";
+    moveUpButton.textContent = "↑";
+    moveUpButton.disabled = index === 0;
+    moveUpButton.setAttribute("data-editor-action", "move-question-up");
+    moveUpButton.setAttribute("aria-label", `Переместить вопрос ${index + 1} вверх`);
+    const moveDownButton = documentRef.createElement("button");
+    moveDownButton.className = "question-reorder-action";
+    moveDownButton.type = "button";
+    moveDownButton.textContent = "↓";
+    moveDownButton.disabled = index === questionCount - 1;
+    moveDownButton.setAttribute("data-editor-action", "move-question-down");
+    moveDownButton.setAttribute("aria-label", `Переместить вопрос ${index + 1} вниз`);
+    reorderActions.append(moveUpButton, moveDownButton);
+
+    const cardActions = documentRef.createElement("div");
+    cardActions.className = "question-structure-actions";
+    cardActions.append(questionTypeSelect, duplicateButton, deleteButton);
+
+    header.append(badge, cardActions, note, regenerateButton, cancelRegenerateButton, regenerationStatus, revertButton);
+    article.append(header, reorderActions);
 
     const promptField = createEditorField("Текст вопроса", createEditorTextarea(question.prompt ?? "", 3));
     promptField.querySelector("textarea")?.setAttribute("data-editor-field", "prompt");
@@ -309,12 +463,26 @@ export function createQuizEditor({
         deleteOptionButton.type = "button";
         deleteOptionButton.textContent = "×";
         deleteOptionButton.setAttribute("aria-label", `Удалить вариант ${optionIndex + 1}`);
-        deleteOptionButton.setAttribute("aria-disabled", "true");
-        deleteOptionButton.title = "Удаление вариантов будет доступно на следующем этапе.";
+        deleteOptionButton.setAttribute("data-editor-action", "delete-option");
+        deleteOptionButton.dataset.optionIndex = String(optionIndex);
+        deleteOptionButton.disabled = question.question_type === "true_false";
+        deleteOptionButton.title = deleteOptionButton.disabled
+          ? "Для формата «Верно / Неверно» используются фиксированные варианты."
+          : "Удалить вариант ответа.";
         optionRow.append(optionField, deleteOptionButton);
         optionsGrid.append(optionRow);
       });
       article.append(optionsGrid);
+
+      if (question.question_type === "single_choice") {
+        const addOptionButton = documentRef.createElement("button");
+        addOptionButton.className = "ghost-action question-option-add";
+        addOptionButton.type = "button";
+        addOptionButton.textContent = "Добавить вариант";
+        addOptionButton.disabled = options.length >= 4;
+        addOptionButton.setAttribute("data-editor-action", "add-option");
+        article.append(addOptionButton);
+      }
 
       const correctAnswerSelect = documentRef.createElement("select");
       options.forEach((option, optionIndex) => {
@@ -385,7 +553,7 @@ export function createQuizEditor({
 
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
     questions.forEach((question, index) => {
-      fragment.append(buildQuestionEditor(question, index));
+      fragment.append(buildQuestionEditor(question, index, questions.length));
     });
 
     const note = documentRef.createElement("p");
@@ -395,12 +563,16 @@ export function createQuizEditor({
 
     quizEditorFields.replaceChildren(fragment);
     editorState.loadedQuiz = cloneQuizPayload(quiz);
+    currentClientQuiz = cloneQuizPayload(quiz);
     editorState.isDirty = false;
     quizEditorFields.querySelectorAll(".editor-card.is-dirty").forEach((c) => c.classList.remove("is-dirty"));
     setEditorSaveState({ disabled: true });
+    setStructuralControlState(true);
   }
 
   function presentQuizInline(quiz, { language } = {}) {
+    resetUndoHistory();
+    savedQuiz = cloneQuizPayload(quiz);
     renderQuizEditor(quiz);
     setQuizEditorSummary(quiz);
     editorState.loadedQuizLanguage = resolveQuizLanguage(quiz.quiz_id);
@@ -462,6 +634,93 @@ export function createQuizEditor({
     });
 
     return quiz;
+  }
+
+  async function handleStructuralAction(event) {
+    const action = event?.target instanceof Element
+      ? event.target.closest("[data-editor-action]")
+      : null;
+    const actionName = action?.getAttribute("data-editor-action") ?? "";
+    if (!STRUCTURAL_ACTIONS.has(actionName) || actionName === "undo-structural-edit") {
+      return;
+    }
+    if (actionName === "change-question-type" && event.type !== "change") {
+      return;
+    }
+    if (actionName !== "change-question-type" && event.type === "change") {
+      return;
+    }
+    event.preventDefault();
+    if (!editorState.loadedQuiz) {
+      setEditorStatus("Сначала откройте или сгенерируйте квиз.", "bad");
+      return;
+    }
+
+    closeFieldEditGroup();
+    const snapshot = buildQuizUpdatePayload();
+    const updatedQuiz = cloneQuizPayload(snapshot);
+    const questions = Array.isArray(updatedQuiz.questions) ? updatedQuiz.questions : [];
+    const card = action.closest(".editor-card");
+    const questionId = card instanceof HTMLElement ? card.dataset.questionId : "";
+    const questionIndex = questions.findIndex((question) => question?.question_id === questionId);
+    const question = questionIndex >= 0 ? questions[questionIndex] : null;
+
+    if (actionName === "add-question") {
+      const questionType = addQuestionTypeSelect?.value || "single_choice";
+      questions.push(createEmptyQuestion(questionType));
+    } else if (actionName === "change-question-type" && question && action instanceof HTMLSelectElement) {
+      questions[questionIndex] = changeQuestionType(question, action.value);
+    } else if (actionName === "duplicate-question" && question) {
+      questions.splice(questionIndex + 1, 0, duplicateQuestion(question));
+    } else if (actionName === "delete-question" && question) {
+      const confirmed = await askForConfirmation({
+        title: "Удалить вопрос?",
+        body: "Вопрос будет удалён из текущего черновика. При необходимости действие можно отменить верхней кнопкой.",
+        confirmLabel: "Удалить",
+        cancelLabel: "Оставить вопрос",
+        tone: "warn",
+      });
+      if (!confirmed) {
+        return;
+      }
+      questions.splice(questionIndex, 1);
+    } else if (actionName === "move-question-up" && question) {
+      updatedQuiz.questions = moveQuestionById(questions, question.question_id, "up");
+    } else if (actionName === "move-question-down" && question) {
+      updatedQuiz.questions = moveQuestionById(questions, question.question_id, "down");
+    } else if (actionName === "delete-option" && question?.question_type === "single_choice") {
+      const optionIndex = Number.parseInt(action.dataset.optionIndex ?? "", 10);
+      if (!Number.isInteger(optionIndex) || optionIndex < 0 || optionIndex >= question.options.length) {
+        return;
+      }
+      question.options.splice(optionIndex, 1);
+      if (question.correct_option_index > optionIndex) {
+        question.correct_option_index -= 1;
+      } else if (question.correct_option_index === optionIndex) {
+        question.correct_option_index = question.options.length > 0 ? 0 : null;
+      }
+    } else if (actionName === "add-option" && question?.question_type === "single_choice" && question.options.length < 4) {
+      question.options.push(createEmptyQuestion("single_choice").options[0]);
+    } else {
+      return;
+    }
+
+    if (JSON.stringify(updatedQuiz) === JSON.stringify(snapshot)) {
+      return;
+    }
+    pushUndoSnapshot(snapshot);
+    setLocalQuizState(updatedQuiz, "Структура квиза изменена. Сохраните изменения после проверки.");
+  }
+
+  function undoLastStructuralEdit(event) {
+    event?.preventDefault();
+    closeFieldEditGroup();
+    const snapshot = undoStack.pop();
+    if (!snapshot) {
+      return false;
+    }
+    setLocalQuizState(snapshot, "Последнее изменение отменено. Проверьте квиз перед сохранением.");
+    return true;
   }
 
   async function loadQuizForEditing(event) {
@@ -564,6 +823,8 @@ export function createQuizEditor({
         last_edited_at: persistedQuiz.last_edited_at ?? displayedQuiz.last_edited_at,
       }, regeneratedQuestion);
 
+      pushUndoSnapshot(displayedQuiz);
+      savedQuiz = cloneQuizPayload(response.quiz ?? updatedQuiz);
       renderQuizEditor(updatedQuiz);
       setQuizEditorSummary(updatedQuiz);
       setTextContent("last-quiz-id", response.quiz_id ?? updatedQuiz.quiz_id ?? quizId);
@@ -637,6 +898,8 @@ export function createQuizEditor({
       const reloadResponse = await client.getQuiz(saveResponse.quiz_id ?? editorState.loadedQuiz.quiz_id);
       const persistedQuiz = reloadResponse.quiz ?? saveResponse.quiz ?? updatePayload;
 
+      savedQuiz = cloneQuizPayload(persistedQuiz);
+      resetUndoHistory();
       renderQuizEditor(persistedQuiz);
       setQuizEditorSummary(persistedQuiz);
       setTextContent("last-quiz-id", reloadResponse.quiz_id ?? saveResponse.quiz_id ?? persistedQuiz.quiz_id ?? "Ещё нет");
@@ -673,6 +936,8 @@ export function createQuizEditor({
     setEditorSaveState,
     markEditorDirty,
     revertQuestionEdits,
+    handleStructuralAction,
+    undoLastStructuralEdit,
     buildQuizUpdatePayload,
     loadQuizForEditing,
     regenerateQuizQuestion,

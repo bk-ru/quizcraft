@@ -252,6 +252,7 @@
 }
 
 .editor-card {
+  position: relative;
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -315,6 +316,67 @@
   gap: 12px;
 }
 
+.question-structure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.question-type-pill {
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+.question-structure-action {
+  width: fit-content;
+}
+
+.question-reorder-actions {
+  position: absolute;
+  top: 50%;
+  right: -16px;
+  display: grid;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: opacity 150ms ease;
+}
+
+.editor-card:hover .question-reorder-actions,
+.editor-card:focus-within .question-reorder-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.question-reorder-action {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg-elev);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.question-reorder-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.question-reorder-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .editor-option-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -338,10 +400,23 @@
   background: var(--surface-sunken);
   color: var(--ink-3);
   font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.option-delete-action:disabled {
   cursor: not-allowed;
+  opacity: 0.55;
 }
 
 .option-delete-action:focus-visible {
   outline: none;
   box-shadow: var(--focus-ring);
+}
+
+.inline-editor-add-actions {
+  justify-content: space-between;
+}
+
+.inline-editor-add-type {
+  min-width: min(100%, 260px);
 }
