@@ -333,6 +333,7 @@ def test_api_client_exposes_existing_backend_endpoint_methods() -> None:
     assert "getLMStudioConnection" in content
     assert "putLMStudioConnection" in content
     assert "getGenerationEvents" in content
+    assert "cancelGeneration" in content
     assert "/generation/runs/" in content
     assert "/export/formats" in content
     assert "/documents" in content
@@ -918,7 +919,7 @@ def test_frontend_index_exposes_generation_progress_panel() -> None:
         "index must expose the generation progress panel"
     )
     assert 'aria-live="polite"' in content
-    for data_step in ("upload", "parse", "generate", "validate"):
+    for data_step in ("upload", "parse", "generate", "persist"):
         assert f'data-step="{data_step}"' in content, (
             f"progress panel must declare the {data_step} pseudo-step"
         )
@@ -926,7 +927,7 @@ def test_frontend_index_exposes_generation_progress_panel() -> None:
         "Загружаем документ",
         "Извлекаем текст",
         "Генерируем",
-        "Проверяем квиз",
+        "Сохраняем квиз",
     ):
         assert russian_label in content, (
             f"progress panel must include Russian label: {russian_label}"
@@ -944,7 +945,7 @@ def test_frontend_app_drives_generation_progress_state() -> None:
         "advanceGenerationProgress",
         "completeGenerationProgressWithBackendEvidence",
         "failGenerationProgress",
-        "waitForProgressVisibility",
+        "cancelGenerationProgress",
     ):
         assert f"function {helper}" in progress_content, (
             f"progress module must define the {helper} progress helper"
@@ -952,8 +953,7 @@ def test_frontend_app_drives_generation_progress_state() -> None:
 
     assert "startGenerationProgress()" in generation_content
     assert 'advanceGenerationProgress("upload", "parse")' in generation_content
-    assert 'advanceGenerationProgress("parse", "generate")' in generation_content
-    assert 'advanceGenerationProgress("generate", "validate")' in generation_content
+    assert "waitForProgressVisibility" not in generation_content
     assert "completeGenerationProgressWithBackendEvidence(generationPayload)" in generation_content
     assert "failGenerationProgress(failedStep)" in generation_content
     assert "startGenerationEventPolling(generationRequestId)" in generation_content
@@ -979,7 +979,7 @@ def test_frontend_progress_aligns_with_backend_generation_status_evidence() -> N
 
     assert "BACKEND_STEP_TO_PROGRESS_STEP" in progress_content
     assert 'repair: "generate"' in progress_content
-    assert 'persist: "validate"' in progress_content
+    assert 'persist: "persist"' in progress_content
     assert "applyBackendGenerationStatusEvidence" in progress_content
     assert "completeGenerationProgressWithBackendEvidence" in progress_content
     assert "generation_status" in progress_content
@@ -987,7 +987,7 @@ def test_frontend_progress_aligns_with_backend_generation_status_evidence() -> N
     assert "pipeline_events" in progress_content
     assert "completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence" in app_content
     assert "Генерируем" in index_content
-    assert "Проверяем квиз" in index_content
+    assert "Сохраняем квиз" in index_content
 
 
 def test_frontend_styles_theme_generation_progress() -> None:
@@ -1019,7 +1019,7 @@ def test_frontend_progress_uses_honest_skeletons_until_final_quiz() -> None:
     assert "generation-skeleton-card" in progress_content
     assert "setGenerationSkeletonsVisible(true)" in progress_content
     assert progress_content.count("setGenerationSkeletonsVisible(false)") >= 2
-    assert 'failGenerationProgress("validate")' in generation_content
+    assert 'failGenerationProgress("persist")' in generation_content
     assert "Вопрос 1" not in progress_content
     assert "question-card" not in progress_content
 
@@ -1059,7 +1059,7 @@ def test_frontend_generation_flushes_terminal_non_displayable_payload_events() -
     failed_payload_handler = (
         'if (!isDisplayableGenerationResult(generationPayload)) {\n'
         "        shouldFlushGenerationEvents = true;\n"
-        '        failGenerationProgress("validate");'
+        '        failGenerationProgress("persist");'
     )
     successful_render = (
         "renderQuizResult(generationPayload);\n"
@@ -1225,6 +1225,9 @@ def test_frontend_generation_flow_threads_abort_signal_and_cancel() -> None:
 
     assert "new AbortController()" in generation_content
     assert "function cancelGeneration" in generation_content
+    assert "client.cancelGeneration" in generation_content
+    assert "CANCEL_CONFIRMATION_MAX_ATTEMPTS" in generation_content
+    assert "Не удалось подтвердить отмену генерации" in generation_content
     assert "cancelGeneration" in app_content, (
         "the cancel button click must be bound to the generation flow cancel helper"
     )

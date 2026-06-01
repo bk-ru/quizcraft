@@ -1,12 +1,12 @@
 import { normalizeWorkflowStage } from "./stage-flow.js";
 
 const STEPPER_ORDER = ["setup", "generation", "result", "edit"];
-const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "validate"];
+const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "persist"];
 const BACKEND_STEP_TO_PROGRESS_STEP = Object.freeze({
   parse: "parse",
   generate: "generate",
   repair: "generate",
-  persist: "validate",
+  persist: "persist",
 });
 const BACKEND_STATUS_TO_PROGRESS_STATE = Object.freeze({
   queued: "pending",
@@ -23,7 +23,6 @@ const SUCCESSFUL_GENERATION_EVIDENCE = Object.freeze([
   Object.freeze({ step: "generate", status: "done" }),
   Object.freeze({ step: "persist", status: "done" }),
 ]);
-const PROGRESS_STEP_VISIBILITY_MS = 300;
 const PROGRESS_SUCCESS_AUTOHIDE_MS = 900;
 const PROGRESS_FAILURE_AUTOHIDE_MS = 2400;
 
@@ -80,10 +79,6 @@ export function createProgressController({ stepper, generationProgressPanel, sta
 
   function markStepperFailed(stageName) {
     advanceStepper(stageName, { state: "failed" });
-  }
-
-  function waitForProgressVisibility(ms = PROGRESS_STEP_VISIBILITY_MS) {
-    return new Promise((resolve) => windowRef.setTimeout(resolve, ms));
   }
 
   function setGenerationProgressVisible(visible) {
@@ -253,7 +248,6 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     }
 
     let applied = false;
-    setGenerationProgressVisible(true);
     for (const event of events) {
       const backendStep = getBackendStep(event);
       const backendStatus = getBackendStatus(event);
@@ -263,6 +257,7 @@ export function createProgressController({ stepper, generationProgressPanel, sta
         continue;
       }
 
+      setGenerationProgressVisible(true);
       setGenerationProgressStepState(progressStep, progressState);
       generationProgressPanel.dataset.backendStep = backendStep;
       generationProgressPanel.dataset.backendStatus = backendStatus;
@@ -302,15 +297,24 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     }, PROGRESS_FAILURE_AUTOHIDE_MS);
   }
 
+  function cancelGenerationProgress() {
+    if (!generationProgressPanel) {
+      return;
+    }
+    clearProgressAutoHide();
+    resetGenerationProgress();
+    setGenerationProgressVisible(false);
+  }
+
   return {
     advanceStepper,
     markStepperFailed,
-    waitForProgressVisibility,
     startGenerationProgress,
     advanceGenerationProgress,
     completeGenerationProgress,
     applyBackendGenerationStatusEvidence,
     completeGenerationProgressWithBackendEvidence,
     failGenerationProgress,
+    cancelGenerationProgress,
   };
 }

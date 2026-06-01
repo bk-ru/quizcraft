@@ -12,6 +12,8 @@ const SUPPORTED_DOCUMENT_MEDIA_TYPES = Object.freeze(new Set(Object.values(media
 const SLOW_GENERATION_WARNING_MS = 60000;
 const GENERATION_EVENT_POLL_MS = 1000;
 const LIVE_JOURNAL_ENTRY_STAGGER_MS = 90;
+const CANCEL_CONFIRMATION_MAX_ATTEMPTS = 3;
+const CANCEL_CONFIRMATION_RETRY_MS = 180;
 const DEFAULT_GENERATION_MODE = "auto";
 const SUPPORTED_REQUEST_MODES = Object.freeze(["auto", "direct", "rag"]);
 const SUPPORTED_QUIZ_TYPES = Object.freeze(["single_choice", "true_false", "fill_blank", "short_answer", "matching"]);
@@ -114,19 +116,21 @@ export function createGenerationFlow({
   focusResultView = null,
   advanceStepper,
   markStepperFailed,
-  waitForProgressVisibility,
   startGenerationProgress,
   advanceGenerationProgress,
   applyBackendGenerationStatusEvidence = null,
   completeGenerationProgress,
   completeGenerationProgressWithBackendEvidence,
   failGenerationProgress,
+  cancelGenerationProgress,
   showToast,
   saveQuizToHistory,
   refreshGenerationDefaults = null,
   getGenerationReadiness = null,
 }, windowRef = (typeof window !== "undefined" ? window : null)) {
   let currentAbortController = null;
+  let currentGenerationRequestId = null;
+  let cancellationRequestInFlight = false;
   let timerIntervalId = null;
   let generationEventPollId = null;
   let generationEventPollingRequestId = null;
@@ -330,9 +334,77 @@ export function createGenerationFlow({
     }
   }
 
+  function waitForCancelRetry() {
+    if (!windowRef) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => windowRef.setTimeout(resolve, CANCEL_CONFIRMATION_RETRY_MS));
+  }
+
+  async function requestGenerationCancellation(requestId) {
+    for (let attempt = 1; attempt <= CANCEL_CONFIRMATION_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await client.cancelGeneration(requestId);
+      } catch (error) {
+        const canRetry = error instanceof QuizCraftApiError
+          && error.status === 404
+          && attempt < CANCEL_CONFIRMATION_MAX_ATTEMPTS;
+        if (!canRetry) {
+          throw error;
+        }
+        await waitForCancelRetry();
+      }
+    }
+    return null;
+  }
+
+  async function confirmGenerationCancellation(requestId, abortController) {
+    let shouldRestoreCancelButton = true;
+    try {
+      const outcome = await requestGenerationCancellation(requestId);
+      if (currentAbortController !== abortController) {
+        return;
+      }
+      if (outcome?.status === "cancelled") {
+        shouldRestoreCancelButton = false;
+        abortController.abort();
+        setCancelButtonVisible(false);
+        return;
+      }
+      if (outcome?.status === "done") {
+        shouldRestoreCancelButton = false;
+        setCancelButtonVisible(false);
+        showToast("Квиз уже завершён. Получаем результат.", "warn");
+        return;
+      }
+      showToast("Не удалось подтвердить отмену генерации.", "bad");
+    } catch (error) {
+      if (currentAbortController === abortController) {
+        showToast(`Не удалось подтвердить отмену генерации: ${describeError(error)}`, "bad");
+      }
+    } finally {
+      if (currentAbortController === abortController) {
+        cancellationRequestInFlight = false;
+        if (shouldRestoreCancelButton && !abortController.signal.aborted) {
+          setCancelButtonVisible(true);
+        }
+      }
+    }
+  }
+
   function cancelGeneration() {
     if (!currentAbortController || currentAbortController.signal.aborted) {
       return false;
+    }
+    if (currentGenerationRequestId) {
+      if (!cancellationRequestInFlight) {
+        cancellationRequestInFlight = true;
+        if (cancelButton) {
+          cancelButton.disabled = true;
+        }
+        confirmGenerationCancellation(currentGenerationRequestId, currentAbortController);
+      }
+      return true;
     }
     currentAbortController.abort();
     setCancelButtonVisible(false);
@@ -693,6 +765,8 @@ export function createGenerationFlow({
 
     const abortController = new AbortController();
     currentAbortController = abortController;
+    currentGenerationRequestId = null;
+    cancellationRequestInFlight = false;
 
     try {
       clearQuizResult();
@@ -720,14 +794,13 @@ export function createGenerationFlow({
       });
 
       advanceGenerationProgress("upload", "parse");
-      await waitForProgressVisibility();
-      advanceGenerationProgress("parse", "generate");
 
       setTextContent("last-document-id", uploadPayload.document_id ?? "Ещё нет");
       setSubmissionStatus("Документ загружен. Запускаем генерацию…", "warn");
       setLogMessage("Документ загружен, запускаем генерацию.", "warn");
 
       generationRequestId = generateRequestId();
+      currentGenerationRequestId = generationRequestId;
       setTextContent("last-request-id", generationRequestId);
       startGenerationEventPolling(generationRequestId);
       generationPayload = await client.generateQuiz(
@@ -736,16 +809,13 @@ export function createGenerationFlow({
         { signal: abortController.signal, requestId: generationRequestId },
       );
 
-      advanceGenerationProgress("generate", "validate");
-      await waitForProgressVisibility();
-
       updateOperationSummary(uploadPayload, generationPayload);
       if (quizIdInput) {
         quizIdInput.value = generationPayload.quiz_id ?? "";
       }
       if (!isDisplayableGenerationResult(generationPayload)) {
         shouldFlushGenerationEvents = true;
-        failGenerationProgress("validate");
+        failGenerationProgress("persist");
         setResultState("Результат не показан: квиз не прошёл безопасное восстановление.", "bad", "Результат недоступен");
         setEditorStatus("Квиз не готов к редактированию: безопасное восстановление не удалось.", "bad");
         setSubmissionStatus("Генерация завершилась без отображаемого результата.", "bad");
@@ -793,18 +863,20 @@ export function createGenerationFlow({
     } catch (error) {
       clearQuizResult();
       setExportAvailability(null);
-      const failedStep = !uploadPayload ? "upload" : (!generationPayload ? "generate" : "validate");
-      failGenerationProgress(failedStep);
-      const wasCancelled = abortController.signal.aborted
-        && error instanceof QuizCraftApiError
-        && error.status === 0;
+      const failedStep = !uploadPayload ? "upload" : (!generationPayload ? "generate" : "persist");
+      const errorCode = error instanceof QuizCraftApiError ? error.payload?.error?.code : null;
+      const wasCancelled = error instanceof QuizCraftApiError
+        && ((abortController.signal.aborted && error.status === 0) || errorCode === "generation_cancelled");
       if (wasCancelled) {
+        shouldFlushGenerationEvents = true;
+        cancelGenerationProgress();
         setSubmissionStatus("Генерация отменена пользователем.", "warn");
         setResultState("Генерация отменена. Запустите повторно, когда будете готовы.", "warn", "Отменено");
         setLogMessage("Генерация отменена пользователем.", "warn");
         showToast("Генерация отменена.", "warn");
         advanceStepper("setup", { focus: true });
       } else {
+        failGenerationProgress(failedStep);
         const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
         const message = isValidationError ? describeValidationError(error) : describeError(error);
         setSubmissionStatus(`Операция не завершена: ${message}`, "bad");
@@ -822,6 +894,8 @@ export function createGenerationFlow({
       setCancelButtonVisible(false);
       if (currentAbortController === abortController) {
         currentAbortController = null;
+        currentGenerationRequestId = null;
+        cancellationRequestInFlight = false;
       }
     }
   }
