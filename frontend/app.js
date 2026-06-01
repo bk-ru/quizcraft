@@ -1,5 +1,6 @@
 import { QuizCraftApiClient } from "./api/client.js";
 import { createQuizExporter } from "./download.js";
+import { createExportModal } from "./export-modal.js";
 import { createCopyButtonController } from "./copy.js";
 import { createGenerationFlow } from "./generation-flow.js";
 import { createGenerationSettingsController } from "./generation-settings.js";
@@ -659,6 +660,16 @@ const previewMode = createPlayablePreview({
   showToast: toastController.showToast,
 });
 
+const exportModal = createExportModal({
+  modalRegion,
+  client,
+  editorState,
+  getQuizSnapshot: quizEditor.buildQuizUpdatePayload,
+  saveQuiz: quizEditor.submitQuizEdits,
+  serverExporter: quizExporter,
+  showToast: toastController.showToast,
+});
+
 async function startNewQuiz() {
   if (editorState.isDirty) {
     const confirmed = await confirmModal.confirm({
@@ -1012,11 +1023,20 @@ window.addEventListener("beforeunload", (event) => {
 });
 generationFlow.attachDropzone();
 previewQuizButton?.addEventListener("click", previewMode.open);
-exportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
-exportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
-exportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
-exportMarkdownButton?.addEventListener("click", quizExporter.exportQuizAsMarkdown);
-exportCsvButton?.addEventListener("click", quizExporter.exportQuizAsCsv);
+for (const exportButton of [
+  exportJsonButton,
+  exportDocxButton,
+  exportPptxButton,
+  exportMarkdownButton,
+  exportCsvButton,
+  editorExportJsonButton,
+  editorExportDocxButton,
+  editorExportPptxButton,
+  editorExportMarkdownButton,
+  editorExportCsvButton,
+]) {
+  exportButton?.addEventListener("click", exportModal.open);
+}
 exportSplitToggle?.addEventListener("click", () => {
   const open = exportSplitMenu?.hidden === false;
   if (exportSplitMenu) {
@@ -1035,11 +1055,6 @@ document.addEventListener("click", (event) => {
     }
   }
 });
-editorExportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
-editorExportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
-editorExportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
-editorExportMarkdownButton?.addEventListener("click", quizExporter.exportQuizAsMarkdown);
-editorExportCsvButton?.addEventListener("click", quizExporter.exportQuizAsCsv);
 editorExportSplitToggle?.addEventListener("click", () => {
   const open = editorExportSplitMenu?.hidden === false;
   if (editorExportSplitMenu) {

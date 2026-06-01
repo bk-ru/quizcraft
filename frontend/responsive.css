@@ -77,6 +77,16 @@
     padding: 14px;
   }
 
+  .quiz-export-modal {
+    width: calc(100vw - 20px);
+    max-height: calc(100vh - 20px);
+    padding: 14px;
+  }
+
+  .export-format-grid {
+    grid-template-columns: 1fr;
+  }
+
   .preview-matching-row {
     grid-template-columns: 1fr;
   }

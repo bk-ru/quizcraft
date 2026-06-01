@@ -1,11 +1,6 @@
 import { describeError } from "./validation-errors.js";
 
 const EXPORT_FORMATS = Object.freeze({
-  json: {
-    extension: "json",
-    label: "JSON",
-    accept: "application/json",
-  },
   docx: {
     extension: "docx",
     label: "DOCX",
@@ -15,16 +10,6 @@ const EXPORT_FORMATS = Object.freeze({
     extension: "pptx",
     label: "PPTX",
     accept: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  },
-  markdown: {
-    extension: "md",
-    label: "Markdown",
-    accept: "text/markdown",
-  },
-  csv: {
-    extension: "csv",
-    label: "CSV",
-    accept: "text/csv",
   },
 });
 
@@ -52,7 +37,7 @@ export function createQuizExporter({
   async function exportQuiz(format) {
     if (!editorState.lastGeneratedQuizId) {
       showToast("Сначала сгенерируйте или загрузите квиз.", "warn");
-      return;
+      return false;
     }
     try {
       const exportFormat = resolveExportFormat(format);
@@ -80,24 +65,18 @@ export function createQuizExporter({
       const blob = await response.blob();
       triggerFileDownload(blob, `${editorState.lastGeneratedQuizId}.${formatConfig.extension}`, windowRef);
       showToast(`${formatConfig.label}-файл квиза скачан.`, "ok");
+      return true;
     } catch (error) {
       showToast(`Не удалось скачать ${describeExportFormat(format)}: ${describeError(error)}`, "bad");
+      return false;
     }
   }
 
   return {
     exportQuiz,
-    exportQuizAsJson: () => exportQuiz("json"),
     exportQuizAsDocx: () => exportQuiz("docx"),
     exportQuizAsPptx: () => exportQuiz("pptx"),
-    exportQuizAsMarkdown: () => exportQuiz("markdown"),
-    exportQuizAsCsv: () => exportQuiz("csv"),
   };
-}
-
-export function createJsonExporter(options, windowRef = window, fetchImpl = globalThis.fetch?.bind(globalThis)) {
-  const exporter = createQuizExporter(options, windowRef, fetchImpl);
-  return { exportQuizAsJson: exporter.exportQuizAsJson };
 }
 
 function resolveExportFormat(format) {

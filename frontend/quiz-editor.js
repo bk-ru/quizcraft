@@ -1058,7 +1058,7 @@ export function createQuizEditor({
   async function submitQuizEdits() {
     if (!editorState.loadedQuiz) {
       setEditorStatus("Сначала откройте существующий квиз.", "bad");
-      return;
+      return null;
     }
 
     try {
@@ -1092,6 +1092,7 @@ export function createQuizEditor({
         "Изменения квиза сохранены и перечитаны без потери кириллицы.",
         "ok",
       );
+      return persistedQuiz;
     } catch (error) {
       if (error instanceof QuizCraftApiError && error.status === 422) {
         setEditorStatus(`Исправьте ошибки и повторите сохранение.\n${describeValidationError(error)}`, "bad");
@@ -1099,6 +1100,7 @@ export function createQuizEditor({
         setEditorStatus(`Не удалось сохранить квиз: ${describeError(error)}`, "bad");
       }
       setEditorSaveState({ disabled: false, busy: false });
+      return null;
     }
   }
 

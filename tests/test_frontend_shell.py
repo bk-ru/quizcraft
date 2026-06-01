@@ -4,8 +4,12 @@ from http.server import SimpleHTTPRequestHandler
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 import re
+import shutil
+import subprocess
 from threading import Thread
 from urllib.request import urlopen
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -33,6 +37,8 @@ STAGE_FLOW_JS = FRONTEND_DIR / "stage-flow.js"
 THEME_JS = FRONTEND_DIR / "theme.js"
 TOAST_JS = FRONTEND_DIR / "toast.js"
 DOWNLOAD_JS = FRONTEND_DIR / "download.js"
+TEXT_EXPORT_JS = FRONTEND_DIR / "text-export.js"
+EXPORT_MODAL_JS = FRONTEND_DIR / "export-modal.js"
 FRONTEND_JS_MODULES = (
     APP_JS,
     VALIDATION_ERRORS_JS,
@@ -53,6 +59,8 @@ FRONTEND_JS_MODULES = (
     THEME_JS,
     TOAST_JS,
     DOWNLOAD_JS,
+    TEXT_EXPORT_JS,
+    EXPORT_MODAL_JS,
 )
 FRONTEND_CSS_FILES = tuple(
     FRONTEND_DIR / filename
@@ -425,8 +433,8 @@ def test_frontend_wires_capability_driven_advanced_exports() -> None:
     assert "parseSupportedExportFormats" in app_content
     assert "loadExportFormats" in app_content
     assert "format === \"json\" || editorState.supportedExportFormats.has(format)" in app_content
-    assert "exportDocxButton?.addEventListener(\"click\", quizExporter.exportQuizAsDocx)" in app_content
-    assert "exportPptxButton?.addEventListener(\"click\", quizExporter.exportQuizAsPptx)" in app_content
+    assert "serverExporter: quizExporter" in app_content
+    assert 'exportButton?.addEventListener("click", exportModal.open)' in app_content
     assert "exportSplitToggle?.addEventListener" in app_content
     assert "exportSplitMenu" in app_content
 
@@ -439,6 +447,115 @@ def test_frontend_wires_capability_driven_advanced_exports() -> None:
     assert "Не удалось скачать ${describeExportFormat(format)}" in download_content
     assert "function describeExportFormat" in download_content
     assert "${formatConfig.label}-файл квиза скачан." in download_content
+
+
+def test_frontend_export_modal_serializes_text_and_saves_dirty_quiz_before_download() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+    export_modal_content = EXPORT_MODAL_JS.read_text(encoding="utf-8")
+    text_export_content = TEXT_EXPORT_JS.read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+    forms_css = FORMS_CSS.read_text(encoding="utf-8")
+    responsive_css = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
+
+    assert 'data-export-format="json"' in index_content
+    assert 'data-export-format="docx"' in index_content
+    assert 'data-export-format="pptx"' in index_content
+    assert 'import { createExportModal } from "./export-modal.js";' in app_content
+    assert "createExportModal({" in app_content
+    assert "exportModal.open" in app_content
+    for serializer in (
+        "prepareTextExportQuiz",
+        "serializeQuizAsJson",
+        "serializeQuizAsMarkdown",
+        "serializeQuizAsCsv",
+    ):
+        assert f"export function {serializer}" in text_export_content
+    assert "correct_option_index" in text_export_content
+    assert "warning_count" in text_export_content
+    assert 'question.question_type === "matching"' in text_export_content
+    assert "client.getExportFormats()" in export_modal_content
+    assert "validateEditableQuiz" in export_modal_content
+    assert "editorState.isDirty" in export_modal_content
+    assert "await saveQuiz()" in export_modal_content
+    assert "serverExporter.exportQuiz(format)" in export_modal_content
+    assert "triggerFileDownload" in export_modal_content
+    assert 'dialog.addEventListener("cancel"' in export_modal_content
+    assert ".target === dialog" in export_modal_content
+    assert "restoreFocus" in export_modal_content
+    assert ".quiz-export-modal" in layout_css
+    assert ".export-option" in forms_css
+    assert ".quiz-export-modal" in responsive_css
+
+
+def test_frontend_text_export_runtime_preserves_cyrillic_and_answer_invariants() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is not installed")
+    script = r'''
+import {
+  prepareTextExportQuiz,
+  serializeQuizAsJson,
+  serializeQuizAsMarkdown,
+  serializeQuizAsCsv,
+} from "./frontend/text-export.js";
+
+const quiz = {
+  quiz_id: "quiz-ru",
+  title: "\u0422\u0435\u0441\u0442 \u043f\u043e \u0438\u0441\u0442\u043e\u0440\u0438\u0438",
+  questions: [
+    {
+      question_type: "single_choice",
+      prompt: "\u0421\u0442\u043e\u043b\u0438\u0446\u0430 \u0420\u043e\u0441\u0441\u0438\u0438?",
+      options: [
+        { text: "\u041c\u043e\u0441\u043a\u0432\u0430" },
+        { text: "\u041a\u0430\u0437\u0430\u043d\u044c" },
+        { text: "\u041e\u043c\u0441\u043a" },
+        { text: "\u0422\u0443\u043b\u0430" },
+      ],
+      correct_option_index: 0,
+      explanation: { text: "\u041c\u043e\u0441\u043a\u0432\u0430 \u2014 \u0441\u0442\u043e\u043b\u0438\u0446\u0430." },
+    },
+    {
+      question_type: "true_false",
+      prompt: "\u0412\u043e\u043b\u0433\u0430 \u2014 \u0440\u0435\u043a\u0430.",
+      options: [{ text: "\u0412\u0435\u0440\u043d\u043e" }, { text: "\u041d\u0435\u0432\u0435\u0440\u043d\u043e" }],
+      correct_option_index: 0,
+    },
+    {
+      question_type: "matching",
+      prompt: "\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u044c\u0442\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u0438 \u0440\u0435\u043a\u0438.",
+      matching_pairs: [
+        { left: "\u041c\u043e\u0441\u043a\u0432\u0430", right: "\u041c\u043e\u0441\u043a\u0432\u0430-\u0440\u0435\u043a\u0430" },
+        { left: "\u041a\u0430\u0437\u0430\u043d\u044c", right: "\u0412\u043e\u043b\u0433\u0430" },
+        { left: "\u041e\u043c\u0441\u043a", right: "\u0418\u0440\u0442\u044b\u0448" },
+        { left: "\u0422\u0443\u043b\u0430", right: "\u0423\u043f\u0430" },
+      ],
+    },
+  ],
+};
+const before = JSON.stringify(quiz);
+const prepared = prepareTextExportQuiz(quiz, { shuffleOptions: true, random: () => 0 });
+if (JSON.stringify(quiz) !== before) throw new Error("source quiz mutated");
+if (prepared.questions[0].options[prepared.questions[0].correct_option_index].text !== "\u041c\u043e\u0441\u043a\u0432\u0430") throw new Error("single-choice answer desynchronized");
+if (prepared.questions[1].options.map((option) => option.text).join("|") !== "\u0412\u0435\u0440\u043d\u043e|\u041d\u0435\u0432\u0435\u0440\u043d\u043e") throw new Error("true-false options shuffled");
+const json = serializeQuizAsJson(quiz, { includeAnswers: false, includeExplanations: false });
+if (json.includes("correct_option_index") || json.includes("explanation")) throw new Error("excluded JSON fields retained");
+const markdown = serializeQuizAsMarkdown(quiz, { includeAnswers: true });
+if (!markdown.includes("\u0422\u0435\u0441\u0442 \u043f\u043e \u0438\u0441\u0442\u043e\u0440\u0438\u0438") || !markdown.includes("\u041f\u043e\u044f\u0441\u043d\u0435\u043d\u0438\u0435")) throw new Error("Cyrillic lost in Markdown");
+const csv = serializeQuizAsCsv(quiz, { includeAnswers: true });
+if (csv.warning_count !== 1 || csv.content.includes("\u0421\u043e\u043f\u043e\u0441\u0442\u0430\u0432\u044c\u0442\u0435") || !csv.content.includes("\u0421\u0442\u043e\u043b\u0438\u0446\u0430 \u0420\u043e\u0441\u0441\u0438\u0438")) throw new Error("CSV export mismatch");
+console.log("text export runtime checks passed");
+'''
+    completed = subprocess.run(
+        [node, "--input-type=module"],
+        input=script,
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.stdout.strip() == "text export runtime checks passed"
 
 
 def test_frontend_status_modal_exposes_generation_mode() -> None:
