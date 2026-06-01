@@ -11,12 +11,14 @@ def test_generation_status_model_exposes_controlled_transitions_and_steps() -> N
         "running",
         "done",
         "failed",
+        "cancelled",
     ]
     assert [step.value for step in GenerationPipelineStep] == [
         "parse",
         "generate",
         "repair",
         "persist",
+        "cancel",
     ]
 
 

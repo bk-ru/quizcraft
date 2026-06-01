@@ -9,6 +9,8 @@ from typing import Callable
 from typing import TypeVar
 
 from backend.app.domain.errors import LLMProviderError
+from backend.app.generation.cancellation import GenerationCancellationControl
+from backend.app.generation.cancellation import get_current_generation_cancellation
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +52,19 @@ class RetryingCaller:
         self._retry_policy = retry_policy
         self._sleep = sleep_function
 
-    def execute(self, operation: Callable[[], ResponseT]) -> ResponseT:
+    def execute(
+        self,
+        operation: Callable[[], ResponseT],
+        *,
+        cancellation_token: GenerationCancellationControl | None = None,
+    ) -> ResponseT:
         """Выполнить операцию, повторяя только временные ошибки провайдера."""
 
+        token = cancellation_token or get_current_generation_cancellation()
         attempt_index = 0
         while True:
+            if token is not None:
+                token.raise_if_cancelled()
             try:
                 return operation()
             except LLMProviderError as error:
@@ -67,5 +77,8 @@ class RetryingCaller:
                     attempt_index + 1,
                     self._retry_policy.max_retries,
                 )
-                self._sleep(wait_seconds)
+                if token is None:
+                    self._sleep(wait_seconds)
+                else:
+                    token.wait(wait_seconds)
                 attempt_index += 1

@@ -87,6 +87,18 @@ class UnsupportedGenerationModeError(BackendError):
     code = "unsupported_generation_mode"
 
 
+class GenerationCancelledError(BackendError):
+    """Вызывается после принятой отмены generation run."""
+
+    code = "generation_cancelled"
+
+
+class GenerationRunConflictError(BackendError):
+    """Вызывается при повторном использовании correlation id generation run."""
+
+    code = "generation_run_conflict"
+
+
 class UnsupportedExportFormatError(BackendError):
     """Вызывается, когда запрошенный формат экспорта квиза не зарегистрирован."""
 

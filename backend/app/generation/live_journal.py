@@ -54,14 +54,30 @@ class GenerationEventStore:
 
     def start_run(self, run_id: str) -> None:
         with self._lock:
-            self._runs[run_id] = []
-            self._started_at[run_id] = time.time()
-            self._next_event_id[run_id] = 1
+            if run_id in self._runs:
+                return
+            self._reset_run_locked(run_id)
+
+    def reset_run(self, run_id: str) -> None:
+        """Сбросить журнал перед новым lifecycle с повторно использованным run id."""
+
+        with self._lock:
+            self._reset_run_locked(run_id)
+
+    def _reset_run_locked(self, run_id: str) -> None:
+        """Создать пустой журнал run при уже захваченном lock."""
+
+        self._runs[run_id] = []
+        self._started_at[run_id] = time.time()
+        self._next_event_id[run_id] = 1
 
     def append(self, run_id: str, event: GenerationPipelineEvent) -> GenerationJournalEntry:
         with self._lock:
             if run_id not in self._runs:
                 self.start_run(run_id)
+            for existing_entry in reversed(self._runs[run_id]):
+                if existing_entry.event.status.value == "cancelled":
+                    return existing_entry
             event_id = self._next_event_id[run_id]
             self._next_event_id[run_id] = event_id + 1
             created_at = time.time()
@@ -85,7 +101,7 @@ class GenerationEventStore:
     def is_complete(self, run_id: str) -> bool:
         with self._lock:
             for entry in self._runs.get(run_id, []):
-                if entry.event.status.value == "failed":
+                if entry.event.status.value in {"failed", "cancelled"}:
                     return True
                 if entry.event.step.value == "persist" and entry.event.status.value == "done":
                     return True
@@ -119,6 +135,9 @@ def build_generation_journal_message(event: GenerationPipelineEvent) -> str:
 
     if status == "queued":
         return "Генерация поставлена в очередь."
+
+    if status == "cancelled":
+        return "Генерация отменена пользователем."
 
     if status == "failed":
         if step == "repair":

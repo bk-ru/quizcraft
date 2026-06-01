@@ -16,6 +16,8 @@ from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DocumentTooLargeError
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.errors import FileValidationError
+from backend.app.domain.errors import GenerationCancelledError
+from backend.app.domain.errors import GenerationRunConflictError
 from backend.app.domain.errors import LLMConnectionError
 from backend.app.domain.errors import LLMRequestError
 from backend.app.domain.errors import LLMResponseFormatError
@@ -39,6 +41,8 @@ def map_backend_error_to_status_code(error: BackendError) -> int:
 
     if isinstance(error, RepositoryNotFoundError):
         return 404
+    if isinstance(error, (GenerationCancelledError, GenerationRunConflictError)):
+        return 409
     if isinstance(error, StorageKeyError):
         return 400
     if isinstance(

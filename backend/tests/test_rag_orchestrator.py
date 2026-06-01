@@ -5,6 +5,7 @@ import pytest
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DomainValidationError
+from backend.app.domain.errors import GenerationCancelledError
 from backend.app.domain.errors import UnsupportedGenerationModeError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import EmbeddingRequest
@@ -14,6 +15,7 @@ from backend.app.domain.models import ProviderHealthStatus
 from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.generation.quality import GenerationQualityChecker
+from backend.app.generation.cancellation import GenerationCancellationRegistry
 from backend.app.generation.rag_orchestrator import RagGenerationOrchestrator
 from backend.app.generation.rag_orchestrator import build_default_rag_query
 from backend.app.generation.rag_cache import build_document_hash
@@ -67,6 +69,24 @@ class StubRagProvider:
 
     def _make_vector(self, hot_index: int) -> tuple[float, ...]:
         return tuple(1.0 if index == hot_index else 0.0 for index in range(self._embedding_dimension))
+
+
+class CancellingRagProvider(StubRagProvider):
+    """Отменить generation run после первого batch embeddings."""
+
+    def __init__(self, *, registry: GenerationCancellationRegistry, request_id: str) -> None:
+        super().__init__(
+            embedding_dimension=3,
+            structured_responses=[build_response(build_quiz_payload(question_count=2))],
+        )
+        self._registry = registry
+        self._request_id = request_id
+
+    def embed(self, request: EmbeddingRequest) -> EmbeddingResponse:
+        response = super().embed(request)
+        if len(self.embedding_requests) == 1:
+            self._registry.cancel(self._request_id)
+        return response
 
 
 def build_document(
@@ -215,6 +235,25 @@ def test_rag_orchestrator_generates_and_persists_quiz_from_cyrillic_document(tmp
     assert result.model_name == "local-chat"
     assert result.quiz.document_id == "doc-rag"
     assert any("Москву" in question.prompt for question in result.quiz.questions)
+
+
+def test_rag_orchestrator_stops_after_cancelled_chunk_embeddings(tmp_path) -> None:
+    registry = GenerationCancellationRegistry()
+    token = registry.start_run("run-rag-cancelled", document_id="doc-rag")
+    provider = CancellingRagProvider(registry=registry, request_id=token.request_id)
+    orchestrator, document_repository, _result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_document())
+
+    with pytest.raises(GenerationCancelledError):
+        orchestrator.generate(
+            "doc-rag",
+            build_rag_request(question_count=2),
+            cancellation_token=token,
+        )
+
+    assert len(provider.embedding_requests) == 1
+    assert provider.structured_requests == []
+    assert list((tmp_path / "generation_results").glob("*.json")) == []
 
 
 def test_rag_orchestrator_uses_unique_server_quiz_id_for_repeated_provider_ids(tmp_path) -> None:
