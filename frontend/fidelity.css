@@ -44,13 +44,15 @@
 }
 
 .compact-workspace .workspace-workbench {
+  --workspace-gutter: max(24px, calc((100vw - var(--sidebar-width) - 1080px) / 2));
   width: min(1080px, calc(100vw - var(--sidebar-width) - 48px));
-  margin-right: 24px;
-  margin-left: calc(var(--sidebar-width) + 24px);
+  margin-right: var(--workspace-gutter);
+  margin-left: calc(var(--sidebar-width) + var(--workspace-gutter));
   padding: 56px 0 120px;
 }
 
 .compact-workspace:has(.workspace-sidebar[data-collapsed="true"]) .workspace-workbench {
+  --workspace-gutter: max(24px, calc((100vw - var(--sidebar-width-mobile) - 1080px) / 2));
   width: min(1080px, calc(100vw - var(--sidebar-width-mobile) - 48px));
 }
 

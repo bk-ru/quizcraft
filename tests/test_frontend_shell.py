@@ -2514,6 +2514,9 @@ def test_frontend_compact_workspace_uses_mockup_fidelity_layout() -> None:
 
     assert '<link rel="stylesheet" href="./fidelity.css">' in index_content
     assert "width: min(1080px, calc(100vw - var(--sidebar-width) - 48px));" in fidelity_css
+    assert "--workspace-gutter: max(24px, calc((100vw - var(--sidebar-width) - 1080px) / 2));" in fidelity_css
+    assert "margin-left: calc(var(--sidebar-width) + var(--workspace-gutter));" in fidelity_css
+    assert "margin-right: var(--workspace-gutter);" in fidelity_css
     assert "grid-template-columns: minmax(0, 1fr);" in fidelity_css
     assert "padding: 22px 22px 26px;" in fidelity_css
     assert "padding: 22px 22px 18px;" in fidelity_css
