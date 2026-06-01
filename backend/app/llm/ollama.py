@@ -215,11 +215,29 @@ class OllamaClient(LLMProvider):
     ) -> dict[str, object]:
         """Собрать streaming message content из NDJSON response."""
 
+        readline = getattr(response, "readline", None)
+        if not callable(readline):
+            try:
+                raw_response = response.read().decode("utf-8")
+            except Exception:
+                if token is not None:
+                    token.raise_if_cancelled()
+                raise
+            if token is not None:
+                token.raise_if_cancelled()
+            try:
+                parsed_response = json.loads(raw_response)
+            except JSONDecodeError as error:
+                raise LLMResponseFormatError("Ollama returned invalid JSON") from error
+            if not isinstance(parsed_response, dict):
+                raise LLMResponseFormatError("Ollama returned invalid JSON")
+            return parsed_response
+
         chunks: list[object] = []
         final_payload: dict[str, object] | None = None
         while True:
             try:
-                raw_line = response.readline()
+                raw_line = readline()
             except Exception:
                 if token is not None:
                     token.raise_if_cancelled()
@@ -274,7 +292,9 @@ class OllamaClient(LLMProvider):
 
         if token is None:
             return
-        token.register_cancel_callback(response.close)
+        close = getattr(response, "close", None)
+        if callable(close):
+            token.register_cancel_callback(close)
         token.raise_if_cancelled()
 
     def _extract_structured_response(
