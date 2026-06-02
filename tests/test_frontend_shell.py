@@ -906,33 +906,15 @@ def test_frontend_generation_flow_blocks_submit_when_services_are_unavailable() 
     assert "generationConnectionState" in app_content
 
 
-def test_frontend_collapses_technical_identifiers_into_details() -> None:
+def test_frontend_hides_generation_technical_identifiers() -> None:
     content = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'class="inline-details"' in content, (
-        "technical fields must be wrapped into collapsible inline-details blocks"
-    )
-    assert "<summary>Диагностика и технические ID</summary>" in content, (
-        "operation summary must expose a Russian-language collapse affordance"
-    )
-    assert "<summary>Технические детали квиза</summary>" in content, (
-        "result overview must expose a Russian-language collapse affordance for model/prompt details"
-    )
-
-    document_id_match = re.search(
-        r"<details class=\"inline-details\">[\s\S]+?Document ID[\s\S]+?</details>",
-        content,
-    )
-    assert document_id_match is not None, (
-        "Document ID must live inside a collapsed inline-details block"
-    )
-    visible_summary = content.split('<details class="inline-details">', 1)[0]
-    assert 'id="last-filename"' not in visible_summary
-    assert "Имя файла" not in visible_summary
-    assert '<details class="inline-details" open' not in content, (
-        "technical identifiers must stay collapsed by default"
-    )
-
+    assert "\u0414\u0438\u0430\u0433\u043d\u043e\u0441\u0442\u0438\u043a\u0430 \u0438 \u0442\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 ID" not in content
+    assert 'id="last-document-id"' not in content
+    assert 'id="last-quiz-id"' not in content
+    assert 'id="last-request-id"' not in content
+    assert "\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0434\u0435\u0442\u0430\u043b\u0438 \u043a\u0432\u0438\u0437\u0430" in content
+    assert '<details class="inline-details" open' not in content
 
 def test_frontend_visible_status_surface_receives_shell_log_messages() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
@@ -1649,9 +1631,6 @@ def test_frontend_copy_buttons_module_and_wiring() -> None:
     assert "copyButtons.register()" in app_content
 
     for source_id in (
-        "last-document-id",
-        "last-quiz-id",
-        "last-request-id",
         "editor-quiz-id",
         "editor-document-id",
     ):
@@ -1660,7 +1639,7 @@ def test_frontend_copy_buttons_module_and_wiring() -> None:
         )
         assert f'id="{source_id}"' in index_content
 
-    assert 'aria-label="Скопировать Quiz ID"' in index_content, (
+    assert 'aria-label="\u0421\u043a\u043e\u043f\u0438\u0440\u043e\u0432\u0430\u0442\u044c Quiz ID \u0440\u0435\u0434\u0430\u043a\u0442\u043e\u0440\u0430"' in index_content, (
         "copy buttons must expose an accessible Russian label"
     )
 
