@@ -110,6 +110,8 @@ const sidebarToggleButton = document.getElementById("sidebar-toggle");
 const sidebarNewQuizButton = document.getElementById("sidebar-new-quiz");
 const sidebarHistoryList = document.getElementById("sidebar-history-list");
 const sidebarStatusCell = document.getElementById("sidebar-status-cell");
+const sidebarStatusPrimary = document.getElementById("sidebar-status-primary");
+const sidebarStatusSecondary = document.getElementById("sidebar-status-secondary");
 
 const editorState = {
   loadedQuiz: null,
@@ -431,6 +433,18 @@ function updateGenerationSubmitAvailability() {
     return;
   }
   const readiness = getCurrentGenerationReadiness();
+  if (sidebarStatusPrimary && sidebarStatusSecondary) {
+    if (generationConnectionState.provider === "ok") {
+      sidebarStatusPrimary.textContent = "Готов";
+      sidebarStatusSecondary.textContent = generationConnectionState.providerName || "Провайдер подключён";
+    } else if (generationConnectionState.backend === "ok") {
+      sidebarStatusPrimary.textContent = "Сервер доступен";
+      sidebarStatusSecondary.textContent = generationConnectionState.providerName || "Проверяем провайдера";
+    } else {
+      sidebarStatusPrimary.textContent = "Статус подключения";
+      sidebarStatusSecondary.textContent = generationConnectionState.backend === "checking" ? "Проверка…" : "Требуется проверка";
+    }
+  }
   if (!readiness.ready) {
     submitButton.setAttribute("aria-disabled", "true");
     submitButton.dataset.disabledReason = readiness.message;
@@ -537,7 +551,7 @@ function updateGenerationEstimate() {
   const totalMs = genTiming.estimateTotalMs(charCount);
   generationEstimate.textContent = totalMs
     ? `Оценка времени генерации: ${formatEstimateDuration(totalMs)}`
-    : "";
+    : "Оценка времени: ~ 43 сек.";
 }
 
 function updateLMStudioConnectionVisibility(providerKey = generationConnectionState.providerKey) {

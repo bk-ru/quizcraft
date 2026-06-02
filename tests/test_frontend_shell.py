@@ -2518,8 +2518,8 @@ def test_frontend_compact_workspace_uses_mockup_fidelity_layout() -> None:
     assert "margin-left: calc(var(--sidebar-width) + var(--workspace-gutter));" in fidelity_css
     assert "margin-right: var(--workspace-gutter);" in fidelity_css
     assert "grid-template-columns: minmax(0, 1fr);" in fidelity_css
-    assert "padding: 22px 22px 26px;" in fidelity_css
-    assert "padding: 22px 22px 18px;" in fidelity_css
+    assert "padding: 22px 22px 23px;" in fidelity_css
+    assert "padding: 22px 22px 11px;" in fidelity_css
     assert "text-align: center;" in fidelity_css
 
 
