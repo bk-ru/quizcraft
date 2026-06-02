@@ -118,8 +118,7 @@ export function createExportModal({
     return quiz;
   }
 
-  function downloadLocalExport(format, quiz, options) {
-    const config = FORMAT_CONFIG[format];
+  function serializeLocalExport(format, quiz, options) {
     let content;
     let warningCount = 0;
     if (format === "json") {
@@ -133,9 +132,32 @@ export function createExportModal({
     } else {
       throw new Error(`Неподдерживаемый локальный формат: ${format}`);
     }
+    return { content, warningCount };
+  }
+
+  function downloadLocalExport(format, quiz, options) {
+    const config = FORMAT_CONFIG[format];
+    const { content, warningCount } = serializeLocalExport(format, quiz, options);
     const blob = new Blob([content], { type: config.mediaType });
     triggerFileDownload(blob, `${quiz.quiz_id ?? "quiz"}.${config.extension}`, windowRef, documentRef);
     return warningCount;
+  }
+
+  function updateExportPreview(form, previewBody, previewSize) {
+    const format = getSelectedFormat(form);
+    const config = FORMAT_CONFIG[format];
+    if (!config || !previewBody || !previewSize) {
+      return;
+    }
+    if (config.transport === "server") {
+      previewBody.textContent = `${config.label}: \u0444\u0430\u0439\u043b \u0431\u0443\u0434\u0435\u0442 \u0441\u0444\u043e\u0440\u043c\u0438\u0440\u043e\u0432\u0430\u043d \u0441\u0435\u0440\u0432\u0435\u0440\u043e\u043c \u043f\u043e\u0441\u043b\u0435 \u0437\u0430\u043f\u0443\u0441\u043a\u0430 \u044d\u043a\u0441\u043f\u043e\u0440\u0442\u0430.`;
+      previewSize.textContent = "\u0441\u0435\u0440\u0432\u0435\u0440\u043d\u044b\u0439 \u0444\u0430\u0439\u043b";
+      return;
+    }
+    const quiz = getValidatedSnapshot();
+    const { content } = serializeLocalExport(format, quiz, getOptions(form));
+    previewBody.textContent = content;
+    previewSize.textContent = `~ ${new Blob([content]).size.toLocaleString("ru-RU")} \u0411`;
   }
 
   function updateCompositionState(form, message) {
@@ -250,6 +272,18 @@ export function createExportModal({
 
     const compositionMessage = documentRef.createElement("p");
     compositionMessage.className = "field-hint export-composition-message";
+    const preview = documentRef.createElement("section");
+    preview.className = "export-preview";
+    const previewHeading = documentRef.createElement("div");
+    previewHeading.className = "export-preview-heading";
+    const previewTitle = documentRef.createElement("span");
+    previewTitle.textContent = "\u041f\u0440\u0435\u0434\u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440";
+    const previewSize = documentRef.createElement("span");
+    previewSize.className = "export-preview-size";
+    const previewBody = documentRef.createElement("pre");
+    previewBody.className = "export-preview-body";
+    previewHeading.append(previewTitle, previewSize);
+    preview.append(previewHeading, previewBody);
     const saveNotice = documentRef.createElement("p");
     saveNotice.className = "export-save-notice";
     saveNotice.textContent = "Есть несохранённые изменения. Перед экспортом они будут сохранены.";
@@ -268,11 +302,15 @@ export function createExportModal({
     exportButton.className = "primary-action";
     exportButton.textContent = editorState.isDirty ? "Сохранить и скачать" : "Скачать";
     actions.append(cancelButton, exportButton);
-    form.append(formatGroup, composition, compositionMessage, saveNotice, status, actions);
+    form.append(formatGroup, composition, compositionMessage, preview, saveNotice, status, actions);
     dialog.append(heading, form);
     updateCompositionState(form, compositionMessage);
+    updateExportPreview(form, previewBody, previewSize);
 
-    formatGroup.addEventListener("change", () => updateCompositionState(form, compositionMessage));
+    form.addEventListener("change", () => {
+      updateCompositionState(form, compositionMessage);
+      updateExportPreview(form, previewBody, previewSize);
+    });
     closeButton.addEventListener("click", close);
     cancelButton.addEventListener("click", close);
     dialog.addEventListener("cancel", (event) => {
