@@ -24,6 +24,12 @@ const SUCCESSFUL_GENERATION_EVIDENCE = Object.freeze([
 ]);
 const PROGRESS_SUCCESS_AUTOHIDE_MS = 900;
 const PROGRESS_FAILURE_AUTOHIDE_MS = 2400;
+const PROGRESS_PERCENT_BY_STATE = Object.freeze({
+  upload: Object.freeze({ pending: 0, active: 8, done: 25, failed: 8 }),
+  parse: Object.freeze({ pending: 25, active: 36, done: 50, failed: 36 }),
+  generate: Object.freeze({ pending: 50, active: 68, done: 84, failed: 68 }),
+  persist: Object.freeze({ pending: 84, active: 92, done: 100, failed: 92 }),
+});
 
 export function createProgressController(
   { generationProgressPanel, stageFlow },
@@ -125,6 +131,17 @@ export function createProgressController(
       return;
     }
     target.dataset.state = state;
+    const percentage = PROGRESS_PERCENT_BY_STATE[step]?.[state];
+    if (Number.isFinite(percentage)) {
+      const progressFill = generationProgressPanel.querySelector(".generation-progress-fill");
+      const progressPercent = generationProgressPanel.querySelector(".generation-progress-percent");
+      if (progressFill) {
+        progressFill.style.width = `${percentage}%`;
+      }
+      if (progressPercent) {
+        progressPercent.textContent = `${percentage}%`;
+      }
+    }
   }
 
   function resetGenerationProgress() {

@@ -137,6 +137,7 @@ export function createGenerationFlow({
   let generationEventPollingRequestId = null;
   let generationEventAfter = 0;
   const generationEventIds = new Set();
+  const liveJournalCountElement = liveJournalContainer?.querySelector(".generation-live-journal-count") ?? null;
   let timerStartedAt = 0;
   let currentGenCharCount = 0;
 
@@ -242,6 +243,9 @@ export function createGenerationFlow({
     if (liveJournalElement) {
       liveJournalElement.replaceChildren();
     }
+    if (liveJournalCountElement) {
+      liveJournalCountElement.textContent = "0 строк";
+    }
     if (liveJournalContainer) {
       liveJournalContainer.hidden = true;
     }
@@ -281,6 +285,9 @@ export function createGenerationFlow({
     }
     if (liveJournalContainer && generationEventIds.size > 0) {
       liveJournalContainer.hidden = false;
+    }
+    if (liveJournalCountElement) {
+      liveJournalCountElement.textContent = `${generationEventIds.size} строк`;
     }
   }
 

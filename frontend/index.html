@@ -219,8 +219,20 @@
         </div>
         <p id="shell-log-message" class="submission-status">Проверяем подключение к сервисам генерации…</p>
         <div id="generation-progress" class="generation-progress" role="status" aria-live="polite" hidden>
-          <div class="generation-progress-head">
-            <span id="generation-timer" class="generation-timer" hidden aria-live="polite"><span id="timer-elapsed">00:00</span><span id="timer-eta" class="timer-eta" hidden> · ~<span id="timer-eta-value"></span> ост.</span></span>
+          <div class="generation-progress-card">
+            <div class="generation-progress-orbit" aria-hidden="true">
+              <span class="generation-orbit-core"></span>
+              <span class="generation-orbit-ring generation-orbit-ring--outer"></span>
+              <span class="generation-orbit-ring generation-orbit-ring--middle"></span>
+              <span class="generation-orbit-ring generation-orbit-ring--inner"></span>
+            </div>
+            <div class="generation-progress-copy">
+              <h3>Генерация квиза…</h3>
+              <p>Анализируем документ и формируем вопросы. Обычно занимает 30 секунд – 2 минуты.</p>
+              <div class="generation-progress-meta">
+                <span id="generation-timer" class="generation-timer" hidden aria-live="polite"><span id="timer-elapsed">00:00</span><span id="timer-eta" class="timer-eta" hidden> · ~<span id="timer-eta-value"></span> ост.</span></span>
+              </div>
+            </div>
             <button
               id="cancel-generation-button"
               class="ghost-action generation-cancel"
@@ -228,6 +240,10 @@
               hidden
             >Отменить генерацию</button>
           </div>
+          <div class="generation-progress-track" aria-hidden="true">
+            <span class="generation-progress-fill"></span>
+          </div>
+          <span class="generation-progress-percent" aria-hidden="true">0%</span>
           <ol class="progress-steps">
             <li class="progress-step" data-step="upload" data-state="pending">
               <span class="progress-step-dot" aria-hidden="true"></span>
@@ -248,7 +264,10 @@
           </ol>
         </div>
         <div class="generation-live-journal" aria-labelledby="generation-live-journal-title" hidden>
-          <h4 id="generation-live-journal-title">Живой журнал</h4>
+          <div class="generation-live-journal-heading">
+            <h4 id="generation-live-journal-title">Журнал генерации</h4>
+            <span id="generation-live-journal-count" class="generation-live-journal-count">0 строк</span>
+          </div>
           <ol id="generation-live-journal" class="live-journal" aria-live="polite"></ol>
         </div>
         <details class="inline-details">

@@ -1062,7 +1062,8 @@ def test_frontend_index_exposes_generation_progress_panel() -> None:
             f"progress panel must include Russian label: {russian_label}"
         )
     assert 'id="generation-live-journal"' in content
-    assert "Живой журнал" in content
+    assert "\u0416\u0443\u0440\u043d\u0430\u043b \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0438\u0438" in content
+    assert 'id="generation-live-journal-count"' in content
 
 
 def test_frontend_app_drives_generation_progress_state() -> None:
@@ -1133,8 +1134,9 @@ def test_frontend_styles_theme_generation_progress() -> None:
     assert ".live-journal" in content
     assert ".live-journal-entry" in content
     assert "live-journal-entry-in" in content
-    assert "box-shadow: 0 18px 46px" in content
-    assert "border: 1px solid color-mix" in content
+    assert ".generation-progress-orbit" in content
+    assert ".generation-progress-fill" in content
+    assert "generation-orbit-spin" in content
     assert "@media (prefers-reduced-motion: reduce)" in content
 
 
