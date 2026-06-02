@@ -356,6 +356,10 @@
   color: var(--ink);
 }
 
+.live-journal-entry[data-status="heartbeat"] .live-journal-message {
+  color: var(--brand);
+}
+
 @keyframes live-journal-entry-in {
   from {
     opacity: 0;
