@@ -14,6 +14,10 @@
   display: none;
 }
 
+.compact-workspace .workspace-workbench:not(:has(.workspace[data-active-stage="setup"])) .hero {
+  display: none;
+}
+
 .generation-skeleton-stream {
   display: none;
   gap: 10px;
