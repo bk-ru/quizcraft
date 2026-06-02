@@ -321,6 +321,10 @@
   cursor: pointer;
 }
 
+.question-icon-action[hidden] {
+  display: none;
+}
+
 .question-icon-action:hover:not(:disabled) {
   border-color: var(--brand);
   color: var(--brand);
