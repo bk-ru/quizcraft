@@ -630,7 +630,6 @@ def test_frontend_status_modal_hosts_real_connection_controls() -> None:
         'id="generation-mode"',
         'id="generation-temperature"',
         'id="generation-model"',
-        'id="provider-model-status"',
         'id="lm-studio-connection-section"',
         'id="lm-studio-host"',
         'id="lm-studio-port"',

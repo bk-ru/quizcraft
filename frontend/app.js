@@ -104,6 +104,7 @@ const lmStudioConnectionStatus = document.getElementById("lm-studio-connection-s
 const lmStudioConnectionSection = document.getElementById("lm-studio-connection-section");
 const lmStudioProviderHint = document.getElementById("lm-studio-provider-hint");
 const providerModelStatus = document.getElementById("provider-model-status");
+const tooltipPopover = document.getElementById("workspace-tooltip-popover");
 const workspaceRoot = document.querySelector(".compact-workspace");
 const workspaceSidebar = document.getElementById("workspace-sidebar");
 const sidebarToggleButton = document.getElementById("sidebar-toggle");
@@ -161,6 +162,52 @@ const statusMap = {
   disabled: "bad",
   bad: "bad",
 };
+
+function hideTooltipPopover() {
+  if (!tooltipPopover) {
+    return;
+  }
+  tooltipPopover.dataset.visible = "false";
+  tooltipPopover.setAttribute("aria-hidden", "true");
+}
+
+function showTooltipPopover(target) {
+  if (!tooltipPopover || !(target instanceof HTMLElement)) {
+    return;
+  }
+  const text = target.dataset.tooltip || target.getAttribute("aria-label") || "";
+  if (!text) {
+    hideTooltipPopover();
+    return;
+  }
+  tooltipPopover.textContent = text;
+  tooltipPopover.setAttribute("aria-hidden", "false");
+  tooltipPopover.dataset.visible = "true";
+  const card = target.closest(".workspace-modal-card");
+  if (!card) {
+    return;
+  }
+  const cardRect = card.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const popRect = tooltipPopover.getBoundingClientRect();
+  const margin = 10;
+  let top = targetRect.top - cardRect.top - popRect.height - margin;
+  if (top < margin) {
+    top = targetRect.bottom - cardRect.top + margin;
+  }
+  const maxTop = cardRect.height - popRect.height - margin;
+  if (maxTop >= margin) {
+    top = Math.min(Math.max(top, margin), maxTop);
+  }
+  let left = targetRect.left - cardRect.left + targetRect.width / 2 - popRect.width / 2;
+  const minLeft = margin;
+  const maxLeft = cardRect.width - popRect.width - margin;
+  if (maxLeft >= minLeft) {
+    left = Math.min(Math.max(left, minLeft), maxLeft);
+  }
+  tooltipPopover.style.top = `${top}px`;
+  tooltipPopover.style.left = `${left}px`;
+}
 
 const PROVIDER_DISPLAY_NAMES = Object.freeze({
   lm_studio: "LM Studio",
@@ -571,12 +618,28 @@ function updateProviderModelStatus(defaultModel = "", models = []) {
     return;
   }
   const availableModels = Array.isArray(models) ? models.filter(Boolean) : [];
-  const defaultModelLabel = typeof defaultModel === "string" && defaultModel.trim()
-    ? `Модель по умолчанию: ${defaultModel.trim()}.`
+  const hasDefault = typeof defaultModel === "string" && defaultModel.trim();
+  providerModelStatus.replaceChildren();
+  const defaultLine = document.createElement("span");
+  defaultLine.className = "provider-model-default";
+  defaultLine.textContent = hasDefault
+    ? defaultModel.trim()
     : "Модель по умолчанию не указана.";
-  providerModelStatus.textContent = availableModels.length > 0
-    ? `${defaultModelLabel} Доступные модели: ${availableModels.join(", ")}`
-    : defaultModelLabel;
+  providerModelStatus.append(defaultLine);
+  if (availableModels.length > 0) {
+    const listLabel = document.createElement("span");
+    listLabel.className = "provider-model-list-label";
+    listLabel.textContent = "Доступные модели:";
+    const list = document.createElement("ul");
+    list.className = "provider-model-list";
+    availableModels.forEach((name) => {
+      const item = document.createElement("li");
+      item.className = "provider-model-chip";
+      item.textContent = name;
+      list.append(item);
+    });
+    providerModelStatus.append(listLabel, list);
+  }
 }
 
 syncGenerationTemperatureValue();
@@ -1054,6 +1117,15 @@ function openEditorForCurrentQuiz() {
 themeController.applyTheme(themeController.resolveStoredTheme());
 workspaceController.register();
 sidebarController.register();
+
+const fieldTooltips = workspaceRoot?.querySelectorAll(".field-tooltip") ?? [];
+fieldTooltips.forEach((tooltip) => {
+  tooltip.addEventListener("mouseenter", () => showTooltipPopover(tooltip));
+  tooltip.addEventListener("mouseleave", hideTooltipPopover);
+  tooltip.addEventListener("focus", () => showTooltipPopover(tooltip));
+  tooltip.addEventListener("blur", hideTooltipPopover);
+});
+tooltipPopover?.addEventListener("mouseenter", hideTooltipPopover);
 retryBackendButton?.addEventListener("click", () => {
   checkBackendConnection();
 });

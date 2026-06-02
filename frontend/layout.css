@@ -634,6 +634,7 @@
 }
 
 .compact-workspace .workspace-modal-card {
+  position: relative;
   width: min(100%, var(--modal-width));
   max-height: calc(100vh - 40px);
   overflow-y: auto;

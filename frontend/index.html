@@ -491,27 +491,32 @@
     <div id="modal-region" class="modal-region"></div>
     <section id="workspace-status-modal" class="workspace-modal modal" data-workspace-modal="status" role="dialog" aria-modal="true" aria-labelledby="workspace-status-modal-title" hidden>
       <div class="workspace-modal-card modal-card modal-card-narrow">
+        <div class="tooltip-popover" id="workspace-tooltip-popover" role="tooltip" aria-hidden="true"></div>
         <div class="workspace-modal-heading modal-head">
           <h2 id="workspace-status-modal-title">Подключение и модель</h2>
           <button class="workspace-modal-close" type="button" data-workspace-modal-close aria-label="Закрыть окно статуса" title="Закрыть окно статуса">×</button>
         </div>
         <div class="settings-modal-grid modal-body">
-          <div class="settings-status-grid diag-grid" role="status" aria-live="polite">
-            <div class="settings-status-row diag-cell topbar-status" data-status-surface="backend" data-status-label="Сервер" data-status-tooltip="Сервер · Проверка…" tabindex="0" aria-label="Сервер · Проверка…">
-              <span class="diag-key">Бэкенд</span>
-              <span class="diag-val"><span class="dot" aria-hidden="true"></span><span id="backend-status-text">Проверка…</span></span>
+          <div class="settings-status-footer">
+            <div class="settings-status-pill" data-status-surface="backend" data-status-label="Сервер" data-status-tooltip="Сервер · Проверка…" tabindex="0" aria-label="Сервер · Проверка…">
+              <svg class="settings-status-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="12" rx="2"></rect>
+                <path d="M7 20h10M12 16v4"></path>
+              </svg>
+              <span class="settings-status-pill-text">
+                <span class="settings-status-pill-primary">Сервер</span>
+                <span class="settings-status-pill-secondary" id="backend-status-text">Проверка…</span>
+              </span>
             </div>
-            <div class="settings-status-row diag-cell topbar-status" data-status-surface="provider" data-status-label="Провайдер" data-status-tooltip="Провайдер · Проверка…" tabindex="0" aria-label="Провайдер · Проверка…">
-              <span class="diag-key">Провайдер</span>
-              <span class="diag-val"><span class="dot" aria-hidden="true"></span><span id="provider-status-text">Проверка…</span></span>
-            </div>
-            <div class="diag-cell">
-              <span class="diag-key">Модель</span>
-              <span id="provider-model-status" class="diag-val" aria-live="polite">Уточняется…</span>
-            </div>
-            <div class="diag-cell">
-              <span class="diag-key">Статус</span>
-              <span class="diag-val">Готовность определяется проверкой сервисов</span>
+            <div class="settings-status-pill" data-status-surface="provider" data-status-label="Провайдер" data-status-tooltip="Провайдер · Проверка…" tabindex="0" aria-label="Провайдер · Проверка…">
+              <svg class="settings-status-pill-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                <path d="M2 17l10 5 10-5M2 12l10 5 10-5"></path>
+              </svg>
+              <span class="settings-status-pill-text">
+                <span class="settings-status-pill-primary">Провайдер</span>
+                <span class="settings-status-pill-secondary" id="provider-status-text">Проверка…</span>
+              </span>
             </div>
           </div>
           <div class="diag-actions">
