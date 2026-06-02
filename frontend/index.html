@@ -272,106 +272,96 @@
         </div>
       </section>
 
-      <section id="generation-result" class="panel panel-result workflow-stage" data-workflow-stage="result" aria-labelledby="result-title" data-result-tone="idle" tabindex="-1" hidden>
-        <div class="panel-heading">
-          <div>
-            <h3 id="result-title">Результат генерации</h3>
-            <p class="panel-copy">Квиз появится здесь после успешной генерации.</p>
-          </div>
-          <span id="result-state-badge" class="badge" data-tone="muted">Ожидание результата</span>
-        </div>
-        <p id="result-status" class="result-status">Квиз появится здесь после успешной генерации.</p>
-        <div class="result-empty-state" data-testid="result-empty-state" aria-hidden="true">
-          <svg viewBox="0 0 120 120" width="96" height="96" role="img" aria-label="Иллюстрация пустого квиза">
-            <defs>
-              <linearGradient id="empty-state-gradient" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="currentColor" stop-opacity="0.16"></stop>
-                <stop offset="100%" stop-color="currentColor" stop-opacity="0.04"></stop>
-              </linearGradient>
-            </defs>
-            <rect x="18" y="22" width="84" height="74" rx="10" fill="url(#empty-state-gradient)" stroke="currentColor" stroke-width="1.6" stroke-opacity="0.4"></rect>
-            <line x1="30" y1="42" x2="84" y2="42" stroke="currentColor" stroke-opacity="0.45" stroke-width="2.2" stroke-linecap="round"></line>
-            <line x1="30" y1="58" x2="76" y2="58" stroke="currentColor" stroke-opacity="0.3" stroke-width="2.2" stroke-linecap="round"></line>
-            <line x1="30" y1="74" x2="68" y2="74" stroke="currentColor" stroke-opacity="0.3" stroke-width="2.2" stroke-linecap="round"></line>
-            <circle cx="92" cy="30" r="10" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6"></circle>
-            <path d="M89 30l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
-          </svg>
-          <p class="result-empty-state-title">Здесь появится ваш квиз</p>
-          <p class="result-empty-state-hint">Загрузите документ слева, выберите параметры и нажмите «Сгенерировать квиз».</p>
-        </div>
-        <dl class="result-overview">
-          <div>
-            <dt>Заголовок</dt>
-            <dd id="quiz-title">Ещё нет результата</dd>
-          </div>
-          <div>
-            <dt>Количество вопросов</dt>
-            <dd id="quiz-question-count">0</dd>
-          </div>
-          <div>
-            <dt>Режим</dt>
-            <dd id="quiz-generation-mode">Ещё нет результата</dd>
-          </div>
-        </dl>
-        <details class="inline-details">
-          <summary>Технические детали квиза</summary>
-          <dl class="result-overview">
-            <div>
-              <dt>Модель</dt>
-              <dd id="quiz-model-name">Ещё нет результата</dd>
+      <section id="generation-result" class="panel panel-result result workflow-stage" data-workflow-stage="result" aria-labelledby="quiz-title" data-result-tone="idle" tabindex="-1" hidden>
+        <div class="result-head">
+          <div class="result-head-info">
+            <input id="quiz-title" class="result-title" type="text" value="Ещё нет результата" aria-label="Заголовок квиза" data-editor-field="title" disabled>
+            <div class="result-meta" aria-label="Метаданные квиза">
+              <span id="quiz-id-pill" class="meta-pill">id: ещё нет</span>
+              <span id="quiz-version-pill" class="meta-pill">версия —</span>
+              <span id="quiz-count-pill" class="meta-pill">0 вопросов</span>
+              <span id="quiz-edited-pill" class="meta-pill meta-pill-soft">обновлений нет</span>
             </div>
-            <div>
-              <dt>Prompt version</dt>
-              <dd id="quiz-prompt-version">Ещё нет результата</dd>
-            </div>
-          </dl>
-        </details>
-        <div class="result-actions">
-          <div class="split-button" id="export-split">
-            <button id="export-json-button" class="secondary-action split-button-main" type="button" disabled aria-describedby="export-json-hint" data-export-format="json">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              Скачать JSON
+          </div>
+          <div class="result-actions result-head-actions">
+            <button id="undo-quiz-edit-button" class="secondary-action" type="button" data-editor-action="undo-structural-edit" disabled>
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7v6h6"></path><path d="M21 17a9 9 0 0 0-15-6.7L3 13"></path></svg>
+              Отмена
             </button>
-            <button class="secondary-action split-button-toggle" type="button" disabled id="export-split-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Другие форматы экспорта" title="Другие форматы экспорта" aria-controls="export-split-menu">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            <button id="preview-quiz-button" class="secondary-action" type="button" disabled aria-describedby="preview-quiz-hint">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+              Превью
+            </button>
+            <span id="preview-quiz-hint" class="visually-hidden">Доступно после генерации или загрузки квиза.</span>
+            <button id="save-quiz-button" class="secondary-action" type="button" disabled aria-describedby="save-quiz-hint">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+              <span data-save-quiz-label>Сохранить</span>
+              <span class="visually-hidden"> (<kbd>Ctrl/⌘</kbd> + <kbd>S</kbd>)</span>
+            </button>
+            <span id="save-quiz-hint" class="visually-hidden">Доступно после загрузки квиза и изменения хотя бы одного поля.</span>
+            <button id="export-json-button" class="primary-action result-export-action" type="button" disabled aria-describedby="export-json-hint" data-export-format="json">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              Экспорт
             </button>
             <span id="export-json-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
-            <ul class="split-button-menu" id="export-split-menu" role="menu" hidden>
-              <li role="none">
-                <button id="export-docx-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="export-docx-hint" data-export-format="docx">Скачать DOCX</button>
-                <span id="export-docx-hint" class="visually-hidden">Доступно после успешной генерации квиза и подтверждения поддержки DOCX сервером.</span>
-              </li>
-              <li role="none">
-                <button id="export-pptx-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="export-pptx-hint" data-export-format="pptx">Скачать PPTX</button>
-                <span id="export-pptx-hint" class="visually-hidden">Доступно после успешной генерации квиза и подтверждения поддержки PPTX сервером.</span>
-              </li>
-              <li role="none">
-                <button id="export-markdown-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="export-markdown-hint" data-export-format="markdown">Скачать Markdown</button>
-                <span id="export-markdown-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
-              </li>
-              <li role="none">
-                <button id="export-csv-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="export-csv-hint" data-export-format="csv">Скачать CSV</button>
-                <span id="export-csv-hint" class="visually-hidden">Доступно после успешной генерации квиза. Поддерживается импорт в Google Forms.</span>
-              </li>
-            </ul>
           </div>
-          <button id="preview-quiz-button" class="secondary-action" type="button" disabled aria-describedby="preview-quiz-hint">Пройти квиз</button>
-          <span id="preview-quiz-hint" class="visually-hidden">Доступно после генерации или загрузки квиза.</span>
-          <button id="edit-quiz-shortcut" class="ghost-action" type="button" disabled aria-describedby="edit-shortcut-hint">Редактировать квиз</button>
-          <span id="edit-shortcut-hint" class="visually-hidden">Доступно после успешной генерации квиза.</span>
         </div>
-        <div id="quiz-editor-actions" class="form-actions inline-editor-actions">
-          <button id="save-quiz-button" class="primary-action" type="button" disabled aria-describedby="save-quiz-hint">Сохранить изменения<span class="visually-hidden"> (<kbd>Ctrl/⌘</kbd> + <kbd>S</kbd>)</span></button>
-          <button id="undo-quiz-edit-button" class="secondary-action" type="button" data-editor-action="undo-structural-edit" disabled>Отменить последнее изменение</button>
-          <span id="save-quiz-hint" class="visually-hidden">Доступно после загрузки квиза и изменения хотя бы одного поля.</span>
+
+        <div class="result-overview-panel">
+          <div class="result-overview-top">
+            <span id="result-state-badge" class="badge result-ready-badge" data-tone="muted">Ожидание результата</span>
+            <p id="result-status" class="result-status">Квиз появится здесь после успешной генерации.</p>
+          </div>
+          <div class="result-empty-state" data-testid="result-empty-state" aria-hidden="true">
+            <svg viewBox="0 0 120 120" width="96" height="96" role="img" aria-label="Иллюстрация пустого квиза">
+              <defs>
+                <linearGradient id="empty-state-gradient" x1="0" y1="0" x2="1" y2="1">
+                  <stop offset="0%" stop-color="currentColor" stop-opacity="0.16"></stop>
+                  <stop offset="100%" stop-color="currentColor" stop-opacity="0.04"></stop>
+                </linearGradient>
+              </defs>
+              <rect x="18" y="22" width="84" height="74" rx="10" fill="url(#empty-state-gradient)" stroke="currentColor" stroke-width="1.6" stroke-opacity="0.4"></rect>
+              <line x1="30" y1="42" x2="84" y2="42" stroke="currentColor" stroke-opacity="0.45" stroke-width="2.2" stroke-linecap="round"></line>
+              <line x1="30" y1="58" x2="76" y2="58" stroke="currentColor" stroke-opacity="0.3" stroke-width="2.2" stroke-linecap="round"></line>
+              <line x1="30" y1="74" x2="68" y2="74" stroke="currentColor" stroke-opacity="0.3" stroke-width="2.2" stroke-linecap="round"></line>
+              <circle cx="92" cy="30" r="10" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-opacity="0.5" stroke-width="1.6"></circle>
+              <path d="M89 30l2 2 4-4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"></path>
+            </svg>
+            <p class="result-empty-state-title">Здесь появится ваш квиз</p>
+            <p class="result-empty-state-hint">Загрузите документ слева, выберите параметры и нажмите «Сгенерировать квиз».</p>
+          </div>
+          <dl class="result-overview">
+            <div>
+              <dt>Количество вопросов</dt>
+              <dd id="quiz-question-count">0</dd>
+            </div>
+          </dl>
+          <details class="inline-details result-technical-details">
+            <summary>Технические детали квиза</summary>
+            <dl class="result-overview result-overview-technical">
+              <div>
+                <dt>Режим</dt>
+                <dd id="quiz-generation-mode">Ещё нет результата</dd>
+              </div>
+              <div>
+                <dt>Модель</dt>
+                <dd id="quiz-model-name">Ещё нет результата</dd>
+              </div>
+              <div>
+                <dt>Prompt version</dt>
+                <dd id="quiz-prompt-version">Ещё нет результата</dd>
+              </div>
+            </dl>
+          </details>
         </div>
+
         <div id="quiz-editor-fields" class="editor-fields inline-editor-fields" aria-live="polite">
           <p class="field-hint">После генерации или загрузки квиза здесь появятся редактируемые поля.</p>
         </div>
-        <div class="form-actions inline-editor-add-actions">
-          <label class="field inline-editor-add-type">
-            <span class="field-label">Тип нового вопроса</span>
-            <select id="add-question-type" disabled>
+        <div class="form-actions inline-editor-add-actions result-foot">
+          <label class="field inline-editor-add-type" for="add-question-type">
+            <span class="visually-hidden">Тип нового вопроса</span>
+            <select id="add-question-type" class="add-question-type-select" disabled>
               <option value="single_choice">Одиночный выбор</option>
               <option value="true_false">Верно / Неверно</option>
               <option value="fill_blank">Заполнить пропуск</option>
@@ -379,7 +369,9 @@
               <option value="matching">Сопоставление</option>
             </select>
           </label>
-          <button id="add-question-button" class="secondary-action" type="button" data-editor-action="add-question" disabled>Добавить вопрос</button>
+          <button id="add-question-button" class="secondary-action add-question-button" type="button" data-editor-action="add-question" disabled>Добавить вопрос</button>
+          <span class="result-foot-spacer" aria-hidden="true"></span>
+          <button id="result-back-button" class="ghost-link result-back-button" type="button" data-editor-action="back-to-setup">← Новый квиз</button>
         </div>
         <ol id="quiz-question-list" class="question-list" aria-live="polite"></ol>
       </section>
@@ -442,36 +434,6 @@
               </div>
             </dl>
           </details>
-          <div class="result-actions editor-export-actions" id="editor-export-actions" hidden>
-            <div class="split-button" id="editor-export-split">
-              <button id="editor-export-json-button" class="secondary-action split-button-main" type="button" disabled aria-describedby="editor-export-json-hint" data-export-format="json">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                Скачать JSON
-              </button>
-              <button class="secondary-action split-button-toggle" type="button" disabled id="editor-export-split-toggle" aria-haspopup="true" aria-expanded="false" aria-label="Другие форматы экспорта" title="Другие форматы экспорта" aria-controls="editor-export-split-menu">
-                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"></polyline></svg>
-              </button>
-              <span id="editor-export-json-hint" class="visually-hidden">Доступно после загрузки или сохранения квиза.</span>
-              <ul class="split-button-menu" id="editor-export-split-menu" role="menu" hidden>
-                <li role="none">
-                  <button id="editor-export-docx-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="editor-export-docx-hint" data-export-format="docx">Скачать DOCX</button>
-                  <span id="editor-export-docx-hint" class="visually-hidden">Доступно после загрузки или сохранения квиза.</span>
-                </li>
-                <li role="none">
-                  <button id="editor-export-pptx-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="editor-export-pptx-hint" data-export-format="pptx">Скачать PPTX</button>
-                  <span id="editor-export-pptx-hint" class="visually-hidden">Доступно после загрузки или сохранения квиза.</span>
-                </li>
-                <li role="none">
-                  <button id="editor-export-markdown-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="editor-export-markdown-hint" data-export-format="markdown">Скачать Markdown</button>
-                  <span id="editor-export-markdown-hint" class="visually-hidden">Доступно после загрузки или сохранения квиза.</span>
-                </li>
-                <li role="none">
-                  <button id="editor-export-csv-button" class="split-button-menu-item" role="menuitem" type="button" disabled aria-describedby="editor-export-csv-hint" data-export-format="csv">Скачать CSV</button>
-                  <span id="editor-export-csv-hint" class="visually-hidden">Доступно после загрузки или сохранения квиза. Поддерживается импорт в Google Forms.</span>
-                </li>
-              </ul>
-            </div>
-          </div>
         </div>
       </details>
 

@@ -244,10 +244,22 @@ def test_frontend_index_exposes_russian_result_view_shell() -> None:
     assert "Текстовое содержание" in content
     assert "Параметры генерации" in content
     assert "Сгенерировать квиз" in content
-    assert "Результат генерации" in content
+    assert "Результат генерации" not in content
+    assert 'class="result-head"' in content
     assert "Квиз появится здесь после успешной генерации." in content
     assert 'id="generation-result"' in content
-    assert 'id="quiz-title"' in content
+    assert 'class="panel panel-result result workflow-stage"' in content
+    assert 'class="result-head"' in content
+    assert 'id="quiz-title" class="result-title"' in content
+    for pill_id in ("quiz-id-pill", "quiz-version-pill", "quiz-count-pill", "quiz-edited-pill"):
+        assert f'id="{pill_id}"' in content
+    assert 'class="result-overview-panel"' in content
+    assert 'class="form-actions inline-editor-add-actions result-foot"' in content
+    assert 'class="result-foot-spacer"' in content
+    assert 'id="result-back-button"' in content
+    assert 'id="add-question-button"' in content
+    assert 'id="add-question-type"' in content
+    assert 'class="field inline-editor-add-type"' in content
 
 
 def test_frontend_index_exposes_supported_question_type_labels() -> None:
@@ -289,7 +301,7 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
     assert "выпадающем списке" in content
     assert "Название или ID квиза" in content
     assert "Загрузить" in content
-    assert "Сохранить изменения" in content
+    assert "Сохранить" in content
     assert 'id="quiz-editor-loader"' in content
     assert 'id="quiz-id-input"' in content
     assert 'id="quiz-editor-fields"' in content
@@ -297,6 +309,9 @@ def test_frontend_index_exposes_russian_quiz_edit_shell() -> None:
     assert 'id="save-quiz-button"' in content
     assert '<details id="quiz-editor" class="panel panel-editor editor-disclosure workflow-stage"' in content
     assert 'data-workflow-stage="edit"' in content
+    assert 'id="editor-export-actions"' not in content
+    assert 'id="editor-export-json-button"' not in content
+    assert 'id="editor-export-split"' not in content
 
 
 def test_frontend_app_imports_focused_modules() -> None:
@@ -424,22 +439,18 @@ def test_frontend_editor_load_renders_saved_quiz_result_actions() -> None:
     assert "quiz," in load_section
 
 
-def test_frontend_wires_capability_driven_advanced_exports() -> None:
+def test_frontend_wires_mockup_export_action_to_capability_driven_modal() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     app_content = APP_JS.read_text(encoding="utf-8")
     download_content = DOWNLOAD_JS.read_text(encoding="utf-8")
+    export_modal_content = EXPORT_MODAL_JS.read_text(encoding="utf-8")
 
     assert 'id="export-json-button"' in index_content
-    assert 'id="export-docx-button"' in index_content
-    assert 'id="export-pptx-button"' in index_content
-    assert 'id="export-split-toggle"' in index_content
-    assert 'id="export-split-menu"' in index_content
-    assert 'class="split-button"' in index_content
-    assert "Скачать JSON" in index_content
-    assert "Скачать DOCX" in index_content
-    assert "Скачать PPTX" in index_content
-    assert "подтверждения поддержки DOCX сервером" in index_content
-    assert "подтверждения поддержки PPTX сервером" in index_content
+    assert 'id="export-split-toggle"' not in index_content
+    assert 'id="export-split-menu"' not in index_content
+    assert 'class="split-button result-export-split"' not in index_content
+    assert 'id="editor-export-split"' not in index_content
+    assert "Экспорт" in index_content
 
     assert "supportedExportFormats" in app_content
     assert "getExportFormats" in app_content
@@ -447,9 +458,12 @@ def test_frontend_wires_capability_driven_advanced_exports() -> None:
     assert "loadExportFormats" in app_content
     assert "format === \"json\" || editorState.supportedExportFormats.has(format)" in app_content
     assert "serverExporter: quizExporter" in app_content
-    assert 'exportButton?.addEventListener("click", exportModal.open)' in app_content
-    assert "exportSplitToggle?.addEventListener" in app_content
-    assert "exportSplitMenu" in app_content
+    assert 'exportJsonButton?.addEventListener("click", exportModal.open)' in app_content
+    assert "exportSplitToggle" not in app_content
+    assert "exportSplitMenu" not in app_content
+
+    assert 'docx: { label: "DOCX"' in export_modal_content
+    assert 'pptx: { label: "PPTX"' in export_modal_content
 
     assert "createQuizExporter" in download_content
     assert "exportQuizAsDocx" in download_content
@@ -472,8 +486,8 @@ def test_frontend_export_modal_serializes_text_and_saves_dirty_quiz_before_downl
     responsive_css = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
 
     assert 'data-export-format="json"' in index_content
-    assert 'data-export-format="docx"' in index_content
-    assert 'data-export-format="pptx"' in index_content
+    assert 'docx: { label: "DOCX"' in export_modal_content
+    assert 'pptx: { label: "PPTX"' in export_modal_content
     assert 'import { createExportModal } from "./export-modal.js";' in app_content
     assert "createExportModal({" in app_content
     assert "exportModal.open" in app_content
@@ -689,6 +703,20 @@ def test_frontend_mobile_status_modal_stacks_status_rows() -> None:
     assert "grid-template-columns: 1fr;" in content
 
 
+def test_frontend_mobile_result_visual_parity_breakpoints() -> None:
+    content = (FRONTEND_DIR / "responsive.css").read_text(encoding="utf-8")
+
+    assert ".compact-workspace .result-head" in content
+    assert ".compact-workspace .result-head-actions" in content
+    assert ".compact-workspace .result-foot" in content
+    assert ".compact-workspace .q-actions" in content
+    assert ".compact-workspace .q-opt" in content
+    assert ".compact-workspace .q-expl-head" in content
+    assert ".compact-workspace .q-card" in content
+    assert ".compact-workspace .q-head" in content
+    assert ".compact-workspace .q-num" in content
+
+
 def test_frontend_modal_controls_preserve_form_busy_state_and_shortcut() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     keyboard_content = KEYBOARD_JS.read_text(encoding="utf-8")
@@ -756,11 +784,8 @@ def test_frontend_generation_renders_inline_editor_in_result_screen() -> None:
     assert "function focusResultView" in app_content
     assert "resultPanel.scrollIntoView" in app_content
     assert "resultPanel.focus" in app_content
-    assert "editorPanel.open = true" in app_content, (
-        "the result edit action must explicitly open the collapsed editor"
-    )
-    assert 'stageFlow.activateStage("edit", { focus: true })' in app_content, (
-        "the result edit action must switch to the dedicated edit stage"
+    assert "openEditorForCurrentQuiz" not in app_content, (
+        "legacy edit shortcut must be removed once the inline editor is the canonical view"
     )
 
 
@@ -1216,10 +1241,13 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "Текстовое содержание" in html
     assert "Параметры генерации" in html
     assert "Сгенерировать квиз" in html
-    assert "Результат генерации" in html
+    assert "Результат генерации" not in html
+    assert 'class="result-head"' in html
+    assert 'id="result-back-button"' in html
+    assert 'class="form-actions inline-editor-add-actions result-foot"' in html
     assert "Редактирование квиза" in html
     assert "Название или ID квиза" in html
-    assert "Сохранить изменения" in html
+    assert "Сохранить" in html
     assert "backendBaseUrl" in config_js
     assert "createGenerationFlow" in app_js
     assert "renderQuizResult" in renderer_js
@@ -1231,20 +1259,6 @@ def test_frontend_static_smoke_serves_russian_result_view_assets() -> None:
     assert "generateQuiz" in client_js
     assert "regenerateQuestion" in client_js
     assert ".generation-progress" in css
-
-
-def test_edit_shortcut_autoloads_last_generated_quiz_without_extra_click() -> None:
-    content = APP_JS.read_text(encoding="utf-8")
-
-    assert "function openEditorForCurrentQuiz" in content
-    assert "editorState.lastGeneratedQuizId" in content
-    assert "quizEditor.loadQuizForEditing" in content, (
-        "edit shortcut must invoke the editor loader, not only scroll/focus"
-    )
-    assert (
-        "editShortcutButton?.addEventListener(\"click\", openEditorForCurrentQuiz)"
-        in content
-    )
 
 
 def test_frontend_index_hides_legacy_developer_only_sections() -> None:
@@ -1509,9 +1523,6 @@ def test_frontend_a11y_disabled_buttons_have_screen_reader_hints() -> None:
 
     for button_id, hint_id in (
         ("export-json-button", "export-json-hint"),
-        ("export-docx-button", "export-docx-hint"),
-        ("export-pptx-button", "export-pptx-hint"),
-        ("edit-quiz-shortcut", "edit-shortcut-hint"),
         ("save-quiz-button", "save-quiz-hint"),
     ):
         assert f'id="{button_id}"' in index_content
@@ -2169,6 +2180,19 @@ def test_frontend_inline_editor_exposes_structural_actions_and_undo() -> None:
     assert ".editor-card:focus-within .question-reorder-actions" in quiz_css
 
 
+def test_frontend_result_foot_wires_back_to_setup() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    app_content = APP_JS.read_text(encoding="utf-8")
+
+    assert 'id="result-back-button"' in index_content
+    assert 'data-editor-action="back-to-setup"' in index_content
+    assert "resultBackButton?.addEventListener" in app_content
+    assert "startNewQuiz" in app_content
+    assert "editorExportJsonButton" not in app_content
+    assert "editorExportSplitToggle" not in app_content
+    assert "editorExportActions" not in app_content
+
+
 def test_frontend_icon_only_actions_expose_tooltips() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     sidebar_content = SIDEBAR_JS.read_text(encoding="utf-8")
@@ -2183,8 +2207,6 @@ def test_frontend_icon_only_actions_expose_tooltips() -> None:
         "sidebar-status-cell",
         "theme-toggle",
         "doc-file-remove",
-        "export-split-toggle",
-        "editor-export-split-toggle",
     ):
         element = index_content.split(f'id="{action_id}"', 1)[1].split(">", 1)[0]
         assert "title=" in element
@@ -2208,8 +2230,8 @@ def test_frontend_matching_editor_uses_dedicated_pair_rows_without_distractors()
     assert 'pairRow.className = "matching-pair-row"' in editor_content
     assert '.className = "matching-pair-badge"' in editor_content
     assert 'link.className = "matching-pair-link"' in editor_content
-    assert 'data-editor-action", "add-matching-pair"' in editor_content
-    assert 'data-editor-action", "delete-matching-pair"' in editor_content
+    assert '"add-matching-pair"' in editor_content
+    assert '"delete-matching-pair"' in editor_content
     assert "Для сопоставления нужны минимум 4 пары." in editor_content
     assert "distractors" not in editor_content
     assert "Лишние варианты" not in editor_content
@@ -2501,6 +2523,36 @@ def test_frontend_compact_workspace_uses_mockup_fidelity_layout() -> None:
     assert "padding: 22px 22px 23px;" in fidelity_css
     assert "padding: 22px 22px 11px;" in fidelity_css
     assert "text-align: center;" in fidelity_css
+
+
+def test_frontend_result_foot_uses_mockup_ghost_link_and_compact_type_select() -> None:
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
+
+    assert ".compact-workspace .ghost-link" in fidelity_css
+    assert ".compact-workspace .result-foot-spacer" in fidelity_css
+    assert ".compact-workspace .inline-editor-add-actions .add-question-type-select" in fidelity_css
+    assert ".compact-workspace .inline-editor-add-actions .add-question-button" in fidelity_css
+
+
+def test_frontend_result_screen_hides_setup_hero_and_legacy_question_cards() -> None:
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
+
+    assert '.workspace[data-active-stage]:not([data-active-stage="setup"])' in fidelity_css
+    assert ".compact-workspace .panel-result .question-list" in fidelity_css
+    assert "flex-direction: row;" in fidelity_css
+    assert "field-sizing: content;" in fidelity_css
+
+
+def test_frontend_result_question_type_stays_next_to_question_number() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    card_actions = editor_content.split(
+        'cardActions.className = "question-structure-actions q-actions";',
+        1,
+    )[1].split("header.append(", 1)[0]
+
+    assert "questionTypeSelect" not in card_actions
+    assert "regenerateButton" in card_actions
+    assert "duplicateButton" in card_actions
 
 
 def test_frontend_setup_markup_uses_mockup_control_structure() -> None:

@@ -1,4 +1,5 @@
 const GENERATION_MODE_LABELS = Object.freeze({
+  auto: "Авто",
   rag: "RAG (поиск по документу)",
   direct: "Прямая",
   single_question_regen: "Регенерация одного вопроса",
@@ -79,10 +80,18 @@ export function createQuizRenderer({
 
   function clearQuizResult() {
     setTextContent("quiz-title", "Ещё нет результата");
+    setTextContent("quiz-id-pill", "id: ещё нет");
+    setTextContent("quiz-version-pill", "версия —");
+    setTextContent("quiz-count-pill", "0 вопросов");
+    setTextContent("quiz-edited-pill", "обновлений нет");
     setTextContent("quiz-question-count", "0");
     setTextContent("quiz-generation-mode", "Ещё нет результата");
     setTextContent("quiz-model-name", "Ещё нет результата");
     setTextContent("quiz-prompt-version", "Ещё нет результата");
+    const titleInput = documentRef.getElementById("quiz-title");
+    if (titleInput instanceof HTMLInputElement) {
+      titleInput.disabled = true;
+    }
     if (questionList) {
       questionList.replaceChildren();
     }
@@ -175,11 +184,22 @@ export function createQuizRenderer({
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
     const warnings = normalizeGenerationWarnings(generationPayload.warnings);
 
-    setTextContent("quiz-title", quiz.title ?? "Без названия");
+    const title = quiz.title ?? "Без названия";
+    const quizId = generationPayload.quiz_id ?? quiz.quiz_id ?? "";
+    const version = Number.isInteger(quiz.version) ? quiz.version : null;
+    setTextContent("quiz-title", title);
+    setTextContent("quiz-id-pill", quizId ? "id: " + String(quizId).slice(0, 8) : "id: ещё нет");
+    setTextContent("quiz-version-pill", version === null ? "версия —" : "версия " + String(version));
+    setTextContent("quiz-count-pill", String(questions.length) + " вопросов");
+    setTextContent("quiz-edited-pill", quiz.last_edited_at ? "обновлено" : "обновлено только что");
     setTextContent("quiz-question-count", String(questions.length));
     setTextContent("quiz-generation-mode", describeGenerationMode(generationPayload.prompt_version));
     setTextContent("quiz-model-name", generationPayload.model_name ?? "Не указана");
     setTextContent("quiz-prompt-version", generationPayload.prompt_version ?? "Не указана");
+    const titleInput = documentRef.getElementById("quiz-title");
+    if (titleInput instanceof HTMLInputElement) {
+      titleInput.disabled = false;
+    }
 
     if (questionList) {
       questionList.replaceChildren(...questions.map((question, index) => buildQuestionCard(question, index)));
