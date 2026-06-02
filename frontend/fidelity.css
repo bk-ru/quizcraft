@@ -1252,6 +1252,10 @@
         opacity var(--duration-fast) var(--easing);
 }
 
+.compact-workspace .q-act[hidden] {
+    display: none;
+}
+
 .compact-workspace .q-act:hover:not(:disabled) {
     color: var(--ink);
     background: var(--surface);

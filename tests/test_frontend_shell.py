@@ -1973,6 +1973,7 @@ def test_frontend_app_attaches_cancel_regeneration_listener() -> None:
 def test_frontend_editor_renders_cancel_button_for_active_regeneration() -> None:
     editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
     quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
 
     assert 'data-editor-action", "cancel-regenerate-question"' in editor_content, (
         "every editor card must render a cancel-regenerate-question button"
@@ -1988,6 +1989,9 @@ def test_frontend_editor_renders_cancel_button_for_active_regeneration() -> None
     )
     assert ".question-icon-action[hidden]" in quiz_css, (
         "hidden regeneration actions must stay visually hidden despite their grid display rule"
+    )
+    assert ".compact-workspace .q-act[hidden]" in fidelity_css, (
+        "compact-workspace action styling must not override hidden regeneration actions"
     )
 
 
