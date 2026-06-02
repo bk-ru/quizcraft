@@ -559,7 +559,7 @@ export function createQuizEditor(
     duplicateButton.className =
       "ghost-action question-structure-action q-act q-act-copy";
     duplicateButton.type = "button";
-    duplicateButton.textContent = "Дублировать";
+    duplicateButton.textContent = "⧉";
     duplicateButton.setAttribute("data-editor-action", "duplicate-question");
     duplicateButton.setAttribute(
       "aria-label",
@@ -570,7 +570,7 @@ export function createQuizEditor(
     deleteButton.className =
       "ghost-action question-structure-action q-act q-act-danger";
     deleteButton.type = "button";
-    deleteButton.textContent = "Удалить";
+    deleteButton.textContent = "×";
     deleteButton.setAttribute("data-editor-action", "delete-question");
     deleteButton.setAttribute("aria-label", `Удалить вопрос ${index + 1}`);
 

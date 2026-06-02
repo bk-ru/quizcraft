@@ -1240,7 +1240,7 @@
     background: var(--surface-sunken);
     color: var(--ink-2);
     box-shadow: 0 1px 0 rgba(255, 255, 255, 0.36);
-    font-size: 1rem;
+    font-size: 19px;
     font-weight: 800;
     line-height: 1;
     cursor: pointer;
@@ -1269,39 +1269,52 @@
     transform: none;
 }
 
-.compact-workspace .q-act-copy,
+.compact-workspace .q-act-regen {
+    color: #5c4dd6;
+    background: color-mix(in oklab, var(--brand) 11%, var(--surface-sunken));
+    border-color: color-mix(in oklab, var(--brand) 24%, var(--line));
+}
+
+.compact-workspace .q-act-stop {
+    color: #fff;
+    background: var(--bad);
+    border-color: var(--bad);
+    animation: stop-pulse 1200ms var(--easing) infinite;
+}
+
+.compact-workspace .q-act-stop:hover:not(:disabled) {
+    color: #fff;
+    background: color-mix(in oklab, var(--bad) 84%, #000);
+    border-color: color-mix(in oklab, var(--bad) 84%, #000);
+}
+
+.compact-workspace .q-act-revert {
+    color: var(--warn);
+    background: color-mix(in oklab, var(--muted) 8%, var(--surface-sunken));
+}
+
+.compact-workspace .q-act-copy {
+    color: #d62f93;
+    background: color-mix(in oklab, var(--accent) 10%, var(--surface-sunken));
+    border-color: color-mix(in oklab, var(--accent) 22%, var(--line));
+}
+
 .compact-workspace .q-act-danger {
-    font-size: 0;
+    color: #ff4f6f;
+    background: color-mix(in oklab, var(--bad) 10%, var(--surface-sunken));
+    border-color: color-mix(in oklab, var(--bad) 24%, var(--line));
 }
 
-.compact-workspace .q-act-copy::before {
-    content: "⧉";
-    font-size: 1rem;
-}
-
-.compact-workspace .q-act-danger::before {
-    content: "×";
-    font-size: 1.25rem;
-}
-
-.compact-workspace .q-act-regen,
-.compact-workspace .q-act-move {
-    color: var(--brand);
-    background: color-mix(in oklab, var(--brand) 9%, var(--surface-sunken));
-    border-color: color-mix(in oklab, var(--brand) 22%, var(--line));
-}
-
-.compact-workspace .q-act-stop,
 .compact-workspace .q-act-danger:hover:not(:disabled) {
     color: #fff;
     background: var(--bad);
     border-color: var(--bad);
 }
 
-.compact-workspace .q-act-revert {
-    color: var(--warn);
-    background: color-mix(in oklab, var(--warn) 8%, var(--surface-sunken));
-    border-color: color-mix(in oklab, var(--warn) 22%, var(--line));
+.compact-workspace .q-act-move {
+    color: #4c42c8;
+    background: color-mix(in oklab, var(--brand) 9%, var(--surface-sunken));
+    border-color: color-mix(in oklab, var(--brand) 20%, var(--line));
 }
 
 .compact-workspace .q-move-controls {
@@ -1368,6 +1381,17 @@
 
 .compact-workspace .q-act-stop {
     box-shadow: 0 0 0 4px var(--bad-soft);
+}
+
+@keyframes stop-pulse {
+    0%,
+    100% {
+        box-shadow: 0 0 0 0 color-mix(in oklab, var(--bad) 0%, transparent);
+    }
+
+    50% {
+        box-shadow: 0 0 0 5px color-mix(in oklab, var(--bad) 16%, transparent);
+    }
 }
 
 .compact-workspace .q-text-field textarea.q-text {

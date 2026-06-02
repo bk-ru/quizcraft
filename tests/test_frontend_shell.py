@@ -2584,6 +2584,20 @@ def test_frontend_question_regeneration_stop_and_dirty_states_match_mockup() -> 
     assert ".compact-workspace .q-card.is-regenerating .q-act:not(.q-act-stop)" in fidelity_css
 
 
+def test_frontend_question_action_icons_match_mockup() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
+
+    assert 'regenerateButton.textContent = "↻"' in editor_content
+    assert 'revertButton.textContent = "↶"' in editor_content
+    assert 'duplicateButton.textContent = "⧉"' in editor_content
+    assert 'deleteButton.textContent = "×"' in editor_content
+    assert "font-size: 19px" in fidelity_css
+    assert ".compact-workspace .q-act-copy {" in fidelity_css
+    assert ".compact-workspace .q-act-danger {" in fidelity_css
+    assert "@keyframes stop-pulse" in fidelity_css
+
+
 def test_frontend_setup_markup_uses_mockup_control_structure() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
 
