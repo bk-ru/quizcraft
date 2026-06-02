@@ -12,7 +12,6 @@ const SUPPORTED_DOCUMENT_MEDIA_TYPES = Object.freeze(new Set(Object.values(media
 const SLOW_GENERATION_WARNING_MS = 60000;
 const GENERATION_EVENT_POLL_MS = 1000;
 const LIVE_JOURNAL_ENTRY_STAGGER_MS = 90;
-const PROVIDER_WAIT_HEARTBEAT_MS = 15000;
 const CANCEL_CONFIRMATION_MAX_ATTEMPTS = 3;
 const CANCEL_CONFIRMATION_RETRY_MS = 180;
 const DEFAULT_GENERATION_MODE = "auto";
@@ -134,12 +133,10 @@ export function createGenerationFlow({
   let currentGenerationRequestId = null;
   let cancellationRequestInFlight = false;
   let timerIntervalId = null;
-  let providerWaitHeartbeatId = null;
   let generationEventPollId = null;
   let generationEventPollingRequestId = null;
   let generationEventAfter = 0;
   const generationEventIds = new Set();
-  let liveJournalEntryCount = 0;
   const liveJournalCountElement = liveJournalContainer?.querySelector(".generation-live-journal-count") ?? null;
   let timerStartedAt = 0;
   let currentGenCharCount = 0;
@@ -243,7 +240,6 @@ export function createGenerationFlow({
   function clearGenerationJournal() {
     generationEventIds.clear();
     generationEventAfter = 0;
-    liveJournalEntryCount = 0;
     if (liveJournalElement) {
       liveJournalElement.replaceChildren();
     }
@@ -262,54 +258,6 @@ export function createGenerationFlow({
     return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
 
-  function appendGenerationJournalMessage(message, elapsedMs, status = "") {
-    if (!liveJournalElement || !message) {
-      return;
-    }
-    const item = document.createElement("li");
-    item.className = "live-journal-entry";
-    item.dataset.status = status;
-    item.style.animationDelay = `${liveJournalEntryCount * LIVE_JOURNAL_ENTRY_STAGGER_MS}ms`;
-    const time = document.createElement("span");
-    time.className = "live-journal-time";
-    time.textContent = formatJournalTime(elapsedMs);
-    const text = document.createElement("span");
-    text.className = "live-journal-message";
-    text.textContent = message;
-    item.append(time, text);
-    liveJournalElement.append(item);
-    liveJournalEntryCount += 1;
-    if (liveJournalContainer) {
-      liveJournalContainer.hidden = false;
-    }
-    if (liveJournalCountElement) {
-      liveJournalCountElement.textContent = `${liveJournalEntryCount} строк`;
-    }
-  }
-
-  function startProviderWaitHeartbeat() {
-    if (!windowRef) {
-      return;
-    }
-    stopProviderWaitHeartbeat();
-    providerWaitHeartbeatId = windowRef.setInterval(() => {
-      const elapsedMs = Date.now() - timerStartedAt;
-      appendGenerationJournalMessage(
-        `Модель всё ещё формирует ответ. Ожидаем уже ${formatElapsed(elapsedMs)}.`,
-        elapsedMs,
-        "heartbeat",
-      );
-    }, PROVIDER_WAIT_HEARTBEAT_MS);
-  }
-
-  function stopProviderWaitHeartbeat() {
-    if (!windowRef || providerWaitHeartbeatId === null) {
-      return;
-    }
-    windowRef.clearInterval(providerWaitHeartbeatId);
-    providerWaitHeartbeatId = null;
-  }
-
   function appendGenerationJournalEvents(events) {
     if (!liveJournalElement || !Array.isArray(events)) {
       return;
@@ -321,18 +269,25 @@ export function createGenerationFlow({
         continue;
       }
       generationEventIds.add(eventId);
-      appendGenerationJournalMessage(
-        message,
-        event.elapsed_ms,
-        typeof event.status === "string" ? event.status : "",
-      );
-      const item = liveJournalElement.lastElementChild;
-      if (item) {
-        item.dataset.eventId = String(eventId);
-      }
+      const item = document.createElement("li");
+      item.className = "live-journal-entry";
+      item.dataset.eventId = String(eventId);
+      item.dataset.status = typeof event.status === "string" ? event.status : "";
+      item.style.animationDelay = `${liveJournalElement.childElementCount * LIVE_JOURNAL_ENTRY_STAGGER_MS}ms`;
+      const time = document.createElement("span");
+      time.className = "live-journal-time";
+      time.textContent = formatJournalTime(event.elapsed_ms);
+      const text = document.createElement("span");
+      text.className = "live-journal-message";
+      text.textContent = message;
+      item.append(time, text);
+      liveJournalElement.append(item);
     }
     if (liveJournalContainer && generationEventIds.size > 0) {
       liveJournalContainer.hidden = false;
+    }
+    if (liveJournalCountElement) {
+      liveJournalCountElement.textContent = `${generationEventIds.size} строк`;
     }
   }
 
@@ -856,7 +811,6 @@ export function createGenerationFlow({
       currentGenerationRequestId = generationRequestId;
       setTextContent("last-request-id", generationRequestId);
       startGenerationEventPolling(generationRequestId);
-      startProviderWaitHeartbeat();
       generationPayload = await client.generateQuiz(
         uploadPayload.document_id,
         generationBody,
@@ -945,7 +899,6 @@ export function createGenerationFlow({
         }
       }
     } finally {
-      stopProviderWaitHeartbeat();
       await stopGenerationEventPolling(generationRequestId, { flush: shouldFlushGenerationEvents });
       setBusyState(false);
       stopTimer();
