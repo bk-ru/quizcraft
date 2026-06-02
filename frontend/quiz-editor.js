@@ -133,6 +133,16 @@ export function createQuizEditor(
     );
   }
 
+  function preserveViewportPosition(callback) {
+    const windowRef = documentRef.defaultView;
+    const scrollX = windowRef?.scrollX ?? 0;
+    const scrollY = windowRef?.scrollY ?? 0;
+    callback();
+    if (typeof windowRef?.scrollTo === "function") {
+      windowRef.scrollTo(scrollX, scrollY);
+    }
+  }
+
   function refreshQuestionDirtyStates(quiz) {
     const savedQuestions = Array.isArray(savedQuiz?.questions)
       ? savedQuiz.questions
@@ -164,7 +174,7 @@ export function createQuizEditor(
   }
 
   function setLocalQuizState(quiz, message) {
-    renderQuizEditor(quiz);
+    preserveViewportPosition(() => renderQuizEditor(quiz));
     const hasUnsavedChanges = !isSavedQuiz(quiz);
     editorState.isDirty = hasUnsavedChanges;
     refreshQuestionDirtyStates(quiz);
@@ -519,9 +529,9 @@ export function createQuizEditor(
     cancelRegenerateButton.dataset.questionId = article.dataset.questionId;
     cancelRegenerateButton.setAttribute(
       "aria-label",
-      `Отменить перегенерацию вопроса ${index + 1}`,
+      `Остановить генерацию вопроса ${index + 1}`,
     );
-    cancelRegenerateButton.title = "Остановить перегенерацию";
+    cancelRegenerateButton.title = "Остановить генерацию";
     cancelRegenerateButton.hidden = true;
     cancelRegenerateButton.disabled = true;
 
@@ -617,7 +627,6 @@ export function createQuizEditor(
     content.className = "editor-card-content";
     const overlay = documentRef.createElement("div");
     overlay.className = "question-regenerate-overlay";
-    overlay.textContent = "Перегенерируем вопрос…";
     overlay.setAttribute("aria-hidden", "true");
     body.append(content, overlay);
     article.append(header, reorderActions, body);
@@ -1128,7 +1137,15 @@ export function createQuizEditor(
     ) {
       return;
     }
-    if (actionName === "mark-correct-option" && event.target !== action) {
+    const optionMarker =
+      event.target instanceof Element
+        ? event.target.closest("[data-option-mark]")
+        : null;
+    if (
+      actionName === "mark-correct-option" &&
+      event.target !== action &&
+      !optionMarker
+    ) {
       return;
     }
     if (actionName === "change-question-type" && event.type !== "change") {
@@ -1383,8 +1400,6 @@ export function createQuizEditor(
       stableQuestion = cloneQuizPayload(displayedQuestion);
       setRegenerationActionState(card, {
         busy: true,
-        text: "Перегенерируем вопрос…",
-        tone: "warn",
       });
       setEditorStatus(
         "Перегенерируем один вопрос. Остальные вопросы останутся без изменений.",

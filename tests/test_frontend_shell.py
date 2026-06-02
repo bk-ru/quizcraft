@@ -419,7 +419,7 @@ def test_frontend_app_wires_generation_and_edit_save_states() -> None:
     assert "replaceRegeneratedQuestion" in content
     assert "Загрузите документ" in content
     assert "Квиз создан" in content
-    assert "Результат готов" in content
+    assert "\u041a\u0432\u0438\u0437 \u0433\u043e\u0442\u043e\u0432 \u043a \u0440\u0435\u0434\u0430\u043a\u0442\u0438\u0440\u043e\u0432\u0430\u043d\u0438\u044e" in content
     assert "Квиз появится здесь после успешной генерации." in content
     assert "Изменения пока не сохранены." in content
     assert "Изменения сохранены." in content
@@ -741,7 +741,7 @@ def test_frontend_editor_wires_single_question_regeneration_action() -> None:
     assert "client.regenerateQuestion" in editor_content
     assert 'data-editor-action", "regenerate-question"' in editor_content
     assert "Перегенерировать вопрос" in editor_content
-    assert "Перегенерируем вопрос" in editor_content
+    assert 'cancelRegenerateButton.title = "\u041e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u0433\u0435\u043d\u0435\u0440\u0430\u0446\u0438\u044e"' in editor_content
     assert "Не удалось перегенерировать вопрос" in editor_content
     assert "quizEditorFields?.addEventListener(\"click\", quizEditor.regenerateQuizQuestion)" in app_content
 
@@ -937,7 +937,7 @@ def test_frontend_hides_generation_technical_identifiers() -> None:
     assert 'id="last-document-id"' not in content
     assert 'id="last-quiz-id"' not in content
     assert 'id="last-request-id"' not in content
-    assert "\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0434\u0435\u0442\u0430\u043b\u0438 \u043a\u0432\u0438\u0437\u0430" in content
+    assert "\u0422\u0435\u0445\u043d\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u0434\u0435\u0442\u0430\u043b\u0438 \u043a\u0432\u0438\u0437\u0430" not in content
     assert '<details class="inline-details" open' not in content
 
 def test_frontend_visible_status_surface_receives_shell_log_messages() -> None:
@@ -2334,16 +2334,11 @@ def test_frontend_index_exposes_generation_mode_selector() -> None:
     )
 
 
-def test_frontend_index_surfaces_resolved_generation_mode_in_result() -> None:
+def test_frontend_index_hides_resolved_generation_mode_from_result() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
 
-    assert 'id="quiz-generation-mode"' in index_content, (
-        "result panel must expose a dedicated slot for the resolved generation mode"
-    )
-    assert "<dt>Режим</dt>" in index_content, (
-        "result panel must label the slot in Russian"
-    )
-
+    assert 'id="quiz-generation-mode"' not in index_content
+    assert "<dt>\u0420\u0435\u0436\u0438\u043c</dt>" not in index_content
 
 def test_frontend_generation_flow_forwards_requested_generation_mode() -> None:
     content = GENERATION_FLOW_JS.read_text(encoding="utf-8")
@@ -2553,6 +2548,32 @@ def test_frontend_result_question_type_stays_next_to_question_number() -> None:
     assert "questionTypeSelect" not in card_actions
     assert "regenerateButton" in card_actions
     assert "duplicateButton" in card_actions
+
+
+def test_frontend_result_removes_technical_details_and_uses_review_copy() -> None:
+    index_content = INDEX_HTML.read_text(encoding="utf-8")
+    renderer_content = QUIZ_RENDERER_JS.read_text(encoding="utf-8")
+
+    assert "Технические детали квиза" not in index_content
+    assert "Результат готов. Квиз отображён ниже." not in renderer_content
+    assert "Проверьте вопросы, поправьте формулировки и выберите формат экспорта." in renderer_content
+
+
+def test_frontend_correct_option_marker_click_preserves_viewport() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+
+    assert 'event.target.closest("[data-option-mark]")' in editor_content
+    assert "function preserveViewportPosition" in editor_content
+    assert "preserveViewportPosition(() => renderQuizEditor(quiz))" in editor_content
+
+
+def test_frontend_question_regeneration_stop_and_dirty_states_match_mockup() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
+
+    assert 'cancelRegenerateButton.title = "Остановить генерацию"' in editor_content
+    assert ".compact-workspace .q-card.is-dirty::before" in fidelity_css
+    assert ".compact-workspace .q-card.is-regenerating .q-act:not(.q-act-stop)" in fidelity_css
 
 
 def test_frontend_setup_markup_uses_mockup_control_structure() -> None:

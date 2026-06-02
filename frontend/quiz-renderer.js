@@ -215,7 +215,11 @@ export function createQuizRenderer({
         "Результат частичный",
       );
     } else {
-      setResultState("Результат готов. Квиз отображён ниже.", "ok", "Результат готов");
+      setResultState(
+        "Проверьте вопросы, поправьте формулировки и выберите формат экспорта.",
+        "ok",
+        "Квиз готов к редактированию",
+      );
     }
     setExportAvailability(generationPayload.quiz_id ?? quiz.quiz_id ?? null);
     activateWorkflowStage("result");
