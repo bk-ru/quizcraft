@@ -135,81 +135,188 @@ export function createPlayablePreview({
     return true;
   }
 
-  function createChoiceFields(question, questionId) {
+  function createExplanation(text, className = "") {
+    const explanation = documentRef.createElement("div");
+    explanation.className = `q-expl ${className}`.trim();
+    const label = documentRef.createElement("span");
+    label.className = "q-expl-label";
+    label.textContent = "Пояснение";
+    explanation.append(label, text ?? "");
+    return explanation;
+  }
+
+  function createChoiceFields(question, questionId, answers) {
     const wrapper = documentRef.createElement("div");
-    wrapper.className = "preview-options";
+    wrapper.className = "preview-options play-options";
     const options = Array.isArray(question.options) ? question.options : [];
+    const updateChoiceState = () => {
+      const selectedIndex = Number.parseInt(answers[questionId], 10);
+      wrapper.querySelectorAll(".play-opt").forEach((optionButton, optionIndex) => {
+        optionButton.classList.toggle("is-correct", Number.isInteger(selectedIndex) && optionIndex === question.correct_option_index);
+        optionButton.classList.toggle("is-wrong", Number.isInteger(selectedIndex) && optionIndex === selectedIndex && optionIndex !== question.correct_option_index);
+      });
+      explanation.hidden = !Number.isInteger(selectedIndex) || !question.explanation?.text;
+    };
     options.forEach((option, optionIndex) => {
       const label = documentRef.createElement("label");
-      label.className = "preview-option";
+      label.className = "preview-option play-opt";
       const input = documentRef.createElement("input");
       input.type = "radio";
       input.name = `preview-${questionId}`;
       input.value = String(optionIndex);
       input.dataset.previewQuestionId = questionId;
       input.dataset.previewKind = "choice";
+      input.checked = answers[questionId] === input.value;
+      input.addEventListener("change", () => {
+        answers[questionId] = input.value;
+        updateChoiceState();
+      });
+      const mark = documentRef.createElement("span");
+      mark.className = "play-opt-mark";
+      mark.textContent = String.fromCharCode(65 + optionIndex);
       const text = documentRef.createElement("span");
       text.textContent = option.text ?? "";
-      label.append(input, text);
+      label.append(input, mark, text);
       wrapper.append(label);
     });
-    return wrapper;
+    const explanation = createExplanation(question.explanation?.text);
+    explanation.hidden = true;
+    updateChoiceState();
+    return [wrapper, explanation];
   }
 
-  function createAnswerField(questionId) {
+  function createAnswerField(question, questionId, answers) {
+    const wrapper = documentRef.createElement("div");
+    wrapper.className = "play-answer-wrap";
     const input = documentRef.createElement("input");
     input.type = "text";
-    input.className = "preview-answer-input";
+    input.className = "preview-answer-input play-answer";
     input.dataset.previewQuestionId = questionId;
     input.dataset.previewKind = "text";
     input.setAttribute("aria-label", "Введите ответ");
-    return input;
+    input.placeholder = "Введите ответ";
+    input.value = answers[questionId] ?? "";
+    const feedback = createExplanation("", "play-answer-feedback");
+    feedback.hidden = true;
+    const explanation = createExplanation(question.explanation?.text);
+    explanation.hidden = true;
+    const updateAnswerState = () => {
+      const answer = input.value.trim();
+      feedback.hidden = !answer;
+      explanation.hidden = !answer || !question.explanation?.text;
+      if (!answer) {
+        return;
+      }
+      const correct = normalizeAnswer(answer) === normalizeAnswer(question.correct_answer);
+      feedback.classList.toggle("play-match-ok", correct);
+      feedback.classList.toggle("play-match-bad", !correct);
+      feedback.replaceChildren();
+      const label = documentRef.createElement("span");
+      label.className = "q-expl-label";
+      label.textContent = correct ? "Верно" : "Проверьте";
+      feedback.append(label, correct ? "Ответ совпадает с ожидаемым." : `Ожидаемый ответ: ${question.correct_answer ?? ""}`);
+    };
+    input.addEventListener("input", () => {
+      answers[questionId] = input.value;
+      updateAnswerState();
+    });
+    updateAnswerState();
+    wrapper.append(input, feedback, explanation);
+    return [wrapper];
   }
 
-  function createMatchingFields(question, questionId) {
+  function createMatchingFields(question, questionId, answers) {
     const wrapper = documentRef.createElement("div");
-    wrapper.className = "preview-matching";
+    wrapper.className = "preview-matching play-match";
     const pairs = Array.isArray(question.matching_pairs) ? question.matching_pairs : [];
     const rightValues = shufflePreviewValues(pairs.map((pair) => pair.right), { random });
+    const selectedValues = Array.isArray(answers[questionId]) ? answers[questionId] : [];
+    answers[questionId] = selectedValues;
+    const letters = new Map(rightValues.map((value, index) => [value, String.fromCharCode(65 + index)]));
+    const feedback = createExplanation("", "play-match-feedback");
+    feedback.hidden = true;
+    const explanation = createExplanation(question.explanation?.text);
+    explanation.hidden = true;
+    const updateMatchingState = () => {
+      const answered = pairs.every((_pair, index) => selectedValues[index]);
+      feedback.hidden = !answered;
+      explanation.hidden = !answered || !question.explanation?.text;
+      if (!answered) {
+        return;
+      }
+      const correct = pairs.every((pair, index) => normalizeAnswer(selectedValues[index]) === normalizeAnswer(pair.right));
+      feedback.classList.toggle("play-match-ok", correct);
+      feedback.classList.toggle("play-match-bad", !correct);
+      feedback.replaceChildren();
+      const label = documentRef.createElement("span");
+      label.className = "q-expl-label";
+      label.textContent = correct ? "Верно" : "Проверьте";
+      feedback.append(label, correct ? "Все пары сопоставлены правильно." : "Некоторые соответствия выбраны неверно.");
+    };
     pairs.forEach((pair, pairIndex) => {
       const label = documentRef.createElement("label");
-      label.className = "preview-matching-row";
+      label.className = "preview-matching-row play-match-row";
+      const badge = documentRef.createElement("span");
+      badge.className = "q-match-badge";
+      badge.textContent = String(pairIndex + 1);
       const left = documentRef.createElement("span");
+      left.className = "play-match-left";
       left.textContent = pair.left ?? "";
       const select = documentRef.createElement("select");
+      select.className = "play-match-pick";
       select.dataset.previewQuestionId = questionId;
       select.dataset.previewKind = "matching";
       select.dataset.previewPairIndex = String(pairIndex);
       select.setAttribute("aria-label", `Соответствие для «${pair.left ?? ""}»`);
       const placeholder = documentRef.createElement("option");
       placeholder.value = "";
-      placeholder.textContent = "Выберите соответствие";
+      placeholder.textContent = "—";
       select.append(placeholder);
       rightValues.forEach((rightValue) => {
         const option = documentRef.createElement("option");
         option.value = rightValue;
-        option.textContent = rightValue;
+        option.textContent = letters.get(rightValue);
         select.append(option);
       });
-      label.append(left, select);
+      select.value = selectedValues[pairIndex] ?? "";
+      select.addEventListener("change", () => {
+        selectedValues[pairIndex] = select.value;
+        updateMatchingState();
+      });
+      label.append(badge, left, select);
       wrapper.append(label);
     });
-    return wrapper;
+    const bank = documentRef.createElement("div");
+    bank.className = "play-match-bank";
+    rightValues.forEach((rightValue) => {
+      const item = documentRef.createElement("div");
+      item.className = "play-match-bank-item";
+      const badge = documentRef.createElement("span");
+      badge.className = "q-match-badge q-match-badge-alt";
+      badge.textContent = letters.get(rightValue);
+      const text = documentRef.createElement("span");
+      text.textContent = rightValue;
+      item.append(badge, text);
+      bank.append(item);
+    });
+    updateMatchingState();
+    return [wrapper, bank, feedback, explanation];
   }
 
-  function createQuestionFields(question, index) {
-    const fieldset = documentRef.createElement("fieldset");
-    fieldset.className = "preview-question";
-    const legend = documentRef.createElement("legend");
-    legend.textContent = `Вопрос ${index + 1}. ${question.prompt ?? ""}`;
-    fieldset.append(legend);
+  function createQuestionFields(question, index, answers) {
+    const fieldset = documentRef.createElement("section");
+    fieldset.className = "preview-question play-question";
+    const heading = documentRef.createElement("h3");
+    heading.className = "play-q-text";
+    heading.textContent = `${index + 1}. ${question.prompt ?? ""}`;
+    fieldset.append(heading);
     const questionId = getQuestionId(question, index);
     if (CHOICE_QUESTION_TYPES.has(question.question_type)) {
-      fieldset.append(createChoiceFields(question, questionId));
+      fieldset.append(...createChoiceFields(question, questionId, answers));
     } else if (ANSWER_QUESTION_TYPES.has(question.question_type)) {
-      fieldset.append(createAnswerField(questionId));
+      fieldset.append(...createAnswerField(question, questionId, answers));
     } else if (question.question_type === "matching") {
-      fieldset.append(createMatchingFields(question, questionId));
+      fieldset.append(...createMatchingFields(question, questionId, answers));
     }
     return fieldset;
   }
@@ -280,11 +387,21 @@ export function createPlayablePreview({
     heading.className = "quiz-preview-heading";
     const title = documentRef.createElement("h2");
     title.id = "quiz-preview-title";
-    title.textContent = quiz.title ?? "Предпросмотр квиза";
+    title.textContent = "Превью квиза";
     const closeButton = documentRef.createElement("button");
     closeButton.type = "button";
     closeButton.className = "quiz-preview-close";
-    closeButton.textContent = "×";
+    const closeIcon = documentRef.createElementNS("http://www.w3.org/2000/svg", "svg");
+    closeIcon.setAttribute("viewBox", "0 0 24 24");
+    closeIcon.setAttribute("width", "18");
+    closeIcon.setAttribute("height", "18");
+    closeIcon.setAttribute("fill", "none");
+    closeIcon.setAttribute("stroke", "currentColor");
+    closeIcon.setAttribute("stroke-width", "1.8");
+    const closePath = documentRef.createElementNS("http://www.w3.org/2000/svg", "path");
+    closePath.setAttribute("d", "M18 6L6 18M6 6l12 12");
+    closeIcon.append(closePath);
+    closeButton.append(closeIcon);
     closeButton.setAttribute("aria-label", "Закрыть предпросмотр");
     closeButton.title = "Закрыть предпросмотр";
     heading.append(title, closeButton);
@@ -292,12 +409,10 @@ export function createPlayablePreview({
     const form = documentRef.createElement("form");
     form.className = "quiz-preview-form";
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
-    const questionFields = questions.map((question, index) => createQuestionFields(question, index));
-    questionFields.forEach((field, index) => {
-      field.hidden = index !== 0;
-      form.append(field);
-    });
+    const answers = {};
     let activeQuestionIndex = 0;
+    const questionBody = documentRef.createElement("div");
+    questionBody.className = "quiz-preview-body";
     const footer = documentRef.createElement("div");
     footer.className = "quiz-preview-footer";
     const progress = documentRef.createElement("span");
@@ -310,27 +425,17 @@ export function createPlayablePreview({
     previousButton.textContent = "\u2190 \u041d\u0430\u0437\u0430\u0434";
     const nextButton = documentRef.createElement("button");
     nextButton.type = "button";
-    nextButton.className = "primary-action";
-    const submitButton = documentRef.createElement("button");
-    submitButton.type = "submit";
-    submitButton.className = "visually-hidden";
-    submitButton.textContent = "\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043e\u0442\u0432\u0435\u0442\u044b";
-    const result = documentRef.createElement("div");
-    result.className = "quiz-preview-result";
-    result.setAttribute("aria-live", "polite");
-    result.hidden = true;
+    nextButton.className = "primary-action primary-action-sm";
     footer.append(progress, footerSpacer, previousButton, nextButton);
-    form.append(submitButton, result, footer);
+    form.append(questionBody, footer);
     dialog.append(heading, form);
 
     function updatePreviewPage() {
-      questionFields.forEach((field, index) => {
-        field.hidden = index !== activeQuestionIndex;
-      });
+      questionBody.replaceChildren(createQuestionFields(questions[activeQuestionIndex], activeQuestionIndex, answers));
       progress.textContent = `\u0412\u043e\u043f\u0440\u043e\u0441 ${activeQuestionIndex + 1} / ${questions.length}`;
       previousButton.disabled = activeQuestionIndex === 0;
       nextButton.textContent = activeQuestionIndex === questions.length - 1
-        ? "\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043e\u0442\u0432\u0435\u0442\u044b"
+        ? "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044c"
         : "\u0414\u0430\u043b\u044c\u0448\u0435 \u2192";
     }
 
@@ -345,11 +450,7 @@ export function createPlayablePreview({
         updatePreviewPage();
         return;
       }
-      form.requestSubmit();
-    });
-    form.addEventListener("submit", (submitEvent) => {
-      submitEvent.preventDefault();
-      renderResults(result, gradeQuizPreview(quiz, collectAnswers(form)));
+      close();
     });
     updatePreviewPage();
     dialog.addEventListener("cancel", (cancelEvent) => {

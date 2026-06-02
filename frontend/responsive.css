@@ -107,7 +107,6 @@
   .quiz-preview-modal {
     width: calc(100vw - 20px);
     max-height: calc(100vh - 20px);
-    padding: 14px;
   }
 
   .quiz-export-modal {
@@ -120,7 +119,8 @@
     grid-template-columns: 1fr;
   }
 
-  .preview-matching-row {
+  .preview-matching-row,
+  .play-match-row {
     grid-template-columns: 1fr;
   }
 

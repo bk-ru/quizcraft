@@ -2299,6 +2299,29 @@ def test_frontend_playable_preview_supports_all_question_types_without_mutating_
     assert ".quiz-preview-modal" in responsive_css
 
 
+def test_frontend_playable_preview_matches_mockup_structure() -> None:
+    preview_content = PREVIEW_MODE_JS.read_text(encoding="utf-8")
+    quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+    layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
+
+    assert 'title.textContent = "Превью квиза"' in preview_content
+    assert 'closePath.setAttribute("d", "M18 6L6 18M6 6l12 12")' in preview_content
+    assert 'heading.className = "play-q-text"' in preview_content
+    assert 'label.className = "preview-option play-opt"' in preview_content
+    assert 'mark.className = "play-opt-mark"' in preview_content
+    assert 'wrapper.className = "preview-matching play-match"' in preview_content
+    assert 'bank.className = "play-match-bank"' in preview_content
+    assert 'wrapper.className = "play-answer-wrap"' in preview_content
+    assert 'feedback.classList.toggle("play-match-ok", correct)' in preview_content
+    assert '? "\\u0417\\u0430\\u0432\\u0435\\u0440\\u0448\\u0438\\u0442\\u044c"' in preview_content
+    assert ".play-opt.is-correct" in quiz_css
+    assert ".play-opt.is-wrong" in quiz_css
+    assert ".play-match-bank-item" in quiz_css
+    assert ".play-answer-wrap" in quiz_css
+    assert "width: min(760px, calc(100vw - 32px))" in layout_css
+    assert "backdrop-filter: blur(8px)" in layout_css
+
+
 def test_frontend_app_warns_before_unloading_dirty_editor() -> None:
     app_content = APP_JS.read_text(encoding="utf-8")
 
