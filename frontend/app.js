@@ -502,6 +502,8 @@ function syncQuestionCount(source = questionCountInput, target = questionCountRa
   const normalizedValue = Number.isInteger(parsedValue) ? Math.min(50, Math.max(3, parsedValue)) : 5;
   source.value = String(normalizedValue);
   target.value = String(normalizedValue);
+  const sliderProgress = ((normalizedValue - 3) / 47) * 100;
+  questionCountRange?.style.setProperty("--slider-progress", `${sliderProgress}%`);
 }
 
 function syncDifficulty(value = difficultySelect?.value) {
