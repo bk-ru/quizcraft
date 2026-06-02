@@ -292,23 +292,66 @@ export function createPlayablePreview({
     const form = documentRef.createElement("form");
     form.className = "quiz-preview-form";
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
-    questions.forEach((question, index) => form.append(createQuestionFields(question, index)));
+    const questionFields = questions.map((question, index) => createQuestionFields(question, index));
+    questionFields.forEach((field, index) => {
+      field.hidden = index !== 0;
+      form.append(field);
+    });
+    let activeQuestionIndex = 0;
+    const footer = documentRef.createElement("div");
+    footer.className = "quiz-preview-footer";
+    const progress = documentRef.createElement("span");
+    progress.className = "quiz-preview-progress";
+    const footerSpacer = documentRef.createElement("span");
+    footerSpacer.className = "quiz-preview-footer-spacer";
+    const previousButton = documentRef.createElement("button");
+    previousButton.type = "button";
+    previousButton.className = "secondary-action";
+    previousButton.textContent = "\u2190 \u041d\u0430\u0437\u0430\u0434";
+    const nextButton = documentRef.createElement("button");
+    nextButton.type = "button";
+    nextButton.className = "primary-action";
     const submitButton = documentRef.createElement("button");
     submitButton.type = "submit";
-    submitButton.className = "primary-action";
-    submitButton.textContent = "Проверить ответы";
+    submitButton.className = "visually-hidden";
+    submitButton.textContent = "\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043e\u0442\u0432\u0435\u0442\u044b";
     const result = documentRef.createElement("div");
     result.className = "quiz-preview-result";
     result.setAttribute("aria-live", "polite");
     result.hidden = true;
-    form.append(submitButton, result);
+    footer.append(progress, footerSpacer, previousButton, nextButton);
+    form.append(submitButton, result, footer);
     dialog.append(heading, form);
 
+    function updatePreviewPage() {
+      questionFields.forEach((field, index) => {
+        field.hidden = index !== activeQuestionIndex;
+      });
+      progress.textContent = `\u0412\u043e\u043f\u0440\u043e\u0441 ${activeQuestionIndex + 1} / ${questions.length}`;
+      previousButton.disabled = activeQuestionIndex === 0;
+      nextButton.textContent = activeQuestionIndex === questions.length - 1
+        ? "\u041f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c \u043e\u0442\u0432\u0435\u0442\u044b"
+        : "\u0414\u0430\u043b\u044c\u0448\u0435 \u2192";
+    }
+
     closeButton.addEventListener("click", close);
+    previousButton.addEventListener("click", () => {
+      activeQuestionIndex = Math.max(0, activeQuestionIndex - 1);
+      updatePreviewPage();
+    });
+    nextButton.addEventListener("click", () => {
+      if (activeQuestionIndex < questions.length - 1) {
+        activeQuestionIndex += 1;
+        updatePreviewPage();
+        return;
+      }
+      form.requestSubmit();
+    });
     form.addEventListener("submit", (submitEvent) => {
       submitEvent.preventDefault();
       renderResults(result, gradeQuizPreview(quiz, collectAnswers(form)));
     });
+    updatePreviewPage();
     dialog.addEventListener("cancel", (cancelEvent) => {
       cancelEvent.preventDefault();
       close();

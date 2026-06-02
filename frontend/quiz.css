@@ -565,6 +565,10 @@
   border-radius: var(--radius-md);
 }
 
+.preview-question[hidden] {
+  display: none;
+}
+
 .preview-question legend {
   padding-inline: 6px;
   color: var(--ink);
