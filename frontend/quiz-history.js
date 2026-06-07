@@ -50,6 +50,21 @@ export function createQuizHistory({
   documentRef = (typeof document !== "undefined" ? document : null),
 } = {}) {
   const storageRef = storage ?? null;
+  const subscribers = new Set();
+
+  function notifySubscribers() {
+    for (const subscriber of subscribers) {
+      subscriber(loadQuizHistory());
+    }
+  }
+
+  function subscribe(callback) {
+    if (typeof callback !== "function") {
+      return () => {};
+    }
+    subscribers.add(callback);
+    return () => subscribers.delete(callback);
+  }
 
   function loadQuizHistory() {
     if (!storageRef) {
@@ -94,6 +109,7 @@ export function createQuizHistory({
     const next = [candidate, ...existing].slice(0, MAX_ENTRIES);
     writeRawEntries(storageRef, next);
     renderHistoryDatalist();
+    notifySubscribers();
     return next;
   }
 
@@ -117,6 +133,7 @@ export function createQuizHistory({
     const next = loadQuizHistory().filter((entry) => entry.quiz_id !== normalizedId);
     writeRawEntries(storageRef, next);
     renderHistoryDatalist();
+    notifySubscribers();
     return next;
   }
 
@@ -130,6 +147,7 @@ export function createQuizHistory({
       /* игнорировать */
     }
     renderHistoryDatalist();
+    notifySubscribers();
   }
 
   return {
@@ -139,6 +157,7 @@ export function createQuizHistory({
     clearQuizHistory,
     renderHistoryDatalist,
     findLanguageByQuizId,
+    subscribe,
   };
 }
 

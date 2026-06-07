@@ -257,6 +257,16 @@ class TestPersistMessages:
         assert "Квиз сохранён." == msg
 
 
+class TestCancelMessages:
+    def test_cancelled_generation_uses_russian_user_message(self) -> None:
+        msg = build_generation_journal_message(_event(
+            status=GenerationRunStatus.CANCELLED,
+            step=GenerationPipelineStep.CANCEL,
+        ))
+
+        assert msg == "Генерация отменена пользователем."
+
+
 class TestFailedMessages:
     def test_parse_failed(self) -> None:
         msg = build_generation_journal_message(_event(

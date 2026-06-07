@@ -12,12 +12,14 @@ const SUPPORTED_DOCUMENT_MEDIA_TYPES = Object.freeze(new Set(Object.values(media
 const SLOW_GENERATION_WARNING_MS = 60000;
 const GENERATION_EVENT_POLL_MS = 1000;
 const LIVE_JOURNAL_ENTRY_STAGGER_MS = 90;
-const DEFAULT_GENERATION_MODE = "direct";
-const SUPPORTED_REQUEST_MODES = Object.freeze(["direct", "rag"]);
+const CANCEL_CONFIRMATION_MAX_ATTEMPTS = 3;
+const CANCEL_CONFIRMATION_RETRY_MS = 180;
+const DEFAULT_GENERATION_MODE = "auto";
+const SUPPORTED_REQUEST_MODES = Object.freeze(["auto", "direct", "rag"]);
 const SUPPORTED_QUIZ_TYPES = Object.freeze(["single_choice", "true_false", "fill_blank", "short_answer", "matching"]);
 
 const DOC_LENGTH_THRESHOLDS = Object.freeze([
-  { maxChars: 300, maxQuestions: 2 },
+  { maxChars: 300, maxQuestions: 3 },
   { maxChars: 800, maxQuestions: 5 },
   { maxChars: 2000, maxQuestions: 10 },
   { maxChars: 5000, maxQuestions: 15 },
@@ -96,6 +98,7 @@ export function createGenerationFlow({
   timerEtaValueElement = null,
   charCountElement = null,
   docLengthHintElement = null,
+  onDocInputSummaryChange = () => {},
   genTiming = null,
   dropzoneFileName,
   dropzoneFileMeta,
@@ -110,26 +113,31 @@ export function createGenerationFlow({
   setExportAvailability,
   clearQuizResult,
   renderQuizResult,
+  presentQuizInline = null,
   focusResultView = null,
-  advanceStepper,
-  markStepperFailed,
-  waitForProgressVisibility,
+  activateWorkflowStage,
+  markWorkflowStageFailed,
   startGenerationProgress,
   advanceGenerationProgress,
   applyBackendGenerationStatusEvidence = null,
   completeGenerationProgress,
   completeGenerationProgressWithBackendEvidence,
   failGenerationProgress,
+  cancelGenerationProgress,
   showToast,
   saveQuizToHistory,
   refreshGenerationDefaults = null,
   getGenerationReadiness = null,
 }, windowRef = (typeof window !== "undefined" ? window : null)) {
   let currentAbortController = null;
+  let currentGenerationRequestId = null;
+  let cancellationRequestInFlight = false;
   let timerIntervalId = null;
   let generationEventPollId = null;
+  let generationEventPollingRequestId = null;
   let generationEventAfter = 0;
   const generationEventIds = new Set();
+  const liveJournalCountElement = liveJournalContainer?.querySelector(".generation-live-journal-count") ?? null;
   let timerStartedAt = 0;
   let currentGenCharCount = 0;
 
@@ -235,6 +243,9 @@ export function createGenerationFlow({
     if (liveJournalElement) {
       liveJournalElement.replaceChildren();
     }
+    if (liveJournalCountElement) {
+      liveJournalCountElement.textContent = "0 строк";
+    }
     if (liveJournalContainer) {
       liveJournalContainer.hidden = true;
     }
@@ -275,13 +286,22 @@ export function createGenerationFlow({
     if (liveJournalContainer && generationEventIds.size > 0) {
       liveJournalContainer.hidden = false;
     }
+    if (liveJournalCountElement) {
+      liveJournalCountElement.textContent = `${generationEventIds.size} строк`;
+    }
   }
 
-  async function pollGenerationEvents(requestId) {
+  async function pollGenerationEvents(requestId, { force = false } = {}) {
     if (!client || typeof client.getGenerationEvents !== "function") {
       return;
     }
+    if (!force && generationEventPollingRequestId !== requestId) {
+      return;
+    }
     const payload = await client.getGenerationEvents(requestId, { after: generationEventAfter });
+    if (!force && generationEventPollingRequestId !== requestId) {
+      return;
+    }
     const events = Array.isArray(payload?.events) ? payload.events : [];
     if (events.length === 0) {
       return;
@@ -299,22 +319,83 @@ export function createGenerationFlow({
     }
     stopGenerationEventPolling();
     clearGenerationJournal();
+    generationEventPollingRequestId = generationRequestId;
     pollGenerationEvents(generationRequestId).catch(() => {});
     generationEventPollId = windowRef.setInterval(() => {
       pollGenerationEvents(generationRequestId).catch(() => {});
     }, GENERATION_EVENT_POLL_MS);
   }
 
-  async function stopGenerationEventPolling(generationRequestId = null) {
+  async function stopGenerationEventPolling(generationRequestId = null, { flush = true } = {}) {
+    const activeRequestId = generationEventPollingRequestId;
+    generationEventPollingRequestId = null;
     if (windowRef && generationEventPollId !== null) {
       windowRef.clearInterval(generationEventPollId);
       generationEventPollId = null;
     }
-    if (generationRequestId) {
+    if (generationRequestId && flush && generationRequestId === activeRequestId) {
       try {
-        await pollGenerationEvents(generationRequestId);
+        await pollGenerationEvents(generationRequestId, { force: true });
       } catch (_error) {
         // Final generation success/error handling remains authoritative.
+      }
+    }
+  }
+
+  function waitForCancelRetry() {
+    if (!windowRef) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => windowRef.setTimeout(resolve, CANCEL_CONFIRMATION_RETRY_MS));
+  }
+
+  async function requestGenerationCancellation(requestId) {
+    for (let attempt = 1; attempt <= CANCEL_CONFIRMATION_MAX_ATTEMPTS; attempt += 1) {
+      try {
+        return await client.cancelGeneration(requestId);
+      } catch (error) {
+        const canRetry = error instanceof QuizCraftApiError
+          && error.status === 404
+          && attempt < CANCEL_CONFIRMATION_MAX_ATTEMPTS;
+        if (!canRetry) {
+          throw error;
+        }
+        await waitForCancelRetry();
+      }
+    }
+    return null;
+  }
+
+  async function confirmGenerationCancellation(requestId, abortController) {
+    let shouldRestoreCancelButton = true;
+    try {
+      const outcome = await requestGenerationCancellation(requestId);
+      if (currentAbortController !== abortController) {
+        return;
+      }
+      if (outcome?.status === "cancelled") {
+        shouldRestoreCancelButton = false;
+        abortController.abort();
+        setCancelButtonVisible(false);
+        return;
+      }
+      if (outcome?.status === "done") {
+        shouldRestoreCancelButton = false;
+        setCancelButtonVisible(false);
+        showToast("Квиз уже завершён. Получаем результат.", "warn");
+        return;
+      }
+      showToast("Не удалось подтвердить отмену генерации.", "bad");
+    } catch (error) {
+      if (currentAbortController === abortController) {
+        showToast(`Не удалось подтвердить отмену генерации: ${describeError(error)}`, "bad");
+      }
+    } finally {
+      if (currentAbortController === abortController) {
+        cancellationRequestInFlight = false;
+        if (shouldRestoreCancelButton && !abortController.signal.aborted) {
+          setCancelButtonVisible(true);
+        }
       }
     }
   }
@@ -323,9 +404,57 @@ export function createGenerationFlow({
     if (!currentAbortController || currentAbortController.signal.aborted) {
       return false;
     }
+    if (currentGenerationRequestId) {
+      if (!cancellationRequestInFlight) {
+        cancellationRequestInFlight = true;
+        if (cancelButton) {
+          cancelButton.disabled = true;
+        }
+        confirmGenerationCancellation(currentGenerationRequestId, currentAbortController);
+      }
+      return true;
+    }
     currentAbortController.abort();
     setCancelButtonVisible(false);
     return true;
+  }
+
+  function throwIfGenerationAborted(signal) {
+    if (signal?.aborted) {
+      throw new QuizCraftApiError("Запрос отменён пользователем.", { status: 0 });
+    }
+  }
+
+  async function readFileArrayBuffer(file, signal) {
+    throwIfGenerationAborted(signal);
+    if (typeof file.stream !== "function") {
+      const content = await file.arrayBuffer();
+      throwIfGenerationAborted(signal);
+      return content;
+    }
+    const reader = file.stream().getReader();
+    const cancelRead = () => {
+      reader.cancel().catch(() => {});
+    };
+    signal?.addEventListener("abort", cancelRead, { once: true });
+    try {
+      const chunks = [];
+      while (true) {
+        throwIfGenerationAborted(signal);
+        const { done, value } = await reader.read();
+        throwIfGenerationAborted(signal);
+        if (done) {
+          break;
+        }
+        chunks.push(value);
+      }
+      const content = await new Blob(chunks).arrayBuffer();
+      throwIfGenerationAborted(signal);
+      return content;
+    } finally {
+      signal?.removeEventListener("abort", cancelRead);
+      reader.releaseLock();
+    }
   }
 
   function resolveMediaType(file) {
@@ -385,7 +514,7 @@ export function createGenerationFlow({
       } else {
         const text = docTextInput?.value ?? "";
         const count = text.length;
-        charCountElement.textContent = count > 0 ? `${count.toLocaleString("ru-RU")} символов` : "";
+        charCountElement.textContent = `${count.toLocaleString("ru-RU")} символов`;
       }
     }
     if (docLengthHintElement) {
@@ -440,11 +569,12 @@ export function createGenerationFlow({
         docFilePillMeta.textContent = "";
       }
       if (docTextInput) {
-        docTextInput.placeholder = "Вставьте текст, чтобы создать викторину…";
+        docTextInput.placeholder = "Вставьте текст конспекта, статьи или главы учебника… Можно также прикрепить TXT, DOCX или PDF через кнопку ниже.";
       }
       const hasText = Boolean(docTextInput?.value?.trim());
       setTextContent("file-summary", hasText ? "Текст готов к генерации." : "Вставьте текст или прикрепите файл.");
     }
+    onDocInputSummaryChange();
   }
 
   function resolveInputFile() {
@@ -472,7 +602,7 @@ export function createGenerationFlow({
       fileInput.value = "";
     }
     updateDocInputSummary();
-    advanceStepper("upload");
+    activateWorkflowStage("upload");
     showToast("Файл удалён из формы.", "warn");
   }
 
@@ -527,7 +657,7 @@ export function createGenerationFlow({
       return false;
     }
     updateDocInputSummary();
-    advanceStepper("setup");
+    activateWorkflowStage("setup");
     showToast(`Файл «${file.name}» готов к загрузке.`, "ok");
     return true;
   }
@@ -538,8 +668,8 @@ export function createGenerationFlow({
     }
     const formData = new FormData(form);
     const questionCount = Number.parseInt(String(formData.get("question_count") ?? ""), 10);
-    if (!Number.isInteger(questionCount) || questionCount <= 0) {
-      throw new Error("Количество вопросов должно быть положительным целым числом.");
+    if (!Number.isInteger(questionCount) || questionCount < 3 || questionCount > 50) {
+      throw new Error("Количество вопросов должно быть целым числом от 3 до 50.");
     }
     const difficulty = String(formData.get("difficulty") ?? "").trim();
     const quizTypes = formData.getAll("quiz_types")
@@ -626,6 +756,7 @@ export function createGenerationFlow({
     let generationPayload;
     let generationBody;
     let generationRequestId = null;
+    let shouldFlushGenerationEvents = false;
     try {
       generationBody = buildGenerationPayload();
     } catch (error) {
@@ -642,6 +773,8 @@ export function createGenerationFlow({
 
     const abortController = new AbortController();
     currentAbortController = abortController;
+    currentGenerationRequestId = null;
+    cancellationRequestInFlight = false;
 
     try {
       clearQuizResult();
@@ -651,7 +784,7 @@ export function createGenerationFlow({
       setBusyState(true);
       setExportAvailability(null);
       clearGenerationJournal();
-      advanceStepper("generation", { focus: true });
+      activateWorkflowStage("generation", { focus: true });
       startGenerationProgress();
       const inputCharCount = (docTextInput?.value ?? "").length;
       startTimer(inputCharCount);
@@ -664,19 +797,18 @@ export function createGenerationFlow({
       uploadPayload = await client.uploadDocument({
         filename: file.name,
         mediaType: resolveMediaType(file),
-        content: await file.arrayBuffer(),
+        content: await readFileArrayBuffer(file, abortController.signal),
         signal: abortController.signal,
       });
 
       advanceGenerationProgress("upload", "parse");
-      await waitForProgressVisibility();
-      advanceGenerationProgress("parse", "generate");
 
       setTextContent("last-document-id", uploadPayload.document_id ?? "Ещё нет");
       setSubmissionStatus("Документ загружен. Запускаем генерацию…", "warn");
       setLogMessage("Документ загружен, запускаем генерацию.", "warn");
 
       generationRequestId = generateRequestId();
+      currentGenerationRequestId = generationRequestId;
       setTextContent("last-request-id", generationRequestId);
       startGenerationEventPolling(generationRequestId);
       generationPayload = await client.generateQuiz(
@@ -685,14 +817,13 @@ export function createGenerationFlow({
         { signal: abortController.signal, requestId: generationRequestId },
       );
 
-      advanceGenerationProgress("generate", "validate");
-      await waitForProgressVisibility();
-
       updateOperationSummary(uploadPayload, generationPayload);
       if (quizIdInput) {
         quizIdInput.value = generationPayload.quiz_id ?? "";
       }
       if (!isDisplayableGenerationResult(generationPayload)) {
+        shouldFlushGenerationEvents = true;
+        failGenerationProgress("persist");
         setResultState("Результат не показан: квиз не прошёл безопасное восстановление.", "bad", "Результат недоступен");
         setEditorStatus("Квиз не готов к редактированию: безопасное восстановление не удалось.", "bad");
         setSubmissionStatus("Генерация завершилась без отображаемого результата.", "bad");
@@ -700,7 +831,11 @@ export function createGenerationFlow({
         return;
       }
       renderQuizResult(generationPayload);
+      shouldFlushGenerationEvents = true;
       const generatedQuiz = generationPayload.quiz ?? {};
+      if (typeof presentQuizInline === "function") {
+        presentQuizInline(generatedQuiz, { language: generationBody.language });
+      }
       if (typeof saveQuizToHistory === "function") {
         saveQuizToHistory({
           quiz_id: generationPayload.quiz_id ?? generatedQuiz.quiz_id,
@@ -739,35 +874,39 @@ export function createGenerationFlow({
     } catch (error) {
       clearQuizResult();
       setExportAvailability(null);
-      const failedStep = !uploadPayload ? "upload" : (!generationPayload ? "generate" : "validate");
-      failGenerationProgress(failedStep);
-      const wasCancelled = abortController.signal.aborted
-        && error instanceof QuizCraftApiError
-        && error.status === 0;
+      const failedStep = !uploadPayload ? "upload" : (!generationPayload ? "generate" : "persist");
+      const errorCode = error instanceof QuizCraftApiError ? error.payload?.error?.code : null;
+      const wasCancelled = error instanceof QuizCraftApiError
+        && ((abortController.signal.aborted && error.status === 0) || errorCode === "generation_cancelled");
       if (wasCancelled) {
+        shouldFlushGenerationEvents = true;
+        cancelGenerationProgress();
         setSubmissionStatus("Генерация отменена пользователем.", "warn");
         setResultState("Генерация отменена. Запустите повторно, когда будете готовы.", "warn", "Отменено");
         setLogMessage("Генерация отменена пользователем.", "warn");
         showToast("Генерация отменена.", "warn");
-        advanceStepper("setup", { focus: true });
+        activateWorkflowStage("setup", { focus: true });
       } else {
+        failGenerationProgress(failedStep);
         const isValidationError = error instanceof QuizCraftApiError && error.status === 422;
         const message = isValidationError ? describeValidationError(error) : describeError(error);
         setSubmissionStatus(`Операция не завершена: ${message}`, "bad");
         setResultState(`Результат не получен: ${message}`, "bad", "Ошибка");
         setLogMessage(`Генерация завершилась ошибкой: ${message}`, "bad");
         showToast(message, "bad");
-        if (typeof markStepperFailed === "function") {
-          markStepperFailed("generation");
+        if (typeof markWorkflowStageFailed === "function") {
+          markWorkflowStageFailed("generation");
         }
       }
     } finally {
-      await stopGenerationEventPolling(generationRequestId);
+      await stopGenerationEventPolling(generationRequestId, { flush: shouldFlushGenerationEvents });
       setBusyState(false);
       stopTimer();
       setCancelButtonVisible(false);
       if (currentAbortController === abortController) {
         currentAbortController = null;
+        currentGenerationRequestId = null;
+        cancellationRequestInFlight = false;
       }
     }
   }

@@ -1,5 +1,6 @@
 const TIMING_KEY = "quizcraft:gen-timing";
 const MAX_SAMPLES = 20;
+const DEFAULT_MS_PER_CHAR = 8;
 
 function readSamples(storage) {
   try {
@@ -23,6 +24,17 @@ function writeSamples(storage, samples) {
 }
 
 export function createGenTiming(storage = (typeof window !== "undefined" ? window.localStorage : null)) {
+  function estimateTotalMs(charCount) {
+    if (charCount <= 0) {
+      return null;
+    }
+    const samples = readSamples(storage);
+    const msPerChar = samples.length > 0
+      ? samples.reduce((sum, sample) => sum + sample.ms / sample.chars, 0) / samples.length
+      : DEFAULT_MS_PER_CHAR;
+    return Math.max(1000, msPerChar * charCount);
+  }
+
   function record(charCount, elapsedMs) {
     if (charCount <= 0 || elapsedMs <= 0) {
       return;
@@ -43,5 +55,5 @@ export function createGenTiming(storage = (typeof window !== "undefined" ? windo
     return remaining > 0 ? remaining : null;
   }
 
-  return { record, estimateRemainingMs };
+  return { record, estimateRemainingMs, estimateTotalMs };
 }

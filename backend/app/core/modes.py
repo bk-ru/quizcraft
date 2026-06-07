@@ -10,6 +10,7 @@ from backend.app.domain.errors import UnsupportedGenerationModeError
 class GenerationMode(str, Enum):
     """Поддерживаемые режимы генерации для backend."""
 
+    AUTO = "auto"
     DIRECT = "direct"
     SINGLE_QUESTION_REGEN = "single_question_regen"
     RAG = "rag"

@@ -33,12 +33,16 @@ body {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(40vmax 32vmax at 14% 12%, rgba(98, 69, 255, 0.28), transparent 60%),
-    radial-gradient(36vmax 28vmax at 88% 18%, rgba(0, 194, 168, 0.22), transparent 60%),
-    radial-gradient(48vmax 36vmax at 78% 92%, rgba(255, 92, 156, 0.18), transparent 62%),
-    radial-gradient(32vmax 26vmax at 10% 86%, rgba(102, 204, 255, 0.18), transparent 62%),
+    radial-gradient(40vmax 32vmax at 14% 12%, rgba(139, 125, 255, 0.22), transparent 60%),
+    radial-gradient(36vmax 28vmax at 88% 18%, rgba(255, 95, 174, 0.16), transparent 60%),
+    radial-gradient(48vmax 36vmax at 78% 92%, rgba(255, 190, 125, 0.12), transparent 62%),
+    radial-gradient(32vmax 26vmax at 10% 86%, rgba(196, 107, 255, 0.14), transparent 62%),
     var(--bg);
   filter: saturate(1.05);
+}
+
+.compact-workspace .shell-background {
+  inset: 0;
 }
 
 ::selection {

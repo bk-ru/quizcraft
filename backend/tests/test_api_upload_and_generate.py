@@ -412,6 +412,63 @@ def test_generation_live_journal_streams_while_provider_request_is_in_flight(tmp
     )
 
 
+def test_generation_cancel_endpoint_stops_persistence_and_publishes_terminal_event(tmp_path) -> None:
+    provider = SlowProvider(responses=[build_provider_response()], delay_seconds=0.3)
+    app = create_app(config=build_config(), provider=provider, storage_root=tmp_path)
+    client = TestClient(app)
+    document_id = upload_russian_document(client)
+    response_holder = {}
+
+    def run_generation() -> None:
+        response_holder["response"] = client.post(
+            f"/documents/{document_id}/generate",
+            json=build_generation_payload(),
+            headers={"X-Request-ID": "run-cancel-ru-1"},
+        )
+
+    generation_thread = threading.Thread(target=run_generation)
+    generation_thread.start()
+    assert provider.started.wait(timeout=2)
+
+    cancel_response = client.post("/generation/runs/run-cancel-ru-1/cancel")
+    repeated_response = client.post("/generation/runs/run-cancel-ru-1/cancel")
+    generation_thread.join(timeout=3)
+
+    assert not generation_thread.is_alive()
+    assert cancel_response.status_code == 202
+    assert cancel_response.json()["status"] == "cancelled"
+    assert repeated_response.status_code == 200
+    assert repeated_response.json()["status"] == "cancelled"
+    assert response_holder["response"].status_code == 409
+    assert response_holder["response"].json()["error"]["code"] == "generation_cancelled"
+    assert list((tmp_path / "quizzes").glob("*.json")) == []
+    assert list((tmp_path / "generation_results").glob("*.json")) == []
+
+    events_response = client.get("/generation/runs/run-cancel-ru-1/events")
+
+    assert events_response.status_code == 200
+    events_payload = events_response.json()
+    assert events_payload["complete"] is True
+    assert events_payload["events"][-1]["status"] == "cancelled"
+    assert events_payload["events"][-1]["step"] == "cancel"
+    assert any(
+        event["status"] == "cancelled"
+        and event["step"] == "cancel"
+        and event["message"] == "Генерация отменена пользователем."
+        for event in events_payload["events"]
+    )
+
+
+def test_generation_cancel_endpoint_rejects_unknown_run(tmp_path) -> None:
+    app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
+    client = TestClient(app)
+
+    response = client.post("/generation/runs/run-missing/cancel")
+
+    assert response.status_code == 404
+    assert response.json()["error"]["code"] == "not_found"
+
+
 def test_direct_generation_endpoint_maps_missing_document_to_not_found(tmp_path) -> None:
     app = create_app(config=build_config(), provider=StubProvider(), storage_root=tmp_path)
     client = TestClient(app)

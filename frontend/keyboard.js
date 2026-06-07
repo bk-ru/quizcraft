@@ -81,7 +81,12 @@ export function createKeyboardShortcuts({
       if (!generationForm) {
         return;
       }
-      if (isEditableTarget(target) && target instanceof HTMLElement && !generationForm.contains(target)) {
+      if (
+        isEditableTarget(target)
+        && target instanceof HTMLElement
+        && !generationForm.contains(target)
+        && target.form !== generationForm
+      ) {
         return;
       }
       event.preventDefault();

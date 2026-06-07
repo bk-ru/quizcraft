@@ -76,6 +76,17 @@ export class QuizCraftApiClient {
     });
   }
 
+  cancelGeneration(requestId) {
+    const resolvedRequestId = typeof requestId === "string" ? requestId.trim() : "";
+    if (!resolvedRequestId) {
+      throw new Error("requestId is required");
+    }
+    return this._request(`/generation/runs/${encodeURIComponent(resolvedRequestId)}/cancel`, {
+      method: "POST",
+      timeoutMs: this._timeouts.health,
+    });
+  }
+
   getExportFormats() {
     return this._request("/export/formats", { timeoutMs: this._timeouts.health });
   }

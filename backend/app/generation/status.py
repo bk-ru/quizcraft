@@ -15,6 +15,7 @@ class GenerationRunStatus(str, Enum):
     RUNNING = "running"
     DONE = "done"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class GenerationPipelineStep(str, Enum):
@@ -24,6 +25,7 @@ class GenerationPipelineStep(str, Enum):
     GENERATE = "generate"
     REPAIR = "repair"
     PERSIST = "persist"
+    CANCEL = "cancel"
 
 
 @dataclass(frozen=True, slots=True)

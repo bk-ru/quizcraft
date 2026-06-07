@@ -1,24 +1,29 @@
 import { QuizCraftApiClient } from "./api/client.js";
 import { createQuizExporter } from "./download.js";
+import { createExportModal } from "./export-modal.js";
 import { createCopyButtonController } from "./copy.js";
 import { createGenerationFlow } from "./generation-flow.js";
 import { createGenerationSettingsController } from "./generation-settings.js";
 import { createKeyboardShortcuts } from "./keyboard.js";
 import { createConfirmModal } from "./modal.js";
 import { createProgressController } from "./progress.js";
+import { createPlayablePreview } from "./preview-mode.js";
 import { createQuizEditor } from "./quiz-editor.js";
 import { createQuizHistory } from "./quiz-history.js";
 import { createGenTiming } from "./gen-timing.js";
 import { createQuizRenderer } from "./quiz-renderer.js";
+import { createSidebarController } from "./sidebar.js";
 import { createStageFlowController } from "./stage-flow.js";
 import { createThemeController } from "./theme.js";
 import { createToastController } from "./toast.js";
 import { describeError, describeValidationError } from "./validation-errors.js";
+import { createWorkspaceController } from "./workspace.js";
 
 const config = window.QuizCraftConfig ?? {};
-const backendBaseUrl = typeof config.backendBaseUrl === "string" && config.backendBaseUrl.trim()
-  ? config.backendBaseUrl.trim()
-  : "http://127.0.0.1:8000";
+const backendBaseUrl =
+  typeof config.backendBaseUrl === "string" && config.backendBaseUrl.trim()
+    ? config.backendBaseUrl.trim()
+    : "http://127.0.0.1:8000";
 const timeouts = config.timeouts ?? {};
 
 const client = new QuizCraftApiClient({
@@ -34,15 +39,15 @@ const resultStateBadge = document.getElementById("result-state-badge");
 const questionList = document.getElementById("quiz-question-list");
 const quizEditorLoader = document.getElementById("quiz-editor-loader");
 const quizIdInput = document.getElementById("quiz-id-input");
+const quizTitleInput = document.getElementById("quiz-title");
 const loadQuizButton = document.getElementById("load-quiz-button");
 const saveQuizButton = document.getElementById("save-quiz-button");
 const quizEditorFields = document.getElementById("quiz-editor-fields");
+const undoQuizEditButton = document.getElementById("undo-quiz-edit-button");
+const addQuestionButton = document.getElementById("add-question-button");
+const addQuestionTypeSelect = document.getElementById("add-question-type");
+const previewQuizButton = document.getElementById("preview-quiz-button");
 const exportJsonButton = document.getElementById("export-json-button");
-const exportDocxButton = document.getElementById("export-docx-button");
-const exportPptxButton = document.getElementById("export-pptx-button");
-const exportMarkdownButton = document.getElementById("export-markdown-button");
-const exportCsvButton = document.getElementById("export-csv-button");
-const editShortcutButton = document.getElementById("edit-quiz-shortcut");
 const themeToggleButton = document.getElementById("theme-toggle");
 const themeToggleLabel = document.getElementById("theme-toggle-label");
 const dropzone = document.getElementById("dropzone");
@@ -56,10 +61,13 @@ const docClearButton = document.getElementById("doc-clear-button");
 const docExampleButton = document.getElementById("doc-example-button");
 const documentDropOverlay = document.getElementById("document-drop-overlay");
 const toastRegion = document.getElementById("toast-region");
-const stepper = document.getElementById("stepper");
 const generationProgressPanel = document.getElementById("generation-progress");
-const generationLiveJournal = document.getElementById("generation-live-journal");
-const cancelGenerationButton = document.getElementById("cancel-generation-button");
+const generationLiveJournal = document.getElementById(
+  "generation-live-journal",
+);
+const cancelGenerationButton = document.getElementById(
+  "cancel-generation-button",
+);
 const generationTimerElement = document.getElementById("generation-timer");
 const stageRoot = document.querySelector("[data-stage-root]");
 const dropzoneFileName = document.getElementById("dropzone-file-name");
@@ -67,25 +75,48 @@ const dropzoneFileMeta = document.getElementById("dropzone-file-meta");
 const dropzoneRemoveButton = document.getElementById("dropzone-remove");
 const modelSelect = document.getElementById("generation-model");
 const profileSelect = document.getElementById("generation-profile");
-const generationTemperatureInput = document.getElementById("generation-temperature");
-const generationTemperatureValue = document.getElementById("generation-temperature-value");
-const exportSplitToggle = document.getElementById("export-split-toggle");
-const exportSplitMenu = document.getElementById("export-split-menu");
-const editorExportJsonButton = document.getElementById("editor-export-json-button");
-const editorExportDocxButton = document.getElementById("editor-export-docx-button");
-const editorExportPptxButton = document.getElementById("editor-export-pptx-button");
-const editorExportMarkdownButton = document.getElementById("editor-export-markdown-button");
-const editorExportCsvButton = document.getElementById("editor-export-csv-button");
-const editorExportSplitToggle = document.getElementById("editor-export-split-toggle");
-const editorExportSplitMenu = document.getElementById("editor-export-split-menu");
-const editorExportActions = document.getElementById("editor-export-actions");
+const generationTemperatureInput = document.getElementById(
+  "generation-temperature",
+);
+const generationTemperatureValue = document.getElementById(
+  "generation-temperature-value",
+);
+const questionCountRange = document.getElementById("question-count-range");
+const questionCountInput = document.getElementById("question-count");
+const generationEstimate = document.getElementById("generation-estimate");
+const difficultySelect = document.getElementById("difficulty");
+const difficultyButtons = [
+  ...document.querySelectorAll("[data-difficulty-value]"),
+];
+const wordCountElement = document.getElementById("word-count");
+const wordCountSummaryElement = document.getElementById("word-count-summary");
+const charCountTopElement = document.getElementById("char-count-top");
+const resultBackButton = document.getElementById("result-back-button");
 const retryBackendButton = document.getElementById("retry-backend-button");
 const retryProviderButton = document.getElementById("retry-provider-button");
 const preflightStatus = document.getElementById("preflight-status");
 const lmStudioHostInput = document.getElementById("lm-studio-host");
 const lmStudioPortInput = document.getElementById("lm-studio-port");
-const applyLMStudioConnectionButton = document.getElementById("apply-lm-studio-connection");
-const lmStudioConnectionStatus = document.getElementById("lm-studio-connection-status");
+const applyLMStudioConnectionButton = document.getElementById(
+  "apply-lm-studio-connection",
+);
+const lmStudioConnectionStatus = document.getElementById(
+  "lm-studio-connection-status",
+);
+const lmStudioConnectionSection = document.getElementById("lm-studio-connection-section");
+const lmStudioProviderHint = document.getElementById("lm-studio-provider-hint");
+const providerModelStatus = document.getElementById("provider-model-status");
+const tooltipPopover = document.getElementById("workspace-tooltip-popover");
+const workspaceRoot = document.querySelector(".compact-workspace");
+const workspaceSidebar = document.getElementById("workspace-sidebar");
+const sidebarToggleButton = document.getElementById("sidebar-toggle");
+const sidebarNewQuizButton = document.getElementById("sidebar-new-quiz");
+const sidebarHistoryList = document.getElementById("sidebar-history-list");
+const sidebarStatusCell = document.getElementById("sidebar-status-cell");
+const sidebarStatusPrimary = document.getElementById("sidebar-status-primary");
+const sidebarStatusSecondary = document.getElementById(
+  "sidebar-status-secondary",
+);
 
 const editorState = {
   loadedQuiz: null,
@@ -99,32 +130,6 @@ const exportButtons = Object.freeze({
   json: {
     button: exportJsonButton,
     hintId: "export-json-hint",
-    editorButton: editorExportJsonButton,
-    editorHintId: "editor-export-json-hint",
-  },
-  docx: {
-    button: exportDocxButton,
-    hintId: "export-docx-hint",
-    editorButton: editorExportDocxButton,
-    editorHintId: "editor-export-docx-hint",
-  },
-  pptx: {
-    button: exportPptxButton,
-    hintId: "export-pptx-hint",
-    editorButton: editorExportPptxButton,
-    editorHintId: "editor-export-pptx-hint",
-  },
-  markdown: {
-    button: exportMarkdownButton,
-    hintId: "export-markdown-hint",
-    editorButton: editorExportMarkdownButton,
-    editorHintId: "editor-export-markdown-hint",
-  },
-  csv: {
-    button: exportCsvButton,
-    hintId: "export-csv-hint",
-    editorButton: editorExportCsvButton,
-    editorHintId: "editor-export-csv-hint",
   },
 });
 
@@ -135,6 +140,54 @@ const statusMap = {
   disabled: "bad",
   bad: "bad",
 };
+
+function hideTooltipPopover() {
+  if (!tooltipPopover) {
+    return;
+  }
+  tooltipPopover.dataset.visible = "false";
+  tooltipPopover.setAttribute("aria-hidden", "true");
+}
+
+function showTooltipPopover(target) {
+  if (!tooltipPopover || !(target instanceof HTMLElement)) {
+    return;
+  }
+  const text =
+    target.dataset.tooltip || target.getAttribute("aria-label") || "";
+  if (!text) {
+    hideTooltipPopover();
+    return;
+  }
+  tooltipPopover.textContent = text;
+  tooltipPopover.setAttribute("aria-hidden", "false");
+  tooltipPopover.dataset.visible = "true";
+  const card = target.closest(".workspace-modal-card");
+  if (!card) {
+    return;
+  }
+  const cardRect = card.getBoundingClientRect();
+  const targetRect = target.getBoundingClientRect();
+  const popRect = tooltipPopover.getBoundingClientRect();
+  const margin = 10;
+  let top = targetRect.top - cardRect.top - popRect.height - margin;
+  if (top < margin) {
+    top = targetRect.bottom - cardRect.top + margin;
+  }
+  const maxTop = cardRect.height - popRect.height - margin;
+  if (maxTop >= margin) {
+    top = Math.min(Math.max(top, margin), maxTop);
+  }
+  let left =
+    targetRect.left - cardRect.left + targetRect.width / 2 - popRect.width / 2;
+  const minLeft = margin;
+  const maxLeft = cardRect.width - popRect.width - margin;
+  if (maxLeft >= minLeft) {
+    left = Math.min(Math.max(left, minLeft), maxLeft);
+  }
+  tooltipPopover.style.top = `${top}px`;
+  tooltipPopover.style.left = `${left}px`;
+}
 
 const PROVIDER_DISPLAY_NAMES = Object.freeze({
   lm_studio: "LM Studio",
@@ -176,20 +229,32 @@ const generationConnectionState = {
 
 function setTextContent(id, value) {
   const element = document.getElementById(id);
-  if (element) {
+  if (!element) {
+    return;
+  }
+  if (
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLTextAreaElement
+  ) {
+    element.value = value;
+  } else {
     element.textContent = value;
   }
 }
 
 function setStatus(surface, text, tone, description) {
-  const container = document.querySelector(`[data-status-surface="${surface}"]`);
+  const container = document.querySelector(
+    `[data-status-surface="${surface}"]`,
+  );
   const target = document.getElementById(`${surface}-status-text`);
   if (target) {
     target.textContent = text;
   }
   if (container) {
     const label = container.dataset.statusLabel || surface;
-    const title = description ? `${label} · ${text}. ${description}` : `${label} · ${text}`;
+    const title = description
+      ? `${label} · ${text}. ${description}`
+      : `${label} · ${text}`;
     container.dataset.statusTooltip = title;
     container.setAttribute("aria-label", title);
     if (tone) {
@@ -201,7 +266,8 @@ function setStatus(surface, text, tone, description) {
 }
 
 function formatProviderName(providerName) {
-  const normalized = typeof providerName === "string" ? providerName.trim().toLowerCase() : "";
+  const normalized =
+    typeof providerName === "string" ? providerName.trim().toLowerCase() : "";
   return PROVIDER_DISPLAY_NAMES[normalized] ?? "Провайдер";
 }
 
@@ -246,7 +312,10 @@ function buildProviderRecoverySteps(providerKey) {
   ];
 }
 
-function buildProviderUnavailableMessage(reason = "", providerKey = generationConnectionState.providerKey) {
+function buildProviderUnavailableMessage(
+  reason = "",
+  providerKey = generationConnectionState.providerKey,
+) {
   return [
     "Провайдер недоступен",
     `Причина: ${reason || "активный провайдер не отвечает на запрос проверки."}`,
@@ -307,7 +376,10 @@ function readStoredLMStudioConnection() {
       return null;
     }
     const parsed = JSON.parse(raw);
-    if (typeof parsed?.host !== "string" || !Number.isFinite(Number(parsed?.port))) {
+    if (
+      typeof parsed?.host !== "string" ||
+      !Number.isFinite(Number(parsed?.port))
+    ) {
       return null;
     }
     return { host: parsed.host, port: Number(parsed.port) };
@@ -318,7 +390,10 @@ function readStoredLMStudioConnection() {
 
 function storeLMStudioConnection(connection) {
   try {
-    window.localStorage?.setItem(LM_STUDIO_CONNECTION_STORAGE_KEY, JSON.stringify(connection));
+    window.localStorage?.setItem(
+      LM_STUDIO_CONNECTION_STORAGE_KEY,
+      JSON.stringify(connection),
+    );
   } catch {
     // localStorage may be blocked in private or file-based browser contexts.
   }
@@ -352,26 +427,35 @@ function toggleUnavailableHint(buttonElement, hintId, isDisabled) {
 }
 
 function setExportAvailability(quizId) {
-  editorState.lastGeneratedQuizId = typeof quizId === "string" && quizId.trim() ? quizId.trim() : null;
+  editorState.lastGeneratedQuizId =
+    typeof quizId === "string" && quizId.trim() ? quizId.trim() : null;
   const hasQuiz = Boolean(editorState.lastGeneratedQuizId);
   for (const [format, exportButton] of Object.entries(exportButtons)) {
-    const supported = format === "json" || editorState.supportedExportFormats.has(format);
-    toggleUnavailableHint(exportButton.button, exportButton.hintId, !(hasQuiz && supported));
-    toggleUnavailableHint(exportButton.editorButton, exportButton.editorHintId, !(hasQuiz && supported));
+    const supported =
+      format === "json" || editorState.supportedExportFormats.has(format);
+    toggleUnavailableHint(
+      exportButton.button,
+      exportButton.hintId,
+      !(hasQuiz && supported),
+    );
   }
-  toggleUnavailableHint(editShortcutButton, "edit-shortcut-hint", !hasQuiz);
-  if (exportSplitToggle) {
-    exportSplitToggle.disabled = !hasQuiz;
-  }
-  if (editorExportSplitToggle) {
-    editorExportSplitToggle.disabled = !hasQuiz;
-  }
-  if (editorExportActions) {
-    editorExportActions.hidden = !hasQuiz;
+  toggleUnavailableHint(previewQuizButton, "preview-quiz-hint", !hasQuiz);
+  if (resultBackButton) {
+    resultBackButton.disabled = !hasQuiz;
   }
 }
 
 function getCurrentGenerationReadiness() {
+  const hasDocument = Boolean(
+    fileInput?.files?.[0] || docTextInput?.value?.trim(),
+  );
+  if (!hasDocument) {
+    return {
+      ready: false,
+      message: "Вставьте текст или прикрепите файл.",
+      tone: "warn",
+    };
+  }
   const backendState = generationConnectionState.backend;
   const providerState = generationConnectionState.provider;
   const backendReady = backendState === "ok";
@@ -390,11 +474,18 @@ function getCurrentGenerationReadiness() {
   }
   if (!providerReady) {
     const message = generationConnectionState.providerReason
-      ? buildProviderUnavailableMessage(generationConnectionState.providerReason, generationConnectionState.providerKey)
+      ? buildProviderUnavailableMessage(
+          generationConnectionState.providerReason,
+          generationConnectionState.providerKey,
+        )
       : PROVIDER_GENERATION_BLOCKED_MESSAGE;
     return { ready: false, message, tone: "bad" };
   }
-  return { ready: false, message: SERVICES_GENERATION_BLOCKED_MESSAGE, tone: "bad" };
+  return {
+    ready: false,
+    message: SERVICES_GENERATION_BLOCKED_MESSAGE,
+    tone: "bad",
+  };
 }
 
 function updateGenerationSubmitAvailability() {
@@ -402,7 +493,24 @@ function updateGenerationSubmitAvailability() {
     return;
   }
   const readiness = getCurrentGenerationReadiness();
-  if (!readiness.ready && readiness.tone === "bad") {
+  if (sidebarStatusPrimary && sidebarStatusSecondary) {
+    if (generationConnectionState.provider === "ok") {
+      sidebarStatusPrimary.textContent = "Готов";
+      sidebarStatusSecondary.textContent =
+        generationConnectionState.providerName || "Провайдер подключён";
+    } else if (generationConnectionState.backend === "ok") {
+      sidebarStatusPrimary.textContent = "Сервер доступен";
+      sidebarStatusSecondary.textContent =
+        generationConnectionState.providerName || "Проверяем провайдера";
+    } else {
+      sidebarStatusPrimary.textContent = "Статус подключения";
+      sidebarStatusSecondary.textContent =
+        generationConnectionState.backend === "checking"
+          ? "Проверка…"
+          : "Требуется проверка";
+    }
+  }
+  if (!readiness.ready) {
     submitButton.setAttribute("aria-disabled", "true");
     submitButton.dataset.disabledReason = readiness.message;
     submitButton.title = readiness.message;
@@ -429,7 +537,14 @@ const modalRegion = document.getElementById("modal-region");
 const toastController = createToastController(toastRegion);
 const confirmModal = createConfirmModal({ modalRegion });
 const stageFlow = createStageFlowController({ root: stageRoot });
-const progressController = createProgressController({ stepper, generationProgressPanel, stageFlow });
+const workspaceController = createWorkspaceController({
+  root: workspaceRoot,
+  stageFlow,
+});
+const progressController = createProgressController({
+  generationProgressPanel,
+  stageFlow,
+});
 const themeController = createThemeController({ themeToggleLabel });
 const quizHistory = createQuizHistory({
   datalistElement: document.getElementById("quiz-history-options"),
@@ -437,6 +552,7 @@ const quizHistory = createQuizHistory({
 quizHistory.renderHistoryDatalist();
 const enableModelPicker = Boolean(config.enableModelPicker);
 const modelPickerField = document.getElementById("model-picker-field");
+const genTiming = createGenTiming();
 
 if (enableModelPicker && modelPickerField) {
   modelPickerField.hidden = false;
@@ -446,11 +562,149 @@ function syncGenerationTemperatureValue() {
   if (!generationTemperatureInput || !generationTemperatureValue) {
     return;
   }
-  generationTemperatureValue.value = Number(generationTemperatureInput.value).toFixed(1);
+  generationTemperatureValue.value = Number(
+    generationTemperatureInput.value,
+  ).toFixed(1);
+}
+
+function syncQuestionCount(
+  source = questionCountInput,
+  target = questionCountRange,
+) {
+  if (!source || !target) {
+    return;
+  }
+  const parsedValue = Number.parseInt(source.value, 10);
+  const normalizedValue = Number.isInteger(parsedValue)
+    ? Math.min(50, Math.max(3, parsedValue))
+    : 5;
+  source.value = String(normalizedValue);
+  target.value = String(normalizedValue);
+  const sliderProgress = ((normalizedValue - 3) / 47) * 100;
+  questionCountRange?.style.setProperty(
+    "--slider-progress",
+    `${sliderProgress}%`,
+  );
+}
+
+function syncDifficulty(value = difficultySelect?.value) {
+  const normalizedValue = typeof value === "string" ? value : "";
+  if (difficultySelect && normalizedValue) {
+    difficultySelect.value = normalizedValue;
+  }
+  for (const button of difficultyButtons) {
+    button.setAttribute(
+      "aria-pressed",
+      String(button.dataset.difficultyValue === normalizedValue),
+    );
+  }
+}
+
+function updateDocWordCount() {
+  const text = docTextInput?.value?.trim() ?? "";
+  const wordCount = text ? text.split(/\s+/u).length : 0;
+  const charCount = docTextInput?.value?.length ?? 0;
+  const localizedWordCount = wordCount.toLocaleString("ru-RU");
+  const localizedCharCount = charCount.toLocaleString("ru-RU");
+  if (wordCountElement) {
+    wordCountElement.textContent = `${localizedWordCount} слов`;
+  }
+  if (wordCountSummaryElement) {
+    wordCountSummaryElement.textContent = `· ${localizedWordCount} слов`;
+  }
+  if (charCountTopElement) {
+    charCountTopElement.textContent = `${localizedCharCount} символов`;
+  }
+}
+
+function formatEstimateDuration(durationMs) {
+  const seconds = Math.max(1, Math.round(durationMs / 1000));
+  if (seconds < 60) {
+    return `около ${seconds} сек.`;
+  }
+  return `около ${Math.ceil(seconds / 60)} мин.`;
+}
+
+function updateGenerationEstimate() {
+  if (!generationEstimate) {
+    return;
+  }
+  if (fileInput?.files?.[0]) {
+    generationEstimate.textContent =
+      "Оценка времени уточнится после загрузки документа.";
+    return;
+  }
+  const charCount = docTextInput?.value?.trim().length ?? 0;
+  const totalMs = genTiming.estimateTotalMs(charCount);
+  generationEstimate.textContent = totalMs
+    ? `Оценка времени генерации: ${formatEstimateDuration(totalMs)}`
+    : "Оценка времени: ~ 43 сек.";
+}
+
+function updateLMStudioConnectionVisibility(
+  providerKey = generationConnectionState.providerKey,
+) {
+  const isLMStudio = providerKey === "lm_studio";
+  if (lmStudioConnectionSection) {
+    lmStudioConnectionSection.hidden = !isLMStudio;
+  }
+  if (lmStudioProviderHint) {
+    lmStudioProviderHint.hidden = isLMStudio;
+  }
+}
+
+function updateProviderModelStatus(defaultModel = "", models = []) {
+  if (!providerModelStatus) {
+    return;
+  }
+  const availableModels = Array.isArray(models) ? models.filter(Boolean) : [];
+  const hasDefault = typeof defaultModel === "string" && defaultModel.trim();
+  providerModelStatus.replaceChildren();
+  const defaultLine = document.createElement("span");
+  defaultLine.className = "provider-model-default";
+  defaultLine.textContent = hasDefault
+    ? defaultModel.trim()
+    : "Модель по умолчанию не указана.";
+  providerModelStatus.append(defaultLine);
+  if (availableModels.length > 0) {
+    const listLabel = document.createElement("span");
+    listLabel.className = "provider-model-list-label";
+    listLabel.textContent = "Доступные модели:";
+    const list = document.createElement("ul");
+    list.className = "provider-model-list";
+    availableModels.forEach((name) => {
+      const item = document.createElement("li");
+      item.className = "provider-model-chip";
+      item.textContent = name;
+      list.append(item);
+    });
+    providerModelStatus.append(listLabel, list);
+  }
 }
 
 syncGenerationTemperatureValue();
-generationTemperatureInput?.addEventListener("input", syncGenerationTemperatureValue);
+generationTemperatureInput?.addEventListener(
+  "input",
+  syncGenerationTemperatureValue,
+);
+syncQuestionCount();
+syncDifficulty();
+updateDocWordCount();
+updateGenerationEstimate();
+updateLMStudioConnectionVisibility();
+questionCountRange?.addEventListener("input", () => {
+  syncQuestionCount(questionCountRange, questionCountInput);
+  updateGenerationEstimate();
+});
+questionCountInput?.addEventListener("change", () => {
+  syncQuestionCount(questionCountInput, questionCountRange);
+  updateGenerationEstimate();
+});
+difficultyButtons.forEach((button) => {
+  button.addEventListener("click", () =>
+    syncDifficulty(button.dataset.difficultyValue),
+  );
+});
 
 const generationSettings = createGenerationSettingsController({
   client,
@@ -463,10 +717,10 @@ const generationSettings = createGenerationSettingsController({
 const quizRenderer = createQuizRenderer({
   resultPanel,
   resultStateBadge,
-  questionList,
+  questionList: null,
   setTextContent,
   setExportAvailability,
-  advanceStepper: progressController.advanceStepper,
+  activateWorkflowStage: progressController.activateWorkflowStage,
 });
 
 function focusResultView() {
@@ -485,11 +739,14 @@ const quizEditor = createQuizEditor({
   loadQuizButton,
   saveQuizButton,
   quizEditorFields,
+  undoQuizEditButton,
+  addQuestionButton,
+  addQuestionTypeSelect,
   setTextContent,
   setEditorStatus,
   setLogMessage,
   setExportAvailability,
-  advanceStepper: progressController.advanceStepper,
+  activateWorkflowStage: progressController.activateWorkflowStage,
   renderQuizResult: quizRenderer.renderQuizResult,
   showToast: toastController.showToast,
   describeError,
@@ -499,7 +756,6 @@ const quizEditor = createQuizEditor({
   confirmAction: confirmModal.confirm,
 });
 
-const genTiming = createGenTiming();
 const generationFlow = createGenerationFlow({
   client,
   form,
@@ -523,6 +779,10 @@ const generationFlow = createGenerationFlow({
   timerEtaValueElement: document.getElementById("timer-eta-value"),
   charCountElement: document.getElementById("char-count"),
   docLengthHintElement: document.getElementById("doc-length-hint"),
+  onDocInputSummaryChange: () => {
+    updateGenerationEstimate();
+    updateGenerationSubmitAvailability();
+  },
   genTiming,
   dropzoneFileName,
   dropzoneFileMeta,
@@ -536,16 +796,18 @@ const generationFlow = createGenerationFlow({
   setExportAvailability,
   clearQuizResult: quizRenderer.clearQuizResult,
   renderQuizResult: quizRenderer.renderQuizResult,
+  presentQuizInline: quizEditor.presentQuizInline,
   focusResultView,
-  advanceStepper: progressController.advanceStepper,
-  markStepperFailed: progressController.markStepperFailed,
-  waitForProgressVisibility: progressController.waitForProgressVisibility,
+  activateWorkflowStage: progressController.activateWorkflowStage,
+  markWorkflowStageFailed: progressController.markWorkflowStageFailed,
   startGenerationProgress: progressController.startGenerationProgress,
   advanceGenerationProgress: progressController.advanceGenerationProgress,
-  applyBackendGenerationStatusEvidence: progressController.applyBackendGenerationStatusEvidence,
+  applyBackendGenerationStatusEvidence:
+    progressController.applyBackendGenerationStatusEvidence,
   completeGenerationProgress: progressController.completeGenerationProgress,
   completeGenerationProgressWithBackendEvidence: progressController.completeGenerationProgressWithBackendEvidence,
   failGenerationProgress: progressController.failGenerationProgress,
+  cancelGenerationProgress: progressController.cancelGenerationProgress,
   showToast: toastController.showToast,
   saveQuizToHistory: quizHistory.saveQuizToHistory,
   refreshGenerationDefaults: generationSettings.refreshAfterGeneration,
@@ -558,6 +820,102 @@ const quizExporter = createQuizExporter({
   client,
   editorState,
   showToast: toastController.showToast,
+});
+
+const previewMode = createPlayablePreview({
+  modalRegion,
+  getQuizSnapshot: quizEditor.buildQuizUpdatePayload,
+  showToast: toastController.showToast,
+});
+
+const exportModal = createExportModal({
+  modalRegion,
+  client,
+  editorState,
+  getQuizSnapshot: quizEditor.buildQuizUpdatePayload,
+  saveQuiz: quizEditor.submitQuizEdits,
+  serverExporter: quizExporter,
+  showToast: toastController.showToast,
+});
+
+async function startNewQuiz() {
+  if (editorState.isDirty) {
+    const confirmed = await confirmModal.confirm({
+      title: "Начать новый квиз?",
+      body: "Несохранённые изменения текущего квиза будут потеряны.",
+      confirmLabel: "Начать новый квиз",
+      cancelLabel: "Продолжить редактирование",
+      tone: "warn",
+    });
+    if (!confirmed) {
+      return false;
+    }
+  }
+  if (docTextInput) {
+    docTextInput.value = "";
+  }
+  generationFlow.removeSelectedFile();
+  generationFlow.updateDocInputSummary();
+  updateDocWordCount();
+  quizRenderer.clearQuizResult();
+  quizEditor.clearQuizEditor();
+  editorState.isDirty = false;
+  setExportAvailability(null);
+  quizRenderer.setResultState(
+    "Квиз появится здесь после успешной генерации.",
+    "idle",
+    "Ожидание результата",
+  );
+  workspaceController.activateState("setup", { focus: true });
+  docTextInput?.focus();
+  return true;
+}
+
+async function openQuizFromHistory(quizId) {
+  if (typeof quizId !== "string" || !quizId.trim()) {
+    return;
+  }
+  try {
+    const payload = await client.getQuiz(quizId);
+    const normalizedQuizId = payload.quiz_id ?? payload.quiz?.quiz_id ?? quizId;
+    if (quizIdInput) {
+      quizIdInput.value = normalizedQuizId;
+    }
+    quizRenderer.renderQuizResult({
+      ...payload,
+      quiz_id: normalizedQuizId,
+      quiz: payload.quiz ?? {},
+    });
+    quizEditor.presentQuizInline(payload.quiz ?? {}, {
+      language: payload.language,
+    });
+    quizHistory.saveQuizToHistory({
+      quiz_id: normalizedQuizId,
+      title: payload.quiz?.title,
+      language: payload.language,
+    });
+    workspaceController.activateState("result", { focus: true });
+    toastController.showToast("Квиз загружен из истории.", "ok");
+  } catch (error) {
+    toastController.showToast(
+      `Не удалось открыть квиз из истории: ${describeError(error)}`,
+      "bad",
+    );
+  }
+}
+
+const sidebarController = createSidebarController({
+  sidebar: workspaceSidebar,
+  toggleButton: sidebarToggleButton,
+  newQuizButton: sidebarNewQuizButton,
+  historyList: sidebarHistoryList,
+  statusCell: sidebarStatusCell,
+  themeButton: themeToggleButton,
+  historyStore: quizHistory,
+  onNewQuiz: startNewQuiz,
+  onSelectQuiz: openQuizFromHistory,
+  onOpenStatus: () => workspaceController.openModal("status"),
+  onToggleTheme: themeController.cycleTheme,
 });
 
 const keyboardShortcuts = createKeyboardShortcuts({
@@ -576,13 +934,29 @@ copyButtons.register();
 
 async function bootstrapShell() {
   generationFlow.updateDocInputSummary();
+  updateDocWordCount();
   quizRenderer.clearQuizResult();
   quizEditor.clearQuizEditor();
-  setEditorStatus("Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.", null);
-  quizRenderer.setResultState("Квиз появится здесь после успешной генерации.", "idle", "Ожидание результата");
-  const backendHealth = await checkBackendConnection({ loadExports: false, refreshSettings: true });
+  setEditorStatus(
+    "Загрузите существующий квиз, чтобы открыть редактируемые поля и сохранить изменения.",
+    null,
+  );
+  quizRenderer.setResultState(
+    "Квиз появится здесь после успешной генерации.",
+    "idle",
+    "Ожидание результата",
+  );
+  const backendHealth = await checkBackendConnection({
+    loadExports: false,
+    refreshSettings: true,
+  });
   if (!backendHealth) {
-    setStatus("provider", "Проверка не удалась", "bad", PROVIDER_CHECK_BLOCKED_INSTRUCTION);
+    setStatus(
+      "provider",
+      "Проверка не удалась",
+      "bad",
+      PROVIDER_CHECK_BLOCKED_INSTRUCTION,
+    );
     setExportAvailability(editorState.lastGeneratedQuizId);
     return;
   }
@@ -591,19 +965,31 @@ async function bootstrapShell() {
   await loadExportFormats();
 }
 
-async function checkBackendConnection({ loadExports = true, refreshSettings = true } = {}) {
+async function checkBackendConnection({
+  loadExports = true,
+  refreshSettings = true,
+} = {}) {
   generationConnectionState.backend = "checking";
   generationConnectionState.backendReason = "";
   updateGenerationSubmitAvailability();
   setPreflightStatus("", null);
-  setStatus("backend", "Проверка…", null, "Проверяем доступность backend-сервера.");
+  setStatus(
+    "backend",
+    "Проверка…",
+    null,
+    "Проверяем доступность backend-сервера.",
+  );
   setRetryButtonBusy(retryBackendButton, true);
   try {
     const backendHealth = await client.getBackendHealth();
     generationConnectionState.backend = "ok";
     generationConnectionState.backendReason = "";
-    generationConnectionState.providerKey = backendHealth.default_provider ?? generationConnectionState.providerKey;
-    generationConnectionState.providerName = formatProviderName(generationConnectionState.providerKey);
+    generationConnectionState.providerKey =
+      backendHealth.default_provider ?? generationConnectionState.providerKey;
+    generationConnectionState.providerName = formatProviderName(
+      generationConnectionState.providerKey,
+    );
+    updateLMStudioConnectionVisibility();
     setStatus(
       "backend",
       "Доступен",
@@ -623,7 +1009,9 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
     generationConnectionState.backend = "bad";
     generationConnectionState.provider = "blocked";
     generationConnectionState.backendReason = reason;
-    generationConnectionState.providerReason = "Сначала восстановите подключение к серверу.";
+    generationConnectionState.providerReason =
+      "Сначала восстановите подключение к серверу.";
+    updateProviderModelStatus();
     const message = buildBackendUnavailableMessage(reason);
     setStatus("backend", "Проверка не удалась", "bad", message);
     setLogMessage(message, "bad");
@@ -638,9 +1026,16 @@ async function checkBackendConnection({ loadExports = true, refreshSettings = tr
 async function checkProviderConnection() {
   if (generationConnectionState.backend !== "ok") {
     generationConnectionState.provider = "blocked";
-    generationConnectionState.providerReason = "Сначала восстановите подключение к серверу.";
+    generationConnectionState.providerReason =
+      "Сначала восстановите подключение к серверу.";
+    updateProviderModelStatus();
     setPreflightStatus(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
-    setStatus("provider", "Недоступен · сначала сервер", "bad", PROVIDER_CHECK_BLOCKED_INSTRUCTION);
+    setStatus(
+      "provider",
+      "Недоступен · сначала сервер",
+      "bad",
+      PROVIDER_CHECK_BLOCKED_INSTRUCTION,
+    );
     setLogMessage(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
     toastController.showToast(PROVIDER_CHECK_BLOCKED_INSTRUCTION, "bad");
     updateGenerationSubmitAvailability();
@@ -648,19 +1043,32 @@ async function checkProviderConnection() {
   }
   generationConnectionState.provider = "checking";
   generationConnectionState.providerReason = "";
+  updateProviderModelStatus();
   updateGenerationSubmitAvailability();
   setPreflightStatus("", null);
-  setStatus("provider", "Проверка…", null, "Проверяем подключение к активному провайдеру через backend.");
+  setStatus(
+    "provider",
+    "Проверка…",
+    null,
+    "Проверяем подключение к активному провайдеру через backend.",
+  );
   setRetryButtonBusy(retryProviderButton, true);
   try {
     const providerHealth = await client.getProviderHealth();
     const providerName = formatProviderName(providerHealth.provider);
-    generationConnectionState.providerKey = providerHealth.provider ?? generationConnectionState.providerKey;
+    generationConnectionState.providerKey =
+      providerHealth.provider ?? generationConnectionState.providerKey;
     generationConnectionState.providerName = providerName;
+    updateLMStudioConnectionVisibility();
+    updateProviderModelStatus(providerHealth.default_model, providerHealth.available_models);
     if (!isProviderReadyStatus(providerHealth.status)) {
       generationConnectionState.provider = "bad";
-      generationConnectionState.providerReason = providerHealth.message || `status: ${providerHealth.status}`;
-      const message = buildProviderUnavailableMessage(generationConnectionState.providerReason, generationConnectionState.providerKey);
+      generationConnectionState.providerReason =
+        providerHealth.message || `status: ${providerHealth.status}`;
+      const message = buildProviderUnavailableMessage(
+        generationConnectionState.providerReason,
+        generationConnectionState.providerKey,
+      );
       setStatus("provider", "Недоступен · проверьте провайдер", "bad", message);
       setLogMessage(message, "bad");
       toastController.showToast(message, "bad");
@@ -675,8 +1083,13 @@ async function checkProviderConnection() {
         PROVIDER_AVAILABLE_INSTRUCTION,
       );
       setLogMessage("Подключение к провайдеру проверено.", "ok");
-      if (Array.isArray(providerHealth.available_models) && providerHealth.available_models.length > 0) {
-        generationSettings.updateAvailableModels(providerHealth.available_models);
+      if (
+        Array.isArray(providerHealth.available_models) &&
+        providerHealth.available_models.length > 0
+      ) {
+        generationSettings.updateAvailableModels(
+          providerHealth.available_models,
+        );
       }
     }
     return providerHealth;
@@ -684,7 +1097,10 @@ async function checkProviderConnection() {
     const reason = describeError(error);
     generationConnectionState.provider = "bad";
     generationConnectionState.providerReason = reason;
-    const message = buildProviderUnavailableMessage(reason, generationConnectionState.providerKey);
+    const message = buildProviderUnavailableMessage(
+      reason,
+      generationConnectionState.providerKey,
+    );
     setStatus("provider", "Проверка не удалась", "bad", message);
     setLogMessage(message, "bad");
     return null;
@@ -710,7 +1126,10 @@ async function loadLMStudioConnectionSettings() {
     setLMStudioConnectionStatus(`Текущий адрес: ${connection.base_url}`, "ok");
     return connection;
   } catch (error) {
-    setLMStudioConnectionStatus(`Не удалось получить адрес LM Studio: ${describeError(error)}`, "warn");
+    setLMStudioConnectionStatus(
+      `Не удалось получить адрес LM Studio: ${describeError(error)}`,
+      "warn",
+    );
     return null;
   }
 }
@@ -719,11 +1138,17 @@ async function applyLMStudioConnectionSettings() {
   const host = lmStudioHostInput?.value?.trim() ?? "";
   const port = Number(lmStudioPortInput?.value);
   if (!host || !Number.isInteger(port) || port < 1 || port > 65535) {
-    setLMStudioConnectionStatus("Введите IP/host и порт LM Studio от 1 до 65535.", "bad");
+    setLMStudioConnectionStatus(
+      "Введите IP/host и порт LM Studio от 1 до 65535.",
+      "bad",
+    );
     return;
   }
   if (host.includes("://") || /[/?#@:\\]/.test(host)) {
-    setLMStudioConnectionStatus("Введите только IP или host без http://, /v1 и порта.", "bad");
+    setLMStudioConnectionStatus(
+      "Введите только IP или host без http://, /v1 и порта.",
+      "bad",
+    );
     return;
   }
   setRetryButtonBusy(applyLMStudioConnectionButton, true);
@@ -734,6 +1159,7 @@ async function applyLMStudioConnectionSettings() {
     storeLMStudioConnection({ host: connection.host, port: connection.port });
     generationConnectionState.providerKey = "lm_studio";
     generationConnectionState.providerName = "LM Studio";
+    updateLMStudioConnectionVisibility();
     if (isProviderReadyStatus(connection.status)) {
       generationConnectionState.provider = "ok";
       generationConnectionState.providerReason = "";
@@ -744,12 +1170,19 @@ async function applyLMStudioConnectionSettings() {
         PROVIDER_AVAILABLE_INSTRUCTION,
       );
       setPreflightStatus("", null);
-      setLMStudioConnectionStatus(`LM Studio подключён: ${connection.base_url}`, "ok");
+      setLMStudioConnectionStatus(
+        `LM Studio подключён: ${connection.base_url}`,
+        "ok",
+      );
       setLogMessage("Адрес LM Studio применён.", "ok");
     } else {
       generationConnectionState.provider = "bad";
-      generationConnectionState.providerReason = connection.message || `status: ${connection.status}`;
-      const message = buildProviderUnavailableMessage(generationConnectionState.providerReason, "lm_studio");
+      generationConnectionState.providerReason =
+        connection.message || `status: ${connection.status}`;
+      const message = buildProviderUnavailableMessage(
+        generationConnectionState.providerReason,
+        "lm_studio",
+      );
       setStatus("provider", "Недоступен · проверьте LM Studio", "bad", message);
       setLMStudioConnectionStatus(message, "bad");
       setLogMessage(message, "bad");
@@ -757,7 +1190,10 @@ async function applyLMStudioConnectionSettings() {
   } catch (error) {
     generationConnectionState.provider = "bad";
     generationConnectionState.providerReason = describeError(error);
-    const message = buildProviderUnavailableMessage(generationConnectionState.providerReason, "lm_studio");
+    const message = buildProviderUnavailableMessage(
+      generationConnectionState.providerReason,
+      "lm_studio",
+    );
     setLMStudioConnectionStatus(message, "bad");
     setLogMessage(message, "bad");
   } finally {
@@ -773,7 +1209,10 @@ async function loadExportFormats() {
     editorState.supportedExportFormats.add("json");
     setExportAvailability(editorState.lastGeneratedQuizId);
   } catch (error) {
-    setLogMessage(`Не удалось получить форматы экспорта: ${describeError(error)}`, "warn");
+    setLogMessage(
+      `Не удалось получить форматы экспорта: ${describeError(error)}`,
+      "warn",
+    );
     setExportAvailability(editorState.lastGeneratedQuizId);
   }
 }
@@ -782,29 +1221,27 @@ function parseSupportedExportFormats(payload) {
   const formats = Array.isArray(payload?.formats) ? payload.formats : [];
   return new Set(
     formats
-      .map((item) => typeof item?.format === "string" ? item.format.trim().toLowerCase() : "")
+      .map((item) =>
+        typeof item?.format === "string"
+          ? item.format.trim().toLowerCase()
+          : "",
+      )
       .filter(Boolean),
   );
 }
 
-function openEditorForCurrentQuiz() {
-  const quizId = editorState.lastGeneratedQuizId;
-  if (!quizId || !quizIdInput) {
-    return;
-  }
-  quizIdInput.value = quizId;
-  const editorPanel = document.getElementById("quiz-editor");
-  if (editorPanel) {
-    if (editorPanel instanceof HTMLDetailsElement) {
-      editorPanel.open = true;
-    }
-    stageFlow.activateStage("edit", { focus: true });
-  }
-  quizEditor.loadQuizForEditing({ preventDefault: () => {} });
-}
-
 themeController.applyTheme(themeController.resolveStoredTheme());
-themeToggleButton?.addEventListener("click", themeController.cycleTheme);
+workspaceController.register();
+sidebarController.register();
+
+const fieldTooltips = workspaceRoot?.querySelectorAll(".field-tooltip") ?? [];
+fieldTooltips.forEach((tooltip) => {
+  tooltip.addEventListener("mouseenter", () => showTooltipPopover(tooltip));
+  tooltip.addEventListener("mouseleave", hideTooltipPopover);
+  tooltip.addEventListener("focus", () => showTooltipPopover(tooltip));
+  tooltip.addEventListener("blur", hideTooltipPopover);
+});
+tooltipPopover?.addEventListener("mouseenter", hideTooltipPopover);
 retryBackendButton?.addEventListener("click", () => {
   checkBackendConnection();
 });
@@ -816,16 +1253,6 @@ applyLMStudioConnectionButton?.addEventListener("click", () => {
 });
 submitButton?.addEventListener("pointerenter", showSubmitUnavailableReason);
 submitButton?.addEventListener("focus", showSubmitUnavailableReason);
-stepper?.addEventListener("click", (event) => {
-  const target = event.target instanceof Element
-    ? event.target.closest("[data-stage-target]")
-    : null;
-  if (!(target instanceof HTMLElement)) {
-    return;
-  }
-  progressController.advanceStepper(target.dataset.stageTarget, { focus: true });
-});
-
 window.addEventListener("beforeunload", (event) => {
   if (!editorState.isDirty) {
     return;
@@ -834,53 +1261,12 @@ window.addEventListener("beforeunload", (event) => {
   event.returnValue = "";
 });
 generationFlow.attachDropzone();
-exportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
-exportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
-exportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
-exportMarkdownButton?.addEventListener("click", quizExporter.exportQuizAsMarkdown);
-exportCsvButton?.addEventListener("click", quizExporter.exportQuizAsCsv);
-exportSplitToggle?.addEventListener("click", () => {
-  const open = exportSplitMenu?.hidden === false;
-  if (exportSplitMenu) {
-    exportSplitMenu.hidden = open;
-  }
-  if (exportSplitToggle) {
-    exportSplitToggle.setAttribute("aria-expanded", String(!open));
-  }
+previewQuizButton?.addEventListener("click", previewMode.open);
+exportJsonButton?.addEventListener("click", exportModal.open);
+resultBackButton?.addEventListener("click", (event) => {
+  event.preventDefault();
+  startNewQuiz();
 });
-document.addEventListener("click", (event) => {
-  if (exportSplitMenu?.hidden === false) {
-    const inside = event.target instanceof Element && event.target.closest("#export-split");
-    if (!inside) {
-      exportSplitMenu.hidden = true;
-      exportSplitToggle?.setAttribute("aria-expanded", "false");
-    }
-  }
-});
-editorExportJsonButton?.addEventListener("click", quizExporter.exportQuizAsJson);
-editorExportDocxButton?.addEventListener("click", quizExporter.exportQuizAsDocx);
-editorExportPptxButton?.addEventListener("click", quizExporter.exportQuizAsPptx);
-editorExportMarkdownButton?.addEventListener("click", quizExporter.exportQuizAsMarkdown);
-editorExportCsvButton?.addEventListener("click", quizExporter.exportQuizAsCsv);
-editorExportSplitToggle?.addEventListener("click", () => {
-  const open = editorExportSplitMenu?.hidden === false;
-  if (editorExportSplitMenu) {
-    editorExportSplitMenu.hidden = open;
-  }
-  if (editorExportSplitToggle) {
-    editorExportSplitToggle.setAttribute("aria-expanded", String(!open));
-  }
-});
-document.addEventListener("click", (event) => {
-  if (editorExportSplitMenu?.hidden === false) {
-    const inside = event.target instanceof Element && event.target.closest("#editor-export-split");
-    if (!inside) {
-      editorExportSplitMenu.hidden = true;
-      editorExportSplitToggle?.setAttribute("aria-expanded", "false");
-    }
-  }
-});
-editShortcutButton?.addEventListener("click", openEditorForCurrentQuiz);
 cancelGenerationButton?.addEventListener("click", generationFlow.cancelGeneration);
 dropzoneRemoveButton?.addEventListener("click", (event) => {
   event.preventDefault();
@@ -897,12 +1283,13 @@ docFileRemoveButton?.addEventListener("click", (event) => {
 fileInput?.addEventListener("change", () => {
   generationFlow.updateDocInputSummary();
   if (fileInput.files?.[0]) {
-    progressController.advanceStepper("setup");
+    progressController.activateWorkflowStage("setup");
   }
 });
 
 docTextInput?.addEventListener("input", () => {
   generationFlow.updateDocInputSummary();
+  updateDocWordCount();
 });
 
 const DOC_EXAMPLE_TEXT = `Фотосинтез — это процесс, при котором зелёные растения, водоросли и некоторые бактерии создают органические вещества из углекислого газа и воды, используя энергию света. Его часто называют основой жизни на Земле, потому что именно благодаря фотосинтезу в биосфере постоянно образуются углеводы и выделяется кислород. Без этого процесса большинство животных, грибов и людей не имели бы ни пищи, ни достаточного количества кислорода для дыхания.
@@ -943,6 +1330,7 @@ docClearButton?.addEventListener("click", () => {
     }
   }
   generationFlow.updateDocInputSummary();
+  updateDocWordCount();
   toastController.showToast("Текст удалён из формы.", "warn");
   docTextInput?.focus();
 });
@@ -959,13 +1347,25 @@ form?.addEventListener("submit", generationFlow.submitGeneration);
 quizEditorLoader?.addEventListener("submit", quizEditor.loadQuizForEditing);
 quizEditorFields?.addEventListener("input", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("change", quizEditor.markEditorDirty);
+quizTitleInput?.addEventListener("input", quizEditor.markEditorDirty);
+quizTitleInput?.addEventListener("change", quizEditor.markEditorDirty);
 quizEditorFields?.addEventListener("click", quizEditor.regenerateQuizQuestion);
 quizEditorFields?.addEventListener("click", quizEditor.revertQuestionEdits);
+quizEditorFields?.addEventListener("click", quizEditor.handleStructuralAction);
+quizEditorFields?.addEventListener("change", quizEditor.handleStructuralAction);
+addQuestionButton?.addEventListener("click", quizEditor.handleStructuralAction);
+undoQuizEditButton?.addEventListener(
+  "click",
+  quizEditor.undoLastStructuralEdit,
+);
 saveQuizButton?.addEventListener("click", quizEditor.submitQuizEdits);
 quizEditorFields?.addEventListener("click", (event) => {
-  const cancelTarget = event.target instanceof Element
-    ? event.target.closest('[data-editor-action="cancel-regenerate-question"]')
-    : null;
+  const cancelTarget =
+    event.target instanceof Element
+      ? event.target.closest(
+          '[data-editor-action="cancel-regenerate-question"]',
+        )
+      : null;
   if (!cancelTarget) {
     return;
   }
@@ -973,6 +1373,6 @@ quizEditorFields?.addEventListener("click", (event) => {
   quizEditor.cancelActiveRegeneration();
 });
 
-stageFlow.activateStage("setup");
+workspaceController.activateState("setup");
 updateGenerationSubmitAvailability();
 bootstrapShell();

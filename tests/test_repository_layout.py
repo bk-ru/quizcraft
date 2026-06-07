@@ -22,6 +22,16 @@ def test_repository_layout_uses_canonical_locations() -> None:
     assert not (ROOT / "design-concepts-v2").exists()
 
 
+def test_frontend_workspace_modules_use_canonical_locations() -> None:
+    assert (ROOT / "frontend" / "sidebar.js").is_file()
+    assert (ROOT / "frontend" / "workspace.js").is_file()
+    assert (ROOT / "frontend" / "question-shape.js").is_file()
+    assert (ROOT / "frontend" / "undo-stack.js").is_file()
+    assert (ROOT / "frontend" / "preview-mode.js").is_file()
+    assert (ROOT / "frontend" / "text-export.js").is_file()
+    assert (ROOT / "frontend" / "export-modal.js").is_file()
+
+
 def test_backend_run_script_does_not_enable_reload_by_default() -> None:
     script = (ROOT / "run-backend.ps1").read_text(encoding="utf-8")
 

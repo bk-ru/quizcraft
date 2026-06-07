@@ -45,7 +45,7 @@ def test_select_returns_direct_in_transition_zone() -> None:
 def test_select_returns_rag_at_exactly_rag_min() -> None:
     """Документы ровно 30000 символов → RAG (>= порога)"""
     result = select_generation_mode(
-        requested_mode=GenerationMode.DIRECT,
+        requested_mode=GenerationMode.AUTO,
         document_length_chars=DEFAULT_RAG_MIN_CHARS,
     )
     assert result is GenerationMode.RAG
@@ -54,10 +54,42 @@ def test_select_returns_rag_at_exactly_rag_min() -> None:
 def test_select_returns_rag_for_large_documents() -> None:
     """Документы от 30000 символов → RAG"""
     result = select_generation_mode(
-        requested_mode=GenerationMode.DIRECT,
+        requested_mode=GenerationMode.AUTO,
         document_length_chars=50000,
     )
     assert result is GenerationMode.RAG
+
+
+def test_select_keeps_direct_for_large_documents_when_explicitly_requested() -> None:
+    result = select_generation_mode(
+        requested_mode=GenerationMode.DIRECT,
+        document_length_chars=50000,
+    )
+    assert result is GenerationMode.DIRECT
+
+
+def test_select_returns_direct_for_small_documents_in_auto_mode() -> None:
+    result = select_generation_mode(
+        requested_mode=GenerationMode.AUTO,
+        document_length_chars=1000,
+    )
+    assert result is GenerationMode.DIRECT
+
+
+def test_select_returns_direct_at_auto_direct_max_boundary() -> None:
+    result = select_generation_mode(
+        requested_mode=GenerationMode.AUTO,
+        document_length_chars=DEFAULT_DIRECT_MAX_CHARS,
+    )
+    assert result is GenerationMode.DIRECT
+
+
+def test_select_returns_direct_in_auto_transition_zone() -> None:
+    result = select_generation_mode(
+        requested_mode=GenerationMode.AUTO,
+        document_length_chars=20000,
+    )
+    assert result is GenerationMode.DIRECT
 
 
 def test_select_keeps_rag_when_user_explicitly_requested_it() -> None:
@@ -92,7 +124,7 @@ def test_select_uses_custom_thresholds() -> None:
 
 def test_select_with_custom_thresholds_promotes_to_rag() -> None:
     result = select_generation_mode(
-        requested_mode=GenerationMode.DIRECT,
+        requested_mode=GenerationMode.AUTO,
         document_length_chars=15000,
         direct_max_chars=4000,
         rag_min_chars=10000,
@@ -107,7 +139,7 @@ def test_select_supports_cyrillic_documents() -> None:
     assert len(cyrillic_document) > DEFAULT_RAG_MIN_CHARS
 
     result = select_generation_mode(
-        requested_mode=GenerationMode.DIRECT,
+        requested_mode=GenerationMode.AUTO,
         document_length_chars=len(cyrillic_document),
     )
     assert result is GenerationMode.RAG

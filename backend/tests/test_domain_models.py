@@ -130,6 +130,10 @@ def test_generation_mode_registry_supports_direct_mode() -> None:
     assert GenerationModeRegistry.ensure_supported("direct") is GenerationMode.DIRECT
 
 
+def test_generation_mode_registry_supports_auto_mode() -> None:
+    assert GenerationModeRegistry.ensure_supported("auto") is GenerationMode.AUTO
+
+
 def test_generation_mode_registry_rejects_unknown_mode() -> None:
     with pytest.raises(UnsupportedGenerationModeError, match="unsupported"):
         GenerationModeRegistry.ensure_supported("hybrid_super_mode")

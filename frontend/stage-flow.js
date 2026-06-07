@@ -40,6 +40,7 @@ export function createStageFlowController({ root, documentRef = document } = {})
   }
 
   return {
+    root: stageRoot,
     activateStage,
     normalizeStage: normalizeWorkflowStage,
   };

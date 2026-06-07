@@ -252,6 +252,7 @@
 }
 
 .editor-card {
+  position: relative;
   display: grid;
   gap: 14px;
   padding: 18px;
@@ -275,13 +276,71 @@
   background: color-mix(in srgb, var(--warn, #e07b00) 6%, var(--bg-elev));
 }
 
+.editor-card-body {
+  position: relative;
+}
+
+.editor-card-content {
+  display: grid;
+  gap: 14px;
+  transition: filter 180ms ease, opacity 180ms ease;
+}
+
+.editor-card.is-regenerating .editor-card-content {
+  pointer-events: none;
+  filter: blur(2px);
+  opacity: 0.52;
+  animation: question-regeneration-pulse 1.2s ease-in-out infinite;
+}
+
+.question-regenerate-overlay {
+  position: absolute;
+  inset: 0;
+  display: none;
+  place-items: center;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--bg-elev) 52%, transparent);
+  color: var(--ink);
+  font-weight: 700;
+  text-align: center;
+}
+
+.editor-card.is-regenerating .question-regenerate-overlay {
+  display: grid;
+}
+
+.question-icon-action {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.question-icon-action[hidden] {
+  display: none;
+}
+
+.question-icon-action:hover:not(:disabled) {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.question-icon-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
 .question-revert-action {
-  width: fit-content;
   color: var(--warn, #e07b00);
 }
 
-.question-regenerate-action {
-  width: fit-content;
+.question-regenerate-cancel {
+  color: var(--bad);
 }
 
 .question-regenerate-status {
@@ -313,4 +372,344 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
+}
+
+.question-structure-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.question-type-pill {
+  margin-right: auto;
+  width: fit-content;
+  max-width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  color: var(--ink);
+}
+
+@keyframes question-regeneration-pulse {
+  0%, 100% { opacity: 0.52; }
+  50% { opacity: 0.32; }
+}
+
+.question-structure-action {
+  width: fit-content;
+}
+
+.question-reorder-actions {
+  position: absolute;
+  top: 50%;
+  right: -16px;
+  display: grid;
+  gap: 4px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: opacity 150ms ease;
+}
+
+.editor-card:hover .question-reorder-actions,
+.editor-card:focus-within .question-reorder-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.question-reorder-action {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--bg-elev);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.question-reorder-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.question-reorder-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.editor-option-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.editor-option-row[data-correct="true"] {
+  border-color: var(--ok);
+  background: var(--ok-soft);
+}
+
+.option-delete-action {
+  min-width: 34px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+  color: var(--ink-3);
+  font-size: 1.25rem;
+  cursor: pointer;
+}
+
+.option-delete-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.option-delete-action:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.matching-pairs-editor {
+  display: grid;
+  gap: 10px;
+}
+
+.matching-pair-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.matching-pair-cell {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.matching-pair-cell .field-label {
+  grid-column: 1 / -1;
+}
+
+.matching-pair-badge {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-sunken);
+  color: var(--ink-2);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.matching-pair-link {
+  align-self: center;
+  color: var(--ink-3);
+}
+
+.matching-pair-delete {
+  min-width: 30px;
+  min-height: 30px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xs);
+  background: var(--surface-sunken);
+  color: var(--ink-3);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.matching-pair-row:hover .matching-pair-delete,
+.matching-pair-row:focus-within .matching-pair-delete {
+  opacity: 1;
+}
+
+.matching-pair-delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.matching-pair-delete:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.matching-pair-add {
+  width: fit-content;
+}
+
+.inline-editor-add-actions {
+  justify-content: space-between;
+}
+
+.inline-editor-add-type {
+  min-width: min(100%, 260px);
+}
+
+.preview-question {
+  display: block;
+}
+
+.preview-question[hidden] {
+  display: none;
+}
+
+.play-q-text {
+  margin: 0 0 18px;
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1.35;
+}
+
+.preview-options,
+.preview-matching {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.play-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border: 1.5px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+  cursor: pointer;
+  text-align: left;
+  transition: all var(--duration-fast) var(--easing);
+}
+
+.play-opt:hover {
+  border-color: var(--line-strong);
+}
+
+.play-opt:has(input:checked) {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+}
+
+.play-opt.is-correct {
+  border-color: var(--ok);
+  background: color-mix(in oklab, var(--ok) 14%, transparent);
+}
+
+.play-opt.is-wrong {
+  border-color: var(--bad);
+  background: color-mix(in oklab, var(--bad) 14%, transparent);
+}
+
+.play-opt input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.play-opt-mark {
+  display: inline-flex;
+  width: 26px;
+  height: 26px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+}
+
+.play-match-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 84px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.play-match-left {
+  min-width: 0;
+}
+
+.play-match-pick {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.play-match-bank {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.play-match-bank-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-soft);
+}
+
+.play-match-ok {
+  border-color: color-mix(in oklab, var(--ok) 45%, var(--line));
+}
+
+.play-match-bad {
+  border-color: color-mix(in oklab, var(--bad) 45%, var(--line));
+}
+
+.preview-answer-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--surface-soft);
+  color: var(--ink);
+}
+
+.play-answer-wrap {
+  display: grid;
+  gap: 12px;
+}
+
+.preview-result-list {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding-left: 22px;
+}
+
+.preview-result-list li[data-correct="true"] {
+  color: var(--ok);
+}
+
+.preview-result-list li[data-correct="false"] {
+  color: var(--bad);
 }

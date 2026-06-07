@@ -15,6 +15,7 @@ from backend.app.generation import GenerationQualityChecker
 from backend.app.generation import RagGenerationOrchestrator
 from backend.app.generation import SingleQuestionRegenerationOrchestrator
 from backend.app.generation import SingleQuestionRegenerationRequestBuilder
+from backend.app.generation.cancellation import GenerationCancellationRegistry
 from backend.app.generation.live_journal import GenerationEventStore
 from backend.app.parsing.docx import DocxParser
 from backend.app.parsing.files import UploadedFileValidator
@@ -123,6 +124,16 @@ def get_generation_event_store(app: FastAPI) -> GenerationEventStore:
         store = GenerationEventStore()
         app.state.generation_event_store = store
     return store
+
+
+def get_generation_cancellation_registry(app: FastAPI) -> GenerationCancellationRegistry:
+    """Получить in-memory registry lifecycle отмены generation run."""
+
+    registry = getattr(app.state, "generation_cancellation_registry", None)
+    if registry is None:
+        registry = GenerationCancellationRegistry()
+        app.state.generation_cancellation_registry = registry
+    return registry
 
 
 def get_generation_diagnostic_logger(app: FastAPI) -> FileSystemGenerationDiagnosticLogger:

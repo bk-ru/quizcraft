@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 from backend.app.domain.errors import DomainValidationError
 from backend.app.domain.models import EmbeddingRequest
+from backend.app.generation.cancellation import GenerationCancellationControl
+from backend.app.generation.cancellation import resolve_generation_cancellation
 from backend.app.llm.provider import LLMProvider
 from backend.app.parsing.chunking import TextChunk
 
@@ -37,6 +39,7 @@ def embed_chunks(
     provider: LLMProvider,
     model_name: str | None = None,
     batch_size: int = 32,
+    cancellation_token: GenerationCancellationControl | None = None,
 ) -> tuple[EmbeddedChunk, ...]:
     """Сгенерировать embeddings для переданных chunks через провайдера."""
 
@@ -45,14 +48,17 @@ def embed_chunks(
     if not chunks:
         return ()
 
+    token = resolve_generation_cancellation(cancellation_token)
     embedded: list[EmbeddedChunk] = []
     for batch_start in range(0, len(chunks), batch_size):
+        token.raise_if_cancelled()
         batch = chunks[batch_start:batch_start + batch_size]
         request = EmbeddingRequest(
             texts=tuple(chunk.text for chunk in batch),
             model_name=model_name,
         )
         response = provider.embed(request)
+        token.raise_if_cancelled()
         if len(response.vectors) != len(batch):
             raise DomainValidationError(
                 "embeddings response length does not match the number of chunks"

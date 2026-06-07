@@ -13,6 +13,7 @@ from uuid import uuid4
 
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DomainValidationError
+from backend.app.domain.errors import GenerationCancelledError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import GenerationResult
@@ -24,6 +25,8 @@ from backend.app.domain.normalization import normalize_quiz_output
 from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
 from backend.app.generation.diagnostics import summarize_structured_generation_request
+from backend.app.generation.cancellation import GenerationCancellationControl
+from backend.app.generation.cancellation import resolve_generation_cancellation
 from backend.app.generation.display_recovery import dedupe_generation_warnings
 from backend.app.generation.display_recovery import recover_displayable_quiz
 from backend.app.generation.display_recovery import resolve_quality_status
@@ -107,11 +110,18 @@ class DirectGenerationOrchestrator:
         self._llm_repair_max_prompt_chars = llm_repair_max_prompt_chars
         self._diagnostic_logger = diagnostic_logger
 
-    def generate(self, document_id: str, generation_request: GenerationRequest) -> GenerationResult:
+    def generate(
+        self,
+        document_id: str,
+        generation_request: GenerationRequest,
+        cancellation_token: GenerationCancellationControl | None = None,
+    ) -> GenerationResult:
         """Сгенерировать, при необходимости выполнить repair, сохранить и вернуть результат квиза."""
         start_time = time.perf_counter()
         pipeline_mode = "direct"
+        token = resolve_generation_cancellation(cancellation_token)
 
+        token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.QUEUED,
             step=GenerationPipelineStep.PARSE,
@@ -124,6 +134,7 @@ class DirectGenerationOrchestrator:
             generation_request=generation_request,
             operation=lambda: self._load_generation_document(document_id),
             metadata_builder=summarize_document_payload,
+            cancellation_token=token,
         )
 
         try:
@@ -131,12 +142,13 @@ class DirectGenerationOrchestrator:
                 step=GenerationPipelineStep.GENERATE,
                 document_id=document.document_id,
                 generation_request=generation_request,
-                operation=lambda: self._request_direct_generation(document, generation_request),
+                operation=lambda: self._request_direct_generation(document, generation_request, token),
                 metadata_builder=lambda direct_result: {
                     "model_name": direct_result[0].model_name,
                     "model_payload": summarize_model_payload(direct_result[0].content),
                     **direct_result[0].provider_metadata,
                 },
+                cancellation_token=token,
             )
         except Exception as error:
             self._log_diagnostic_runtime_failure(
@@ -159,13 +171,16 @@ class DirectGenerationOrchestrator:
             response=direct_response,
             direct_prompt_version=direct_prompt_version,
             provider_request_summary=provider_request_summary,
+            cancellation_token=token,
         )
+        token.raise_if_cancelled()
         quiz, generation_warnings, quality_status = self._prepare_display_result(
             document=document,
             generation_request=generation_request,
             quiz=quiz,
             warnings=generation_warnings,
         )
+        token.raise_if_cancelled()
         self._log_diagnostic_success(
             document=document,
             generation_request=generation_request,
@@ -179,16 +194,19 @@ class DirectGenerationOrchestrator:
                 step=GenerationPipelineStep.PERSIST,
                 document_id=document.document_id,
                 generation_request=generation_request,
-                operation=lambda: self._persist_generation_result(
-                    quiz,
-                    generation_request,
-                    final_response,
-                    prompt_version,
-                    generation_warnings,
-                    quality_status,
+                operation=lambda: token.commit_if_active(
+                    lambda: self._persist_generation_result(
+                        quiz,
+                        generation_request,
+                        final_response,
+                        prompt_version,
+                        generation_warnings,
+                        quality_status,
+                    )
                 ),
                 quiz_id=quiz.quiz_id,
                 metadata_builder=summarize_generation_result,
+                cancellation_token=token,
             )
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             logger.info(
@@ -223,9 +241,11 @@ class DirectGenerationOrchestrator:
         self,
         document: DocumentRecord,
         generation_request: GenerationRequest,
+        cancellation_token: GenerationCancellationControl,
     ) -> tuple[StructuredGenerationResponse, str, dict[str, Any]]:
         """Сформировать и отправить запрос провайдеру для direct-генерации."""
 
+        cancellation_token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=GenerationPipelineStep.GENERATE,
@@ -237,6 +257,7 @@ class DirectGenerationOrchestrator:
         direct_prompt = self._prompt_registry.resolve(
             self._request_builder.resolve_prompt_key(generation_request)
         )
+        cancellation_token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=GenerationPipelineStep.GENERATE,
@@ -244,8 +265,10 @@ class DirectGenerationOrchestrator:
             generation_request=generation_request,
             metadata={"phase": "awaiting_provider"},
         )
+        response = self._provider.generate_structured(direct_request)
+        cancellation_token.raise_if_cancelled()
         return (
-            self._provider.generate_structured(direct_request),
+            response,
             direct_prompt.version,
             summarize_structured_generation_request(direct_request),
         )
@@ -321,9 +344,11 @@ class DirectGenerationOrchestrator:
         response: StructuredGenerationResponse,
         direct_prompt_version: str,
         provider_request_summary: dict[str, Any],
+        cancellation_token: GenerationCancellationControl,
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any], tuple[GenerationWarning, ...]]:
         """Нормализовать и проверить direct-ответ, затем при необходимости попробовать repair."""
 
+        cancellation_token.raise_if_cancelled()
         try:
             quiz = self._normalize_and_validate(
                 document,
@@ -340,6 +365,7 @@ class DirectGenerationOrchestrator:
                 initial_error=error,
                 initial_prompt_version=direct_prompt_version,
                 initial_provider_request_summary=provider_request_summary,
+                cancellation_token=cancellation_token,
             )
         return quiz, response, direct_prompt_version, provider_request_summary, ()
 
@@ -449,6 +475,7 @@ class DirectGenerationOrchestrator:
         initial_error: DomainValidationError,
         initial_prompt_version: str,
         initial_provider_request_summary: dict[str, Any],
+        cancellation_token: GenerationCancellationControl,
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any], tuple[GenerationWarning, ...]]:
         """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
@@ -457,6 +484,7 @@ class DirectGenerationOrchestrator:
         original_provider_request_summary = initial_provider_request_summary
         current_error: DomainValidationError = initial_error
 
+        cancellation_token.raise_if_cancelled()
         if should_try_matching_fallback_before_repair(current_error):
             self._log_pipeline_step(
                 status=GenerationRunStatus.RUNNING,
@@ -473,6 +501,8 @@ class DirectGenerationOrchestrator:
                     prompt_version=original_prompt_version,
                     provider_request_summary=original_provider_request_summary,
                 )
+            except GenerationCancelledError:
+                raise
             except DomainValidationError as error:
                 current_error = error
                 self._log_pipeline_step(
@@ -515,6 +545,7 @@ class DirectGenerationOrchestrator:
         current_provider_request_summary = initial_provider_request_summary
 
         for attempt_index in range(1, self._max_repair_attempts + 1):
+            cancellation_token.raise_if_cancelled()
             logger.warning(
                 "Repair attempt=%s validation_error=%s payload=%s",
                 attempt_index,
@@ -573,7 +604,9 @@ class DirectGenerationOrchestrator:
                     )
                     break
                 current_provider_request_summary = summarize_structured_generation_request(repair_request)
+                cancellation_token.raise_if_cancelled()
                 repair_response = self._provider.generate_structured(repair_request)
+                cancellation_token.raise_if_cancelled()
                 if not _repair_response_has_expected_question_count(
                     repair_response, generation_request.question_count
                 ):
@@ -607,6 +640,8 @@ class DirectGenerationOrchestrator:
                     provider_request_summary=current_provider_request_summary,
                     repair_attempt=attempt_index,
                 )
+            except GenerationCancelledError:
+                raise
             except DomainValidationError as error:
                 current_error = error
                 self._log_pipeline_step(
@@ -817,9 +852,12 @@ class DirectGenerationOrchestrator:
         operation: Callable[[], PipelineResult],
         quiz_id: str | None = None,
         metadata_builder: Callable[[PipelineResult], dict[str, Any]] | None = None,
+        cancellation_token: GenerationCancellationControl | None = None,
     ) -> PipelineResult:
         """Выполнить один шаг генерации и выпустить структурированные переходы статуса."""
 
+        token = resolve_generation_cancellation(cancellation_token)
+        token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=step,
@@ -829,6 +867,8 @@ class DirectGenerationOrchestrator:
         )
         try:
             result = operation()
+        except GenerationCancelledError:
+            raise
         except Exception as error:
             self._log_pipeline_step(
                 status=GenerationRunStatus.FAILED,
@@ -840,6 +880,7 @@ class DirectGenerationOrchestrator:
             )
             raise
 
+        token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.DONE,
             step=step,

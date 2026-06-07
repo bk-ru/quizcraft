@@ -11,6 +11,7 @@ from urllib.error import URLError
 from urllib.request import Request
 from urllib.request import urlopen
 
+from backend.app.domain.errors import GenerationCancelledError
 from backend.app.domain.errors import LLMConnectionError
 from backend.app.domain.errors import LLMRequestError
 from backend.app.domain.errors import LLMResponseFormatError
@@ -24,6 +25,8 @@ from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.llm.provider import LLMProvider
 from backend.app.llm.retry import RetryPolicy
 from backend.app.llm.retry import RetryingCaller
+from backend.app.generation.cancellation import GenerationCancellationControl
+from backend.app.generation.cancellation import get_current_generation_cancellation
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +115,7 @@ class OllamaClient(LLMProvider):
         """Выполнить один chat-запрос Ollama без retry orchestration."""
 
         payload = self._build_payload(request)
-        response_payload = self._post_json("/api/chat", payload)
+        response_payload = self._post_stream_json("/api/chat", payload)
         return self._extract_structured_response(response_payload)
 
     def _embed_once(self, request: EmbeddingRequest) -> EmbeddingResponse:
@@ -131,7 +134,7 @@ class OllamaClient(LLMProvider):
                 {"role": "system", "content": request.system_prompt},
                 {"role": "user", "content": request.user_prompt},
             ],
-            "stream": False,
+            "stream": True,
             "format": request.schema,
         }
         if request.inference_parameters:
@@ -149,18 +152,16 @@ class OllamaClient(LLMProvider):
     def _post_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
         """Отправить JSON payload методом POST в один из endpoint'ов Ollama."""
 
-        request = Request(
-            url=f"{self._base_url}{path}",
-            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-            headers={
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            },
-            method="POST",
-        )
+        request = self._build_post_request(path, payload)
+        token = get_current_generation_cancellation()
         try:
             with urlopen(request, timeout=self._timeout_seconds) as response:
+                self._bind_response_cancellation(response, token)
                 raw_response = response.read().decode("utf-8")
+                if token is not None:
+                    token.raise_if_cancelled()
+        except GenerationCancelledError:
+            raise
         except HTTPError as error:
             raise self._map_http_error(error) from error
         except URLError as error:
@@ -169,6 +170,10 @@ class OllamaClient(LLMProvider):
             raise LLMTimeoutError("Ollama request timed out") from error
         except socket.timeout as error:
             raise LLMTimeoutError("Ollama request timed out") from error
+        except OSError as error:
+            if token is not None:
+                token.raise_if_cancelled()
+            raise LLMConnectionError(f"Ollama request failed: {error}") from error
 
         try:
             parsed_response = json.loads(raw_response)
@@ -178,6 +183,119 @@ class OllamaClient(LLMProvider):
         if not isinstance(parsed_response, dict):
             raise LLMResponseFormatError("Ollama returned invalid JSON")
         return parsed_response
+
+    def _post_stream_json(self, path: str, payload: dict[str, object]) -> dict[str, object]:
+        """Отправить Ollama streaming request и собрать NDJSON chunks."""
+
+        request = self._build_post_request(path, payload)
+        token = get_current_generation_cancellation()
+        try:
+            with urlopen(request, timeout=self._timeout_seconds) as response:
+                self._bind_response_cancellation(response, token)
+                return self._read_stream_json(response, token)
+        except GenerationCancelledError:
+            raise
+        except HTTPError as error:
+            raise self._map_http_error(error) from error
+        except URLError as error:
+            raise self._map_url_error(error) from error
+        except TimeoutError as error:
+            raise LLMTimeoutError("Ollama request timed out") from error
+        except socket.timeout as error:
+            raise LLMTimeoutError("Ollama request timed out") from error
+        except OSError as error:
+            if token is not None:
+                token.raise_if_cancelled()
+            raise LLMConnectionError(f"Ollama request failed: {error}") from error
+
+    def _read_stream_json(
+        self,
+        response,
+        token: GenerationCancellationControl | None,
+    ) -> dict[str, object]:
+        """Собрать streaming message content из NDJSON response."""
+
+        readline = getattr(response, "readline", None)
+        if not callable(readline):
+            try:
+                raw_response = response.read().decode("utf-8")
+            except Exception:
+                if token is not None:
+                    token.raise_if_cancelled()
+                raise
+            if token is not None:
+                token.raise_if_cancelled()
+            try:
+                parsed_response = json.loads(raw_response)
+            except JSONDecodeError as error:
+                raise LLMResponseFormatError("Ollama returned invalid JSON") from error
+            if not isinstance(parsed_response, dict):
+                raise LLMResponseFormatError("Ollama returned invalid JSON")
+            return parsed_response
+
+        chunks: list[object] = []
+        final_payload: dict[str, object] | None = None
+        while True:
+            try:
+                raw_line = readline()
+            except Exception:
+                if token is not None:
+                    token.raise_if_cancelled()
+                raise
+            if token is not None:
+                token.raise_if_cancelled()
+            if not raw_line:
+                break
+            if not raw_line.strip():
+                continue
+            try:
+                parsed_line = json.loads(raw_line.decode("utf-8"))
+            except (JSONDecodeError, UnicodeDecodeError) as error:
+                raise LLMResponseFormatError("Ollama returned invalid JSON in streaming response") from error
+            if not isinstance(parsed_line, dict):
+                raise LLMResponseFormatError("Ollama returned invalid JSON in streaming response")
+            message = parsed_line.get("message")
+            if isinstance(message, dict) and "content" in message:
+                chunks.append(message["content"])
+            final_payload = parsed_line
+
+        if token is not None:
+            token.raise_if_cancelled()
+        if final_payload is None:
+            raise LLMResponseFormatError("Ollama returned an empty streaming response")
+        final_message = final_payload.get("message")
+        merged_message = dict(final_message) if isinstance(final_message, dict) else {}
+        if all(isinstance(chunk, str) for chunk in chunks):
+            merged_message["content"] = "".join(chunks)
+        elif len(chunks) == 1 and isinstance(chunks[0], dict):
+            merged_message["content"] = chunks[0]
+        else:
+            raise LLMResponseFormatError("Ollama returned a malformed streaming response")
+        return {**final_payload, "message": merged_message}
+
+    def _build_post_request(self, path: str, payload: dict[str, object]) -> Request:
+        """Сформировать POST request для Ollama."""
+
+        return Request(
+            url=f"{self._base_url}{path}",
+            data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+
+    @staticmethod
+    def _bind_response_cancellation(response, token: GenerationCancellationControl | None) -> None:
+        """Закрыть активный HTTP response после принятой отмены."""
+
+        if token is None:
+            return
+        close = getattr(response, "close", None)
+        if callable(close):
+            token.register_cancel_callback(close)
+        token.raise_if_cancelled()
 
     def _extract_structured_response(
         self,

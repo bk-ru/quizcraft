@@ -14,6 +14,7 @@ from uuid import uuid4
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
 from backend.app.domain.errors import DomainValidationError
+from backend.app.domain.errors import GenerationCancelledError
 from backend.app.domain.errors import RepositoryNotFoundError
 from backend.app.domain.errors import UnsupportedGenerationModeError
 from backend.app.domain.models import DocumentRecord
@@ -29,6 +30,8 @@ from backend.app.domain.normalization import resolve_readable_quiz_title
 from backend.app.generation.context import assemble_context
 from backend.app.generation.diagnostics import FileSystemGenerationDiagnosticLogger
 from backend.app.generation.diagnostics import summarize_structured_generation_request
+from backend.app.generation.cancellation import GenerationCancellationControl
+from backend.app.generation.cancellation import resolve_generation_cancellation
 from backend.app.generation.display_recovery import dedupe_generation_warnings
 from backend.app.generation.display_recovery import recover_displayable_quiz
 from backend.app.generation.display_recovery import resolve_quality_status
@@ -145,11 +148,18 @@ class RagGenerationOrchestrator:
         self._rag_cache_repository = rag_cache_repository
         self._diagnostic_logger = diagnostic_logger
 
-    def generate(self, document_id: str, generation_request: GenerationRequest) -> GenerationResult:
+    def generate(
+        self,
+        document_id: str,
+        generation_request: GenerationRequest,
+        cancellation_token: GenerationCancellationControl | None = None,
+    ) -> GenerationResult:
         """Выполнить полный RAG pipeline для одного документа и сохранить итоговый квиз."""
         start_time = time.perf_counter()
         pipeline_mode = "rag"
+        token = resolve_generation_cancellation(cancellation_token)
 
+        token.raise_if_cancelled()
         if generation_request.generation_mode is not GenerationMode.RAG:
             raise UnsupportedGenerationModeError(
                 f"unsupported generation mode for rag orchestrator: {generation_request.generation_mode}"
@@ -167,6 +177,7 @@ class RagGenerationOrchestrator:
             generation_request=generation_request,
             operation=lambda: self._load_generation_document(document_id),
             metadata_builder=summarize_document_payload,
+            cancellation_token=token,
         )
 
         try:
@@ -182,7 +193,7 @@ class RagGenerationOrchestrator:
                 step=GenerationPipelineStep.GENERATE,
                 document_id=document.document_id,
                 generation_request=generation_request,
-                operation=lambda: self._request_rag_generation(document, generation_request),
+                operation=lambda: self._request_rag_generation(document, generation_request, token),
                 metadata_builder=lambda result: {
                     "model_name": result[0].model_name,
                     "model_payload": summarize_model_payload(result[0].content),
@@ -190,6 +201,7 @@ class RagGenerationOrchestrator:
                     "context_chars": result[2],
                     "retrieved_chunks": result[3],
                 },
+                cancellation_token=token,
             )
         except Exception as error:
             self._log_diagnostic_runtime_failure(
@@ -214,13 +226,16 @@ class RagGenerationOrchestrator:
             provider_request_summary=provider_request_summary,
             rag_metadata=rag_metadata,
             repair_source_text=repair_source_text,
+            cancellation_token=token,
         )
+        token.raise_if_cancelled()
         quiz, generation_warnings, quality_status = self._prepare_display_result(
             document=document,
             generation_request=generation_request,
             quiz=quiz,
             warnings=generation_warnings,
         )
+        token.raise_if_cancelled()
         self._log_diagnostic_success(
             document=document,
             generation_request=generation_request,
@@ -235,16 +250,19 @@ class RagGenerationOrchestrator:
                 step=GenerationPipelineStep.PERSIST,
                 document_id=document.document_id,
                 generation_request=generation_request,
-                operation=lambda: self._persist_generation_result(
-                    quiz,
-                    generation_request,
-                    final_response,
-                    prompt_version,
-                    generation_warnings,
-                    quality_status,
+                operation=lambda: token.commit_if_active(
+                    lambda: self._persist_generation_result(
+                        quiz,
+                        generation_request,
+                        final_response,
+                        prompt_version,
+                        generation_warnings,
+                        quality_status,
+                    )
                 ),
                 quiz_id=quiz.quiz_id,
                 metadata_builder=summarize_generation_result,
+                cancellation_token=token,
             )
             elapsed_ms = int((time.perf_counter() - start_time) * 1000)
             logger.info(
@@ -280,9 +298,11 @@ class RagGenerationOrchestrator:
         self,
         document: DocumentRecord,
         generation_request: GenerationRequest,
+        cancellation_token: GenerationCancellationControl,
     ) -> tuple[StructuredGenerationResponse, str, int, int, dict[str, Any], dict[str, Any]]:
         """Выполнить chunk -> embed -> retrieve -> assemble -> generate и вернуть метрики контекста."""
 
+        cancellation_token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=GenerationPipelineStep.GENERATE,
@@ -300,6 +320,7 @@ class RagGenerationOrchestrator:
                 f"document '{document.document_id}' has no content for retrieval"
             )
 
+        cancellation_token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=GenerationPipelineStep.GENERATE,
@@ -310,21 +331,26 @@ class RagGenerationOrchestrator:
         embedded = self._load_or_embed_chunks(
             document=document,
             chunks=chunks,
+            cancellation_token=cancellation_token,
         )
+        cancellation_token.raise_if_cancelled()
         index = InMemoryVectorIndex(embedded)
 
         query_text = self._query_builder(generation_request)
+        cancellation_token.raise_if_cancelled()
         query_response = self._provider.embed(
             EmbeddingRequest(
                 texts=(query_text,),
                 model_name=self._embedding_model_name,
             )
         )
+        cancellation_token.raise_if_cancelled()
         if not query_response.vectors:
             raise DomainValidationError("embedding provider returned no query vector")
         query_vector = query_response.vectors[0]
 
         scored = index.search(query_vector, top_k=self._top_k)
+        cancellation_token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=GenerationPipelineStep.GENERATE,
@@ -338,6 +364,7 @@ class RagGenerationOrchestrator:
                 f"retrieved context is empty for document '{document.document_id}'"
             )
 
+        cancellation_token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=GenerationPipelineStep.GENERATE,
@@ -380,7 +407,9 @@ class RagGenerationOrchestrator:
             generation_request=generation_request,
             metadata={"phase": "awaiting_provider"},
         )
+        cancellation_token.raise_if_cancelled()
         response = self._provider.generate_structured(provider_request)
+        cancellation_token.raise_if_cancelled()
         rag_metadata = {
             "chunk_count": len(chunks),
             "embedding_model_name": self._cache_embedding_model_name(),
@@ -405,6 +434,7 @@ class RagGenerationOrchestrator:
         *,
         document: DocumentRecord,
         chunks: tuple[TextChunk, ...],
+        cancellation_token: GenerationCancellationControl,
     ) -> tuple[EmbeddedChunk, ...]:
         """Загрузить кэшированные chunk embeddings при наличии, иначе создать embeddings и сохранить их."""
 
@@ -413,6 +443,7 @@ class RagGenerationOrchestrator:
                 chunks,
                 provider=self._provider,
                 model_name=self._embedding_model_name,
+                cancellation_token=cancellation_token,
             )
 
         document_hash = build_document_hash(document.normalized_text)
@@ -430,7 +461,9 @@ class RagGenerationOrchestrator:
                 chunks,
                 provider=self._provider,
                 model_name=self._embedding_model_name,
+                cancellation_token=cancellation_token,
             )
+            cancellation_token.raise_if_cancelled()
             self._rag_cache_repository.save(
                 RagCacheEntry(
                     document_hash=document_hash,
@@ -460,9 +493,11 @@ class RagGenerationOrchestrator:
         provider_request_summary: dict[str, Any],
         rag_metadata: dict[str, Any],
         repair_source_text: str,
+        cancellation_token: GenerationCancellationControl,
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any], tuple[GenerationWarning, ...]]:
         """Нормализовать и проверить RAG-ответ, затем при необходимости попробовать repair."""
 
+        cancellation_token.raise_if_cancelled()
         try:
             quiz = self._normalize_and_validate(
                 document,
@@ -482,6 +517,7 @@ class RagGenerationOrchestrator:
                 initial_provider_request_summary=provider_request_summary,
                 rag_metadata=rag_metadata,
                 repair_source_text=repair_source_text,
+                cancellation_token=cancellation_token,
             )
         return quiz, response, rag_prompt_version, provider_request_summary, ()
 
@@ -596,6 +632,7 @@ class RagGenerationOrchestrator:
         initial_provider_request_summary: dict[str, Any],
         rag_metadata: dict[str, Any],
         repair_source_text: str,
+        cancellation_token: GenerationCancellationControl,
     ) -> tuple[Quiz, StructuredGenerationResponse, str, dict[str, Any], tuple[GenerationWarning, ...]]:
         """Попробовать ограниченный repair-проход для некорректного нормализованного вывода."""
 
@@ -604,6 +641,7 @@ class RagGenerationOrchestrator:
         original_provider_request_summary = initial_provider_request_summary
         current_error: DomainValidationError = initial_error
 
+        cancellation_token.raise_if_cancelled()
         if should_try_matching_fallback_before_repair(current_error):
             self._log_pipeline_step(
                 status=GenerationRunStatus.RUNNING,
@@ -620,6 +658,8 @@ class RagGenerationOrchestrator:
                     prompt_version=original_prompt_version,
                     provider_request_summary=original_provider_request_summary,
                 )
+            except GenerationCancelledError:
+                raise
             except DomainValidationError as error:
                 current_error = error
                 self._log_pipeline_step(
@@ -662,6 +702,7 @@ class RagGenerationOrchestrator:
         current_provider_request_summary = initial_provider_request_summary
 
         for attempt_index in range(1, self._max_repair_attempts + 1):
+            cancellation_token.raise_if_cancelled()
             logger.warning(
                 "Rag repair attempt=%s validation_error=%s payload=%s",
                 attempt_index,
@@ -720,7 +761,9 @@ class RagGenerationOrchestrator:
                     )
                     break
                 current_provider_request_summary = summarize_structured_generation_request(repair_request)
+                cancellation_token.raise_if_cancelled()
                 repair_response = self._provider.generate_structured(repair_request)
+                cancellation_token.raise_if_cancelled()
                 if not _repair_response_has_expected_question_count(
                     repair_response, generation_request.question_count
                 ):
@@ -755,6 +798,8 @@ class RagGenerationOrchestrator:
                     rag_metadata=rag_metadata,
                     repair_attempt=attempt_index,
                 )
+            except GenerationCancelledError:
+                raise
             except DomainValidationError as error:
                 current_error = error
                 self._log_pipeline_step(
@@ -1029,9 +1074,12 @@ class RagGenerationOrchestrator:
         operation: Callable[[], PipelineResult],
         quiz_id: str | None = None,
         metadata_builder: Callable[[PipelineResult], dict[str, Any]] | None = None,
+        cancellation_token: GenerationCancellationControl | None = None,
     ) -> PipelineResult:
         """Выполнить один шаг rag pipeline и выпустить структурированные переходы статуса."""
 
+        token = resolve_generation_cancellation(cancellation_token)
+        token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.RUNNING,
             step=step,
@@ -1041,6 +1089,8 @@ class RagGenerationOrchestrator:
         )
         try:
             result = operation()
+        except GenerationCancelledError:
+            raise
         except Exception as error:
             self._log_pipeline_step(
                 status=GenerationRunStatus.FAILED,
@@ -1052,6 +1102,7 @@ class RagGenerationOrchestrator:
             )
             raise
 
+        token.raise_if_cancelled()
         self._log_pipeline_step(
             status=GenerationRunStatus.DONE,
             step=step,

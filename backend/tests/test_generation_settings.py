@@ -37,7 +37,44 @@ def test_generation_settings_repository_persists_and_loads_settings(tmp_path) ->
     payload = json.loads((tmp_path / "settings" / "generation.json").read_text(encoding="utf-8"))
     assert payload["language"] == "ru"
     assert payload["profile_name"] == "strict"
+    assert payload["mode_policy_version"] == 2
     assert "model_name" not in payload
+
+
+def test_generation_settings_repository_reads_legacy_direct_as_auto(tmp_path) -> None:
+    target_path = tmp_path / "settings" / "generation.json"
+    target_path.parent.mkdir(parents=True)
+    target_path.write_text(
+        json.dumps(build_settings().to_dict(), ensure_ascii=False),
+        encoding="utf-8",
+    )
+    repository = FileSystemGenerationSettingsRepository(tmp_path)
+
+    loaded = repository.get()
+
+    assert loaded.generation_mode is GenerationMode.AUTO
+    assert loaded.language == "ru"
+
+
+def test_generation_settings_repository_keeps_versioned_direct_explicit(tmp_path) -> None:
+    repository = FileSystemGenerationSettingsRepository(tmp_path)
+
+    repository.save(build_settings(generation_mode=GenerationMode.DIRECT))
+
+    assert repository.get().generation_mode is GenerationMode.DIRECT
+
+
+def test_generation_settings_repository_does_not_treat_null_policy_version_as_legacy(tmp_path) -> None:
+    target_path = tmp_path / "settings" / "generation.json"
+    target_path.parent.mkdir(parents=True)
+    payload = build_settings().to_dict()
+    payload["mode_policy_version"] = None
+    target_path.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    repository = FileSystemGenerationSettingsRepository(tmp_path)
+
+    loaded = repository.get()
+
+    assert loaded.generation_mode is GenerationMode.DIRECT
 
 
 def test_generation_settings_repository_raises_when_settings_are_missing(tmp_path) -> None:

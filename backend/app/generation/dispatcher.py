@@ -13,14 +13,15 @@ from backend.app.generation.mode_selector import DEFAULT_RAG_MIN_CHARS
 from backend.app.generation.mode_selector import select_generation_mode
 from backend.app.generation.orchestrator import DirectGenerationOrchestrator
 from backend.app.generation.rag_orchestrator import RagGenerationOrchestrator
+from backend.app.generation.cancellation import GenerationCancellationControl
+from backend.app.generation.cancellation import resolve_generation_cancellation
 
 
 class GenerationOrchestratorDispatcher:
     """Маршрутизировать запрос генерации в direct или rag orchestrator.
 
     Dispatcher один раз загружает запрошенный документ, чтобы вычислить его нормализованную
-    длину, применяет rule-based selector режима для повышения ``direct`` до ``rag``,
-    когда документ превышает настроенный порог, заменяет ``generation_mode`` запроса
+    длину, разрешает ``auto`` в ``direct`` или ``rag``, заменяет ``generation_mode`` запроса
     разрешенным режимом и делегирует соответствующему orchestrator. ``single_question_regen``
     отклоняется, потому что у него есть собственный endpoint и orchestrator.
     """
@@ -64,10 +65,14 @@ class GenerationOrchestratorDispatcher:
         self,
         document_id: str,
         generation_request: GenerationRequest,
+        cancellation_token: GenerationCancellationControl | None = None,
     ) -> GenerationResult:
         """Определить эффективный режим для документа и делегировать orchestrator'у."""
 
+        token = resolve_generation_cancellation(cancellation_token)
+        token.raise_if_cancelled()
         document = self._document_repository.get(document_id)
+        token.raise_if_cancelled()
         resolved_mode = select_generation_mode(
             requested_mode=generation_request.generation_mode,
             document_length_chars=len(document.normalized_text),
@@ -79,10 +84,23 @@ class GenerationOrchestratorDispatcher:
             if resolved_mode is generation_request.generation_mode
             else replace(generation_request, generation_mode=resolved_mode)
         )
+        token.raise_if_cancelled()
         if resolved_mode is GenerationMode.RAG:
-            return self._rag_orchestrator.generate(document_id, resolved_request)
+            if cancellation_token is None:
+                return self._rag_orchestrator.generate(document_id, resolved_request)
+            return self._rag_orchestrator.generate(
+                document_id,
+                resolved_request,
+                cancellation_token=token,
+            )
         if resolved_mode is GenerationMode.DIRECT:
-            return self._direct_orchestrator.generate(document_id, resolved_request)
+            if cancellation_token is None:
+                return self._direct_orchestrator.generate(document_id, resolved_request)
+            return self._direct_orchestrator.generate(
+                document_id,
+                resolved_request,
+                cancellation_token=token,
+            )
         raise UnsupportedGenerationModeError(
             f"generation dispatcher does not support mode: {resolved_mode}"
         )

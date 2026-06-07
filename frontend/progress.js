@@ -1,12 +1,11 @@
 import { normalizeWorkflowStage } from "./stage-flow.js";
 
-const STEPPER_ORDER = ["setup", "generation", "result", "edit"];
-const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "validate"];
+const GENERATION_PROGRESS_ORDER = ["upload", "parse", "generate", "persist"];
 const BACKEND_STEP_TO_PROGRESS_STEP = Object.freeze({
   parse: "parse",
   generate: "generate",
   repair: "generate",
-  persist: "validate",
+  persist: "persist",
 });
 const BACKEND_STATUS_TO_PROGRESS_STATE = Object.freeze({
   queued: "pending",
@@ -23,58 +22,48 @@ const SUCCESSFUL_GENERATION_EVIDENCE = Object.freeze([
   Object.freeze({ step: "generate", status: "done" }),
   Object.freeze({ step: "persist", status: "done" }),
 ]);
-const PROGRESS_STEP_VISIBILITY_MS = 300;
 const PROGRESS_SUCCESS_AUTOHIDE_MS = 900;
 const PROGRESS_FAILURE_AUTOHIDE_MS = 2400;
+const PROGRESS_PERCENT_BY_STATE = Object.freeze({
+  upload: Object.freeze({ pending: 0, active: 8, done: 25, failed: 8 }),
+  parse: Object.freeze({ pending: 25, active: 36, done: 50, failed: 36 }),
+  generate: Object.freeze({ pending: 50, active: 68, done: 84, failed: 68 }),
+  persist: Object.freeze({ pending: 84, active: 92, done: 100, failed: 92 }),
+});
 
-export function createProgressController({ stepper, generationProgressPanel, stageFlow }, windowRef = window) {
-  function setStepState(step, state) {
-    if (!stepper) {
-      return;
-    }
-    const target = stepper.querySelector(`.step[data-step="${step}"]`);
-    if (!target) {
-      return;
-    }
-    if (state) {
-      target.dataset.state = state;
-    } else {
-      delete target.dataset.state;
-    }
-    if (state === "active") {
-      target.setAttribute("aria-current", "step");
-    } else {
-      target.removeAttribute("aria-current");
+export function createProgressController(
+  { generationProgressPanel, stageFlow },
+  windowRef = window,
+) {
+  let progressAutoHideTimeoutId = null;
+
+  function clearProgressAutoHide() {
+    if (progressAutoHideTimeoutId !== null) {
+      windowRef.clearTimeout(progressAutoHideTimeoutId);
+      progressAutoHideTimeoutId = null;
     }
   }
 
-  function advanceStepper(stageName, options = {}) {
+  function activateWorkflowStage(
+    stageName,
+    { focus = false, state = null } = {},
+  ) {
     const normalizedStageName = normalizeWorkflowStage(stageName);
-    const activeIndex = STEPPER_ORDER.indexOf(normalizedStageName);
-    if (activeIndex < 0 || !stepper) {
-      return;
+    if (stageFlow && typeof stageFlow.activateStage === "function") {
+      stageFlow.activateStage(normalizedStageName, { focus: Boolean(focus) });
     }
-    const activeState = options && options.state === "failed" ? "failed" : "active";
-    for (const [index, step] of STEPPER_ORDER.entries()) {
-      if (index < activeIndex) {
-        setStepState(step, "done");
-      } else if (index === activeIndex) {
-        setStepState(step, activeState);
-      } else {
-        setStepState(step, null);
+    if (stageFlow?.root?.dataset) {
+      if (state === "failed") {
+        stageFlow.root.dataset.failedStage = normalizedStageName;
+      } else if (stageFlow.root.dataset.failedStage === normalizedStageName) {
+        delete stageFlow.root.dataset.failedStage;
       }
     }
-    if (stageFlow && typeof stageFlow.activateStage === "function") {
-      stageFlow.activateStage(normalizedStageName, { focus: Boolean(options.focus) });
-    }
+    return normalizedStageName;
   }
 
-  function markStepperFailed(stageName) {
-    advanceStepper(stageName, { state: "failed" });
-  }
-
-  function waitForProgressVisibility(ms = PROGRESS_STEP_VISIBILITY_MS) {
-    return new Promise((resolve) => windowRef.setTimeout(resolve, ms));
+  function markWorkflowStageFailed(stageName) {
+    return activateWorkflowStage(stageName, { state: "failed", focus: true });
   }
 
   function setGenerationProgressVisible(visible) {
@@ -90,15 +79,69 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     }
   }
 
+  function ensureGenerationSkeletons() {
+    if (!generationProgressPanel) {
+      return null;
+    }
+    const existing = generationProgressPanel.querySelector(
+      "[data-generation-skeletons]",
+    );
+    if (existing) {
+      return existing;
+    }
+    const documentRef = generationProgressPanel.ownerDocument;
+    if (!documentRef) {
+      return null;
+    }
+    const stream = documentRef.createElement("div");
+    stream.className = "generation-skeleton-stream";
+    stream.setAttribute("data-generation-skeletons", "true");
+    stream.setAttribute("aria-hidden", "true");
+    for (let index = 0; index < 2; index += 1) {
+      const card = documentRef.createElement("div");
+      card.className = "generation-skeleton-card";
+      for (const modifier of ["title", "wide", "short"]) {
+        const bar = documentRef.createElement("span");
+        bar.className = `generation-skeleton-bar generation-skeleton-bar--${modifier}`;
+        card.append(bar);
+      }
+      stream.append(card);
+    }
+    generationProgressPanel.append(stream);
+    return stream;
+  }
+
+  function setGenerationSkeletonsVisible(visible) {
+    const skeletons = visible
+      ? ensureGenerationSkeletons()
+      : generationProgressPanel?.querySelector("[data-generation-skeletons]");
+    if (skeletons) {
+      skeletons.hidden = !visible;
+    }
+  }
+
   function setGenerationProgressStepState(step, state) {
     if (!generationProgressPanel) {
       return;
     }
-    const target = generationProgressPanel.querySelector(`.progress-step[data-step="${step}"]`);
+    const target = generationProgressPanel.querySelector(
+      `.progress-step[data-step="${step}"]`,
+    );
     if (!target) {
       return;
     }
     target.dataset.state = state;
+    const percentage = PROGRESS_PERCENT_BY_STATE[step]?.[state];
+    if (Number.isFinite(percentage)) {
+      const progressFill = generationProgressPanel.querySelector(".generation-progress-fill");
+      const progressPercent = generationProgressPanel.querySelector(".generation-progress-percent");
+      if (progressFill) {
+        progressFill.style.width = `${percentage}%`;
+      }
+      if (progressPercent) {
+        progressPercent.textContent = `${percentage}%`;
+      }
+    }
   }
 
   function resetGenerationProgress() {
@@ -111,14 +154,17 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     generationProgressPanel.dataset.currentStep = "";
     delete generationProgressPanel.dataset.backendStep;
     delete generationProgressPanel.dataset.backendStatus;
+    setGenerationSkeletonsVisible(false);
   }
 
   function startGenerationProgress() {
     if (!generationProgressPanel) {
       return;
     }
+    clearProgressAutoHide();
     resetGenerationProgress();
     setGenerationProgressVisible(true);
+    setGenerationSkeletonsVisible(true);
     setGenerationProgressStepState("upload", "active");
     generationProgressPanel.dataset.currentStep = "upload";
   }
@@ -145,9 +191,12 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     for (const step of GENERATION_PROGRESS_ORDER) {
       setGenerationProgressStepState(step, "done");
     }
+    setGenerationSkeletonsVisible(false);
     generationProgressPanel.dataset.currentStep = "done";
-    windowRef.setTimeout(() => {
+    clearProgressAutoHide();
+    progressAutoHideTimeoutId = windowRef.setTimeout(() => {
       setGenerationProgressVisible(false);
+      progressAutoHideTimeoutId = null;
     }, PROGRESS_SUCCESS_AUTOHIDE_MS);
   }
 
@@ -199,7 +248,6 @@ export function createProgressController({ stepper, generationProgressPanel, sta
     }
 
     let applied = false;
-    setGenerationProgressVisible(true);
     for (const event of events) {
       const backendStep = getBackendStep(event);
       const backendStatus = getBackendStatus(event);
@@ -209,6 +257,7 @@ export function createProgressController({ stepper, generationProgressPanel, sta
         continue;
       }
 
+      setGenerationProgressVisible(true);
       setGenerationProgressStepState(progressStep, progressState);
       generationProgressPanel.dataset.backendStep = backendStep;
       generationProgressPanel.dataset.backendStatus = backendStatus;
@@ -216,7 +265,10 @@ export function createProgressController({ stepper, generationProgressPanel, sta
         generationProgressPanel.dataset.currentStep = "failed";
       } else if (backendStatus === "done" && backendStep === "persist") {
         generationProgressPanel.dataset.currentStep = "done";
-      } else if (progressState === "active" || !generationProgressPanel.dataset.currentStep) {
+      } else if (
+        progressState === "active" ||
+        !generationProgressPanel.dataset.currentStep
+      ) {
         generationProgressPanel.dataset.currentStep = progressStep;
       }
       applied = true;
@@ -240,20 +292,32 @@ export function createProgressController({ stepper, generationProgressPanel, sta
       setGenerationProgressStepState(failedStep, "failed");
       generationProgressPanel.dataset.currentStep = "failed";
     }
-    windowRef.setTimeout(() => {
+    setGenerationSkeletonsVisible(false);
+    clearProgressAutoHide();
+    progressAutoHideTimeoutId = windowRef.setTimeout(() => {
       setGenerationProgressVisible(false);
+      progressAutoHideTimeoutId = null;
     }, PROGRESS_FAILURE_AUTOHIDE_MS);
   }
 
+  function cancelGenerationProgress() {
+    if (!generationProgressPanel) {
+      return;
+    }
+    clearProgressAutoHide();
+    resetGenerationProgress();
+    setGenerationProgressVisible(false);
+  }
+
   return {
-    advanceStepper,
-    markStepperFailed,
-    waitForProgressVisibility,
+    activateWorkflowStage,
+    markWorkflowStageFailed,
     startGenerationProgress,
     advanceGenerationProgress,
     completeGenerationProgress,
     applyBackendGenerationStatusEvidence,
     completeGenerationProgressWithBackendEvidence,
     failGenerationProgress,
+    cancelGenerationProgress,
   };
 }

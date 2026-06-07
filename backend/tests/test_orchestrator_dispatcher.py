@@ -116,12 +116,12 @@ def test_dispatcher_routes_short_direct_request_to_direct_orchestrator() -> None
     assert dispatched_request.language == "ru"
 
 
-def test_dispatcher_promotes_large_document_to_rag_orchestrator() -> None:
+def test_dispatcher_routes_large_auto_request_to_rag_orchestrator() -> None:
     """Документы >= DEFAULT_RAG_MIN_CHARS (30000) → RAG"""
     document = _build_document("doc-long", length=DEFAULT_RAG_MIN_CHARS)
     dispatcher, direct, rag, _ = _build_dispatcher(documents={"doc-long": document})
 
-    result = dispatcher.dispatch("doc-long", _build_request(GenerationMode.DIRECT))
+    result = dispatcher.dispatch("doc-long", _build_request(GenerationMode.AUTO))
 
     assert result.prompt_version == "rag-stub"
     assert direct.calls == []
@@ -142,17 +142,28 @@ def test_dispatcher_keeps_request_unchanged_when_resolved_mode_matches_requested
     assert forwarded_request is request
 
 
-def test_dispatcher_replaces_mode_when_promotion_occurs() -> None:
+def test_dispatcher_keeps_large_direct_request_in_direct_orchestrator() -> None:
+    document = _build_document("doc-long", length=DEFAULT_RAG_MIN_CHARS)
+    dispatcher, direct, rag, _ = _build_dispatcher(documents={"doc-long": document})
+
+    dispatcher.dispatch("doc-long", _build_request(GenerationMode.DIRECT))
+
+    assert len(direct.calls) == 1
+    assert direct.calls[0][1].generation_mode is GenerationMode.DIRECT
+    assert rag.calls == []
+
+
+def test_dispatcher_replaces_auto_mode_when_resolved_mode_differs() -> None:
     """При promotion запрос заменяется на RAG"""
     document = _build_document("doc-long", length=DEFAULT_RAG_MIN_CHARS)
     dispatcher, _, rag, _ = _build_dispatcher(documents={"doc-long": document})
-    request = _build_request(GenerationMode.DIRECT)
+    request = _build_request(GenerationMode.AUTO)
 
     dispatcher.dispatch("doc-long", request)
 
     promoted_request = rag.calls[0][1]
     assert promoted_request is not request
-    assert request.generation_mode is GenerationMode.DIRECT
+    assert request.generation_mode is GenerationMode.AUTO
     assert promoted_request.generation_mode is GenerationMode.RAG
 
 
@@ -191,7 +202,7 @@ def test_dispatcher_uses_custom_thresholds_for_promotion() -> None:
         rag_min_chars=10,
     )
 
-    dispatcher.dispatch("doc-cyr", _build_request(GenerationMode.DIRECT))
+    dispatcher.dispatch("doc-cyr", _build_request(GenerationMode.AUTO))
 
     # 11 >= 10 → RAG
     assert direct.calls == []
@@ -214,7 +225,7 @@ def test_dispatcher_uses_cyrillic_normalized_length_for_selector() -> None:
         rag_min_chars=100,
     )
 
-    dispatcher.dispatch("doc-mixed", _build_request(GenerationMode.DIRECT))
+    dispatcher.dispatch("doc-mixed", _build_request(GenerationMode.AUTO))
 
     # ~120 >= 100 → RAG
     assert direct.calls == []

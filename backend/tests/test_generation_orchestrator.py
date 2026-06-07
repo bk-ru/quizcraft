@@ -4,12 +4,14 @@ import pytest
 
 from backend.app.core.modes import GenerationMode
 from backend.app.domain.errors import DocumentTooLargeForGenerationError
+from backend.app.domain.errors import GenerationCancelledError
 from backend.app.domain.models import DocumentRecord
 from backend.app.domain.models import GenerationRequest
 from backend.app.domain.models import ProviderHealthStatus
 from backend.app.domain.models import StructuredGenerationRequest
 from backend.app.domain.models import StructuredGenerationResponse
 from backend.app.generation.orchestrator import DirectGenerationOrchestrator
+from backend.app.generation.cancellation import GenerationCancellationRegistry
 from backend.app.generation.quality import GenerationQualityChecker
 from backend.app.generation.request_builder import DirectGenerationRequestBuilder
 from backend.app.prompts.registry import PromptRegistry
@@ -293,6 +295,25 @@ def test_direct_generation_orchestrator_persists_generation_result_on_success(tm
     assert result.quiz.last_edited_at.endswith("Z")
     assert persisted == result
     assert len(provider.requests) == 1
+
+
+def test_direct_generation_orchestrator_does_not_start_after_cancel(tmp_path) -> None:
+    provider = StubProvider([build_response(build_payload())])
+    orchestrator, document_repository, _result_repository = build_orchestrator(tmp_path, provider)
+    document_repository.save(build_document())
+    registry = GenerationCancellationRegistry()
+    token = registry.start_run("run-direct-cancelled", document_id="doc-1")
+    registry.cancel("run-direct-cancelled")
+
+    with pytest.raises(GenerationCancelledError):
+        orchestrator.generate(
+            "doc-1",
+            build_generation_request(),
+            cancellation_token=token,
+        )
+
+    assert provider.requests == []
+    assert list((tmp_path / "generation_results").glob("*.json")) == []
 
 
 def test_direct_generation_orchestrator_uses_unique_server_quiz_id_for_repeated_provider_ids(tmp_path) -> None:
