@@ -450,6 +450,14 @@ export function createPlayablePreview({
         updatePreviewPage();
         return;
       }
+      if (typeof form.requestSubmit === "function") {
+        form.requestSubmit();
+        return;
+      }
+      close();
+    });
+    form.addEventListener("submit", (submitEvent) => {
+      submitEvent.preventDefault();
       close();
     });
     updatePreviewPage();
