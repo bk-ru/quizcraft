@@ -153,14 +153,10 @@ export function createPlayablePreview({
     wrapper.className = "preview-options play-options";
     const options = Array.isArray(question.options) ? question.options : [];
     const updateChoiceState = () => {
-      const selectedIndex = Number.parseInt(answers[questionId], 10);
       const evaluated = evaluatedQuestionIds.has(questionId);
-      const hasSelectedAnswer = Number.isInteger(selectedIndex);
       wrapper.querySelectorAll(".play-opt").forEach((optionButton, optionIndex) => {
-        const selectedCorrect = hasSelectedAnswer && selectedIndex === optionIndex && optionIndex === question.correct_option_index;
-        const selectedWrong = hasSelectedAnswer && selectedIndex === optionIndex && optionIndex !== question.correct_option_index;
-        optionButton.classList.toggle("is-correct", selectedCorrect || (evaluated && optionIndex === question.correct_option_index));
-        optionButton.classList.toggle("is-wrong", selectedWrong);
+        optionButton.classList.toggle("is-correct", evaluated && optionIndex === question.correct_option_index);
+        optionButton.classList.toggle("is-wrong", evaluated && optionIndex !== question.correct_option_index);
       });
       if (explanation) {
         explanation.hidden = !evaluated;
@@ -342,6 +338,10 @@ export function createPlayablePreview({
     heading.textContent = `${index + 1}. ${question.prompt ?? ""}`;
     fieldset.append(heading);
     const questionId = getQuestionId(question, index);
+    if (evaluatedQuestionIds.has(questionId)) {
+      const result = gradeQuestion(question, answers[questionId]);
+      fieldset.classList.add(result.correct ? "is-correct" : "is-wrong");
+    }
     if (CHOICE_QUESTION_TYPES.has(question.question_type)) {
       fieldset.append(...createChoiceFields(question, questionId, answers, evaluatedQuestionIds));
     } else if (ANSWER_QUESTION_TYPES.has(question.question_type)) {
@@ -350,6 +350,41 @@ export function createPlayablePreview({
       fieldset.append(...createMatchingFields(question, questionId, answers, evaluatedQuestionIds));
     }
     return fieldset;
+  }
+
+  function isQuestionAnswered(question, questionId, answers) {
+    if (CHOICE_QUESTION_TYPES.has(question.question_type)) {
+      return Number.isInteger(Number.parseInt(answers[questionId], 10));
+    }
+    if (ANSWER_QUESTION_TYPES.has(question.question_type)) {
+      return Boolean(String(answers[questionId] ?? "").trim());
+    }
+    if (question.question_type === "matching") {
+      const pairs = Array.isArray(question.matching_pairs) ? question.matching_pairs : [];
+      const selectedValues = Array.isArray(answers[questionId]) ? answers[questionId] : [];
+      return pairs.length > 0 && pairs.every((_pair, index) => Boolean(selectedValues[index]));
+    }
+    return true;
+  }
+
+  function getAnswerRequiredMessage(question) {
+    if (CHOICE_QUESTION_TYPES.has(question.question_type)) {
+      return "Выберите вариант ответа.";
+    }
+    if (ANSWER_QUESTION_TYPES.has(question.question_type)) {
+      return "Введите ответ.";
+    }
+    if (question.question_type === "matching") {
+      return "Заполните все соответствия.";
+    }
+    return "Ответьте на вопрос.";
+  }
+
+  function countEvaluatedCorrectAnswers(questions, answers, evaluatedQuestionIds) {
+    return questions.filter((question, index) => {
+      const questionId = getQuestionId(question, index);
+      return evaluatedQuestionIds.has(questionId) && gradeQuestion(question, answers[questionId]).correct;
+    }).length;
   }
 
   function collectAnswers(form) {
@@ -449,6 +484,8 @@ export function createPlayablePreview({
     footer.className = "quiz-preview-footer";
     const progress = documentRef.createElement("span");
     progress.className = "quiz-preview-progress";
+    const scoreCounter = documentRef.createElement("span");
+    scoreCounter.className = "quiz-preview-score";
     const footerSpacer = documentRef.createElement("span");
     footerSpacer.className = "quiz-preview-footer-spacer";
     const previousButton = documentRef.createElement("button");
@@ -458,7 +495,7 @@ export function createPlayablePreview({
     const nextButton = documentRef.createElement("button");
     nextButton.type = "button";
     nextButton.className = "primary-action primary-action-sm";
-    footer.append(progress, footerSpacer, previousButton, nextButton);
+    footer.append(progress, scoreCounter, footerSpacer, previousButton, nextButton);
     form.append(questionBody, footer);
     dialog.append(heading, form);
 
@@ -470,6 +507,7 @@ export function createPlayablePreview({
         evaluatedQuestionIds,
       ));
       progress.textContent = `\u0412\u043e\u043f\u0440\u043e\u0441 ${activeQuestionIndex + 1} / ${questions.length}`;
+      scoreCounter.textContent = `${countEvaluatedCorrectAnswers(questions, answers, evaluatedQuestionIds)} / ${questions.length}`;
       previousButton.disabled = activeQuestionIndex === 0;
       nextButton.textContent = activeQuestionIndex === questions.length - 1
         ? "\u0417\u0430\u0432\u0435\u0440\u0448\u0438\u0442\u044c"
@@ -485,6 +523,10 @@ export function createPlayablePreview({
       const currentQuestion = questions[activeQuestionIndex];
       const currentQuestionId = getQuestionId(currentQuestion, activeQuestionIndex);
       if (!evaluatedQuestionIds.has(currentQuestionId)) {
+        if (!isQuestionAnswered(currentQuestion, currentQuestionId, answers)) {
+          showToast(getAnswerRequiredMessage(currentQuestion), "bad");
+          return;
+        }
         evaluatedQuestionIds.add(currentQuestionId);
         updatePreviewPage();
         return;

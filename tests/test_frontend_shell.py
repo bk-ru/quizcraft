@@ -2361,8 +2361,13 @@ def test_frontend_playable_preview_matches_mockup_structure() -> None:
     assert 'createExplanation("", "play-answer-feedback", { force: true, labelText: "" })' in preview_content
     assert 'createExplanation("", "play-match-feedback", { force: true, labelText: "" })' in preview_content
     assert 'if (!force && !String(text ?? "").trim())' in preview_content
-    assert "const selectedCorrect = hasSelectedAnswer && selectedIndex === optionIndex" in preview_content
-    assert "const selectedWrong = hasSelectedAnswer && selectedIndex === optionIndex" in preview_content
+    assert 'optionButton.classList.toggle("is-correct", evaluated && optionIndex === question.correct_option_index)' in preview_content
+    assert 'optionButton.classList.toggle("is-wrong", evaluated && optionIndex !== question.correct_option_index)' in preview_content
+    assert 'showToast(getAnswerRequiredMessage(currentQuestion), "bad")' in preview_content
+    assert '"Выберите вариант ответа."' in preview_content
+    assert 'fieldset.classList.add(result.correct ? "is-correct" : "is-wrong")' in preview_content
+    assert 'scoreCounter.className = "quiz-preview-score"' in preview_content
+    assert 'scoreCounter.textContent = `${countEvaluatedCorrectAnswers(questions, answers, evaluatedQuestionIds)} / ${questions.length}`' in preview_content
     assert "evaluatedQuestionIds.add(currentQuestionId)" in preview_content
     assert 'feedback.classList.toggle("play-match-ok", correct)' in preview_content
     assert '? "\\u0417\\u0430\\u0432\\u0435\\u0440\\u0448\\u0438\\u0442\\u044c"' in preview_content
@@ -2370,6 +2375,9 @@ def test_frontend_playable_preview_matches_mockup_structure() -> None:
     assert ".play-opt.is-correct .play-opt-mark" in quiz_css
     assert ".play-opt.is-wrong" in quiz_css
     assert ".play-opt.is-wrong:has(input:checked)" in quiz_css
+    assert ".preview-question.is-correct" in quiz_css
+    assert ".preview-question.is-wrong" in quiz_css
+    assert ".quiz-preview-score" in quiz_css
     assert ".q-expl[hidden]" in quiz_css
     assert ".compact-workspace .q-expl[hidden]" in fidelity_css
     assert ".preview-answer-input.is-correct" in quiz_css
