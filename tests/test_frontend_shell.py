@@ -464,8 +464,12 @@ def test_frontend_wires_mockup_export_action_to_capability_driven_modal() -> Non
 
     assert 'docx: { label: "DOCX"' in export_modal_content
     assert 'pptx: { label: "PPTX"' in export_modal_content
+    assert 'getSuggestedName: () => quizTitleInput?.value ?? ""' in app_content
+    assert 'createExportFileStem(quiz.title)' in export_modal_content
 
     assert "createQuizExporter" in download_content
+    assert "createExportFileStem" in download_content
+    assert "getSuggestedName" in download_content
     assert "exportQuizAsDocx" in download_content
     assert "exportQuizAsPptx" in download_content
     assert "/export/${exportFormat}" in download_content
@@ -474,6 +478,26 @@ def test_frontend_wires_mockup_export_action_to_capability_driven_modal() -> Non
     assert "Не удалось скачать ${describeExportFormat(format)}" in download_content
     assert "function describeExportFormat" in download_content
     assert "${formatConfig.label}-файл квиза скачан." in download_content
+
+
+def test_frontend_export_filename_uses_sanitized_quiz_title() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is not installed")
+    script = r'''
+import { createExportFileStem } from "./frontend/download.js";
+
+const stem = createExportFileStem("МИИГАиК: история, направления и статистика");
+if (stem !== "МИИГАиК_история_направления_и_статистика") {
+  throw new Error(`unexpected stem: ${stem}`);
+}
+
+const fallback = createExportFileStem("", "quiz-b185b914ad5d40c1b3a2fbd40e35e56f (1)");
+if (fallback !== "quizb185b914ad5d40c1b3a2fbd40e35e56f_1") {
+  throw new Error(`unexpected fallback: ${fallback}`);
+}
+'''
+    subprocess.run([node, "--input-type=module", "-e", script], cwd=ROOT, check=True)
 
 
 def test_frontend_export_modal_serializes_text_and_saves_dirty_quiz_before_download() -> None:

@@ -819,6 +819,7 @@ const quizExporter = createQuizExporter({
   backendBaseUrl,
   client,
   editorState,
+  getSuggestedName: () => quizTitleInput?.value ?? "",
   showToast: toastController.showToast,
 });
 
