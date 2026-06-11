@@ -617,6 +617,12 @@
   background: color-mix(in oklab, var(--ok) 14%, transparent);
 }
 
+.play-opt.is-correct .play-opt-mark {
+  border-color: transparent;
+  background: var(--ok);
+  color: var(--bg);
+}
+
 .play-opt.is-wrong,
 .play-opt.is-wrong:has(input:checked) {
   border-color: var(--bad);

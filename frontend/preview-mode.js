@@ -155,9 +155,12 @@ export function createPlayablePreview({
     const updateChoiceState = () => {
       const selectedIndex = Number.parseInt(answers[questionId], 10);
       const evaluated = evaluatedQuestionIds.has(questionId);
+      const hasSelectedAnswer = Number.isInteger(selectedIndex);
       wrapper.querySelectorAll(".play-opt").forEach((optionButton, optionIndex) => {
-        optionButton.classList.toggle("is-correct", evaluated && optionIndex === question.correct_option_index);
-        optionButton.classList.toggle("is-wrong", evaluated && Number.isInteger(selectedIndex) && optionIndex === selectedIndex && optionIndex !== question.correct_option_index);
+        const selectedCorrect = hasSelectedAnswer && selectedIndex === optionIndex && optionIndex === question.correct_option_index;
+        const selectedWrong = hasSelectedAnswer && selectedIndex === optionIndex && optionIndex !== question.correct_option_index;
+        optionButton.classList.toggle("is-correct", selectedCorrect || (evaluated && optionIndex === question.correct_option_index));
+        optionButton.classList.toggle("is-wrong", selectedWrong);
       });
       if (explanation) {
         explanation.hidden = !evaluated;

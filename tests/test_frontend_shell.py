@@ -2361,10 +2361,13 @@ def test_frontend_playable_preview_matches_mockup_structure() -> None:
     assert 'createExplanation("", "play-answer-feedback", { force: true, labelText: "" })' in preview_content
     assert 'createExplanation("", "play-match-feedback", { force: true, labelText: "" })' in preview_content
     assert 'if (!force && !String(text ?? "").trim())' in preview_content
+    assert "const selectedCorrect = hasSelectedAnswer && selectedIndex === optionIndex" in preview_content
+    assert "const selectedWrong = hasSelectedAnswer && selectedIndex === optionIndex" in preview_content
     assert "evaluatedQuestionIds.add(currentQuestionId)" in preview_content
     assert 'feedback.classList.toggle("play-match-ok", correct)' in preview_content
     assert '? "\\u0417\\u0430\\u0432\\u0435\\u0440\\u0448\\u0438\\u0442\\u044c"' in preview_content
     assert ".play-opt.is-correct" in quiz_css
+    assert ".play-opt.is-correct .play-opt-mark" in quiz_css
     assert ".play-opt.is-wrong" in quiz_css
     assert ".play-opt.is-wrong:has(input:checked)" in quiz_css
     assert ".q-expl[hidden]" in quiz_css
