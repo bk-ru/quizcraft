@@ -2363,7 +2363,11 @@ def test_frontend_playable_preview_matches_mockup_structure() -> None:
     assert 'if (!force && !String(text ?? "").trim())' in preview_content
     assert 'optionButton.classList.toggle("is-correct", evaluated && optionIndex === question.correct_option_index)' in preview_content
     assert 'optionButton.classList.toggle("is-wrong", evaluated && optionIndex !== question.correct_option_index)' in preview_content
-    assert 'showToast(getAnswerRequiredMessage(currentQuestion), "bad")' in preview_content
+    assert 'validationMessages.set(currentQuestionId, getAnswerRequiredMessage(currentQuestion))' in preview_content
+    assert 'validationMessages.delete(currentQuestionId)' in preview_content
+    assert 'inlineError.className = "quiz-preview-inline-error"' in preview_content
+    assert 'inlineError.setAttribute("role", "alert")' in preview_content
+    assert 'showToast(getAnswerRequiredMessage(currentQuestion), "bad")' not in preview_content
     assert '"Выберите вариант ответа."' in preview_content
     assert 'fieldset.classList.add(result.correct ? "is-correct" : "is-wrong")' in preview_content
     assert 'scoreCounter.className = "quiz-preview-score"' in preview_content
@@ -2377,6 +2381,7 @@ def test_frontend_playable_preview_matches_mockup_structure() -> None:
     assert ".play-opt.is-wrong:has(input:checked)" in quiz_css
     assert ".preview-question.is-correct" in quiz_css
     assert ".preview-question.is-wrong" in quiz_css
+    assert ".quiz-preview-inline-error" in quiz_css
     assert ".quiz-preview-score" in quiz_css
     assert ".q-expl[hidden]" in quiz_css
     assert ".compact-workspace .q-expl[hidden]" in fidelity_css

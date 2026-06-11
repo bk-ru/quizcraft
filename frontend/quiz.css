@@ -595,6 +595,16 @@
   line-height: 1.35;
 }
 
+.quiz-preview-inline-error {
+  margin: -4px 0 18px;
+  padding: 12px 16px;
+  border: 1.5px solid color-mix(in oklab, var(--bad) 55%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--bad) 10%, var(--surface));
+  color: var(--bad);
+  font-weight: 800;
+}
+
 .preview-options,
 .preview-matching {
   display: flex;

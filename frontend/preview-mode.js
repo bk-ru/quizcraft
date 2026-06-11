@@ -148,7 +148,15 @@ export function createPlayablePreview({
     return explanation;
   }
 
-  function createChoiceFields(question, questionId, answers, evaluatedQuestionIds) {
+  function hideQuestionValidationMessage(wrapper, questionId, validationMessages) {
+    validationMessages.delete(questionId);
+    const message = wrapper.closest(".play-question")?.querySelector(".quiz-preview-inline-error");
+    if (message) {
+      message.hidden = true;
+    }
+  }
+
+  function createChoiceFields(question, questionId, answers, evaluatedQuestionIds, validationMessages) {
     const wrapper = documentRef.createElement("div");
     wrapper.className = "preview-options play-options";
     const options = Array.isArray(question.options) ? question.options : [];
@@ -175,6 +183,7 @@ export function createPlayablePreview({
       input.addEventListener("change", () => {
         answers[questionId] = input.value;
         evaluatedQuestionIds.delete(questionId);
+        hideQuestionValidationMessage(wrapper, questionId, validationMessages);
         updateChoiceState();
       });
       const mark = documentRef.createElement("span");
@@ -193,7 +202,7 @@ export function createPlayablePreview({
     return [wrapper, explanation].filter(Boolean);
   }
 
-  function createAnswerField(question, questionId, answers, evaluatedQuestionIds) {
+  function createAnswerField(question, questionId, answers, evaluatedQuestionIds, validationMessages) {
     const wrapper = documentRef.createElement("div");
     wrapper.className = "play-answer-wrap";
     const input = documentRef.createElement("input");
@@ -236,6 +245,7 @@ export function createPlayablePreview({
     input.addEventListener("input", () => {
       answers[questionId] = input.value;
       evaluatedQuestionIds.delete(questionId);
+      hideQuestionValidationMessage(wrapper, questionId, validationMessages);
       updateAnswerState();
     });
     updateAnswerState();
@@ -246,7 +256,7 @@ export function createPlayablePreview({
     return [wrapper];
   }
 
-  function createMatchingFields(question, questionId, answers, evaluatedQuestionIds) {
+  function createMatchingFields(question, questionId, answers, evaluatedQuestionIds, validationMessages) {
     const wrapper = documentRef.createElement("div");
     wrapper.className = "preview-matching play-match";
     const pairs = Array.isArray(question.matching_pairs) ? question.matching_pairs : [];
@@ -308,6 +318,7 @@ export function createPlayablePreview({
       select.addEventListener("change", () => {
         selectedValues[pairIndex] = select.value;
         evaluatedQuestionIds.delete(questionId);
+        hideQuestionValidationMessage(wrapper, questionId, validationMessages);
         updateMatchingState();
       });
       label.append(badge, left, select);
@@ -330,7 +341,7 @@ export function createPlayablePreview({
     return [wrapper, bank, feedback, explanation].filter(Boolean);
   }
 
-  function createQuestionFields(question, index, answers, evaluatedQuestionIds) {
+  function createQuestionFields(question, index, answers, evaluatedQuestionIds, validationMessages) {
     const fieldset = documentRef.createElement("section");
     fieldset.className = "preview-question play-question";
     const heading = documentRef.createElement("h3");
@@ -338,16 +349,24 @@ export function createPlayablePreview({
     heading.textContent = `${index + 1}. ${question.prompt ?? ""}`;
     fieldset.append(heading);
     const questionId = getQuestionId(question, index);
+    const validationMessage = validationMessages.get(questionId);
+    if (validationMessage) {
+      const inlineError = documentRef.createElement("div");
+      inlineError.className = "quiz-preview-inline-error";
+      inlineError.setAttribute("role", "alert");
+      inlineError.textContent = validationMessage;
+      fieldset.append(inlineError);
+    }
     if (evaluatedQuestionIds.has(questionId)) {
       const result = gradeQuestion(question, answers[questionId]);
       fieldset.classList.add(result.correct ? "is-correct" : "is-wrong");
     }
     if (CHOICE_QUESTION_TYPES.has(question.question_type)) {
-      fieldset.append(...createChoiceFields(question, questionId, answers, evaluatedQuestionIds));
+      fieldset.append(...createChoiceFields(question, questionId, answers, evaluatedQuestionIds, validationMessages));
     } else if (ANSWER_QUESTION_TYPES.has(question.question_type)) {
-      fieldset.append(...createAnswerField(question, questionId, answers, evaluatedQuestionIds));
+      fieldset.append(...createAnswerField(question, questionId, answers, evaluatedQuestionIds, validationMessages));
     } else if (question.question_type === "matching") {
-      fieldset.append(...createMatchingFields(question, questionId, answers, evaluatedQuestionIds));
+      fieldset.append(...createMatchingFields(question, questionId, answers, evaluatedQuestionIds, validationMessages));
     }
     return fieldset;
   }
@@ -477,6 +496,7 @@ export function createPlayablePreview({
     const questions = Array.isArray(quiz.questions) ? quiz.questions : [];
     const answers = {};
     const evaluatedQuestionIds = new Set();
+    const validationMessages = new Map();
     let activeQuestionIndex = 0;
     const questionBody = documentRef.createElement("div");
     questionBody.className = "quiz-preview-body";
@@ -505,6 +525,7 @@ export function createPlayablePreview({
         activeQuestionIndex,
         answers,
         evaluatedQuestionIds,
+        validationMessages,
       ));
       progress.textContent = `\u0412\u043e\u043f\u0440\u043e\u0441 ${activeQuestionIndex + 1} / ${questions.length}`;
       scoreCounter.textContent = `${countEvaluatedCorrectAnswers(questions, answers, evaluatedQuestionIds)} / ${questions.length}`;
@@ -524,9 +545,11 @@ export function createPlayablePreview({
       const currentQuestionId = getQuestionId(currentQuestion, activeQuestionIndex);
       if (!evaluatedQuestionIds.has(currentQuestionId)) {
         if (!isQuestionAnswered(currentQuestion, currentQuestionId, answers)) {
-          showToast(getAnswerRequiredMessage(currentQuestion), "bad");
+          validationMessages.set(currentQuestionId, getAnswerRequiredMessage(currentQuestion));
+          updatePreviewPage();
           return;
         }
+        validationMessages.delete(currentQuestionId);
         evaluatedQuestionIds.add(currentQuestionId);
         updatePreviewPage();
         return;
