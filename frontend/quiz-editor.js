@@ -687,18 +687,18 @@ export function createQuizEditor(
           option.option_id ?? `option-${optionIndex + 1}`,
         );
         optionInput?.classList.add("q-opt-text");
-        const deleteOptionButton = documentRef.createElement("button");
-        deleteOptionButton.className = "option-delete-action q-opt-remove";
-        deleteOptionButton.type = "button";
-        deleteOptionButton.textContent = "×";
-        deleteOptionButton.setAttribute("aria-label", `Удалить вариант ${optionIndex + 1}`);
-        deleteOptionButton.setAttribute("data-editor-action", "delete-option");
-        deleteOptionButton.dataset.optionIndex = String(optionIndex);
-        deleteOptionButton.disabled = question.question_type === "true_false";
-        deleteOptionButton.title = deleteOptionButton.disabled
-          ? "Для формата «Верно / Неверно» используются фиксированные варианты."
-          : "Удалить вариант ответа.";
-        optionRow.append(optionMarker, optionField, deleteOptionButton);
+        optionRow.append(optionMarker, optionField);
+        if (question.question_type !== "true_false") {
+          const deleteOptionButton = documentRef.createElement("button");
+          deleteOptionButton.className = "option-delete-action q-opt-remove";
+          deleteOptionButton.type = "button";
+          deleteOptionButton.textContent = "×";
+          deleteOptionButton.setAttribute("aria-label", `Удалить вариант ${optionIndex + 1}`);
+          deleteOptionButton.setAttribute("data-editor-action", "delete-option");
+          deleteOptionButton.dataset.optionIndex = String(optionIndex);
+          deleteOptionButton.title = "Удалить вариант ответа.";
+          optionRow.append(deleteOptionButton);
+        }
         optionsGrid.append(optionRow);
       });
       content.append(optionsGrid);
@@ -843,10 +843,10 @@ export function createQuizEditor(
     } else {
       const correctAnswerField = createEditorField(
         "Правильный ответ",
-        createEditorInput(question.correct_answer ?? ""),
+        createEditorTextarea(question.correct_answer ?? "", 2),
       );
       correctAnswerField.classList.add("q-answer-field");
-      const answerInput = correctAnswerField.querySelector("input");
+      const answerInput = correctAnswerField.querySelector("textarea");
       answerInput?.setAttribute("data-editor-field", "correct-answer");
       answerInput?.classList.add("q-answer-text");
       content.append(correctAnswerField);
@@ -1098,7 +1098,8 @@ export function createQuizEditor(
             ? Number.parseInt(correctAnswerSelect.value, 10)
             : baseQuestion.correct_option_index,
         correct_answer:
-          correctAnswerInput instanceof HTMLInputElement
+          correctAnswerInput instanceof HTMLInputElement ||
+          correctAnswerInput instanceof HTMLTextAreaElement
             ? correctAnswerInput.value
             : baseQuestion.correct_answer,
         matching_pairs: matchingLeftInputs.map((leftInput, pairIndex) => ({

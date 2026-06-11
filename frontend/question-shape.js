@@ -160,9 +160,6 @@ export function validateEditableQuiz(quiz) {
       if (options.length > 0 || question.correct_option_index !== null || matchingPairs.length > 0) {
         addError(errors, questionIndex, "удалите поля, несовместимые с текстовым ответом.");
       }
-      if (questionType === "fill_blank" && !/_{2,}|…|\.\.\./u.test(question.prompt)) {
-        addError(errors, questionIndex, "добавьте пропуск в текст вопроса.");
-      }
     } else if (questionType === "matching") {
       if (matchingPairs.length < 4) {
         addError(errors, questionIndex, "для сопоставления нужны минимум 4 пары.");

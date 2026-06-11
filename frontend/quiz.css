@@ -607,14 +607,27 @@
   background: var(--brand-soft);
 }
 
+.play-opt[hidden],
+.q-expl[hidden] {
+  display: none;
+}
+
 .play-opt.is-correct {
   border-color: var(--ok);
   background: color-mix(in oklab, var(--ok) 14%, transparent);
 }
 
-.play-opt.is-wrong {
+.play-opt.is-wrong,
+.play-opt.is-wrong:has(input:checked) {
   border-color: var(--bad);
   background: color-mix(in oklab, var(--bad) 14%, transparent);
+}
+
+.play-opt.is-wrong .play-opt-mark,
+.play-opt.is-wrong:has(input:checked) .play-opt-mark {
+  border-color: transparent;
+  background: var(--bad);
+  color: var(--bg);
 }
 
 .play-opt input {
@@ -692,6 +705,16 @@
   border-radius: 10px;
   background: var(--surface-soft);
   color: var(--ink);
+}
+
+.preview-answer-input.is-correct {
+  border-color: var(--ok);
+  background: color-mix(in oklab, var(--ok) 12%, var(--surface-soft));
+}
+
+.preview-answer-input.is-wrong {
+  border-color: var(--bad);
+  background: color-mix(in oklab, var(--bad) 12%, var(--surface-soft));
 }
 
 .play-answer-wrap {

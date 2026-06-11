@@ -1360,7 +1360,7 @@
 .compact-workspace .q-text-field textarea.q-text,
 .compact-workspace .q-text-field input.q-text,
 .compact-workspace .q-opt-field input.q-opt-text,
-.compact-workspace .q-answer-field input.q-answer-text,
+.compact-workspace .q-answer-field .q-answer-text,
 .compact-workspace .q-correct-field select.q-correct-select {
     min-height: 0;
     width: 100%;
@@ -1402,13 +1402,22 @@
 }
 
 .compact-workspace .q-opt-field input.q-opt-text,
-.compact-workspace .q-answer-field input.q-answer-text {
+.compact-workspace .q-answer-field .q-answer-text {
     font-family: inherit;
     font-weight: inherit;
     font-size: 0.95rem;
     padding: 2px 4px;
     margin: 0;
     color: var(--ink-2);
+}
+
+.compact-workspace .q-answer-field textarea.q-answer-text {
+    field-sizing: content;
+    min-height: 2.8em;
+    resize: none;
+    overflow: hidden;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
 }
 
 .compact-workspace .q-correct-field select.q-correct-select {
@@ -1513,7 +1522,7 @@
 }
 
 .compact-workspace input.q-opt-text,
-.compact-workspace input.q-answer-text,
+.compact-workspace .q-answer-text,
 .compact-workspace input.q-match-text,
 .compact-workspace textarea.q-expl-text {
     width: 100%;
@@ -1527,7 +1536,7 @@
 }
 
 .compact-workspace input.q-opt-text:focus,
-.compact-workspace input.q-answer-text:focus,
+.compact-workspace .q-answer-text:focus,
 .compact-workspace input.q-match-text:focus,
 .compact-workspace textarea.q-expl-text:focus {
     background: var(--surface);
@@ -1624,7 +1633,7 @@
 }
 
 .compact-workspace .q-answer-field {
-    max-width: 320px;
+    width: min(100%, calc(100% - 64px));
     margin-top: 6px;
 }
 
@@ -1752,6 +1761,11 @@
     color: var(--ink-2);
     font-size: 0.88rem;
     line-height: 1.55;
+}
+
+.compact-workspace .q-expl[hidden],
+.quiz-preview-modal .q-expl[hidden] {
+    display: none;
 }
 
 .compact-workspace .q-expl-head {
