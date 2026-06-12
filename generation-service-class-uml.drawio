@@ -4,7 +4,7 @@
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="title" value="Generation Service - Strict UML Class Diagram" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
+        <mxCell id="title" value="Generation Service - UML Class Diagram" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
           <mxGeometry x="40" y="30" width="620" height="40" as="geometry" />
         </mxCell>
 
@@ -50,7 +50,7 @@
           <mxGeometry x="960" y="910" width="420" height="240" as="geometry" />
         </mxCell>
 
-        <mxCell id="llm-provider" value="&lt;b&gt;&lt;i&gt;LLMProvider&lt;/i&gt; {abstract}&lt;/b&gt;&lt;hr&gt;&lt;hr&gt;+ healthcheck(): ProviderHealthStatus&lt;br&gt;+ generate_structured(request): StructuredGenerationResponse&lt;br&gt;+ embed(request): EmbeddingResponse" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=28;fillColor=#e0f2f1;strokeColor=#00897b;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
+        <mxCell id="llm-provider" value="&lt;b&gt;LLMProvider&lt;/b&gt;&lt;hr&gt;&lt;hr&gt;+ healthcheck(): ProviderHealthStatus&lt;br&gt;+ generate_structured(request): StructuredGenerationResponse&lt;br&gt;+ embed(request): EmbeddingResponse" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=28;fillColor=#e0f2f1;strokeColor=#00897b;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
           <mxGeometry x="1450" y="820" width="390" height="150" as="geometry" />
         </mxCell>
         <mxCell id="prompt-registry" value="&lt;b&gt;PromptRegistry&lt;/b&gt;&lt;hr&gt;&lt;hr&gt;+ resolve(prompt_key)" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=28;fillColor=#eeeeee;strokeColor=#616161;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
@@ -69,17 +69,14 @@
           <mxGeometry x="1450" y="1010" width="390" height="170" as="geometry" />
         </mxCell>
 
-        <mxCell id="cancel-control" value="&lt;b&gt;&amp;laquo;interface&amp;raquo;&lt;br&gt;GenerationCancellationControl&lt;/b&gt;&lt;hr&gt;+ is_cancelled: bool&lt;hr&gt;+ raise_if_cancelled(): None&lt;br&gt;+ wait(timeout): None&lt;br&gt;+ register_cancel_callback(callback): None&lt;br&gt;+ commit_if_active(callback): ResultT" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=42;fillColor=#fce4ec;strokeColor=#c2185b;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
-          <mxGeometry x="40" y="1120" width="360" height="190" as="geometry" />
-        </mxCell>
         <mxCell id="cancel-token" value="&lt;b&gt;GenerationCancellationToken&lt;/b&gt;&lt;hr&gt;+ request_id: str&lt;br&gt;+ document_id: str&lt;br&gt;- _registry: GenerationCancellationRegistry&lt;br&gt;- _cancelled: Event&lt;br&gt;- _callbacks: list[Callable]&lt;hr&gt;+ is_cancelled: bool&lt;br&gt;+ raise_if_cancelled(): None&lt;br&gt;+ wait(timeout): None&lt;br&gt;+ register_cancel_callback(callback): None&lt;br&gt;+ commit_if_active(callback): ResultT" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=28;fillColor=#fce4ec;strokeColor=#c2185b;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
-          <mxGeometry x="450" y="1120" width="390" height="260" as="geometry" />
+          <mxGeometry x="40" y="1120" width="390" height="260" as="geometry" />
         </mxCell>
         <mxCell id="cancel-registry" value="&lt;b&gt;GenerationCancellationRegistry&lt;/b&gt;&lt;hr&gt;- _active: dict[str, GenerationCancellationToken]&lt;br&gt;- _tombstones: OrderedDict[str, _GenerationRunTombstone]&lt;hr&gt;+ start_run(request_id, document_id): GenerationCancellationToken&lt;br&gt;+ cancel(request_id): GenerationCancellationOutcome | None&lt;br&gt;+ finish(token, status): GenerationCancellationOutcome&lt;br&gt;+ get_outcome(request_id): GenerationCancellationOutcome | None" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=28;fillColor=#fce4ec;strokeColor=#c2185b;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
           <mxGeometry x="450" y="1410" width="390" height="210" as="geometry" />
         </mxCell>
         <mxCell id="cancel-outcome" value="&lt;b&gt;GenerationCancellationOutcome&lt;/b&gt;&lt;hr&gt;+ request_id: str&lt;br&gt;+ document_id: str&lt;br&gt;+ status: GenerationRunStatus&lt;br&gt;+ accepted: bool&lt;hr&gt;+ to_dict(): dict[str, object]" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=28;fillColor=#fce4ec;strokeColor=#c2185b;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
-          <mxGeometry x="40" y="1340" width="360" height="170" as="geometry" />
+          <mxGeometry x="40" y="1410" width="360" height="170" as="geometry" />
         </mxCell>
 
         <mxCell id="event-store" value="&lt;b&gt;GenerationEventStore&lt;/b&gt;&lt;hr&gt;- _runs: dict[str, list[GenerationJournalEntry]]&lt;br&gt;- _started_at: dict[str, float]&lt;br&gt;- _next_event_id: dict[str, int]&lt;hr&gt;+ start_run(run_id): None&lt;br&gt;+ append(run_id, event): GenerationJournalEntry&lt;br&gt;+ list_events(run_id, after=0): list[GenerationJournalEntry]&lt;br&gt;+ is_complete(run_id): bool" style="swimlane;html=1;whiteSpace=wrap;rounded=0;startSize=28;fillColor=#ede7f6;strokeColor=#5e35b1;fontSize=12;align=center;verticalAlign=top;spacing=8" vertex="1" parent="1">
@@ -189,19 +186,10 @@
         <mxCell id="e-single-result" value="&amp;laquo;create&amp;raquo;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="single" target="regen-result">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="e-token-realizes-control" value="" style="endArrow=block;endFill=0;html=1;rounded=0;dashed=1;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="cancel-token" target="cancel-control">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
         <mxCell id="e-registry-token" value="0..*" style="startArrow=diamond;startFill=1;endArrow=none;html=1;rounded=0;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="cancel-registry" target="cancel-token">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e-registry-outcome" value="&amp;laquo;create&amp;raquo;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="cancel-registry" target="cancel-outcome">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-direct-cancel" value="&amp;laquo;use&amp;raquo;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="direct" target="cancel-control">
-          <mxGeometry relative="1" as="geometry" />
-        </mxCell>
-        <mxCell id="e-rag-cancel" value="&amp;laquo;use&amp;raquo;" style="endArrow=open;html=1;rounded=0;dashed=1;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="rag" target="cancel-control">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="e-eventstore-journal" value="0..*" style="startArrow=diamond;startFill=1;endArrow=none;html=1;rounded=0;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;" edge="1" parent="1" source="event-store" target="journal-entry">
