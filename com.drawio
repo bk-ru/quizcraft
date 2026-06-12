@@ -249,44 +249,50 @@
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="edge-generation-dispatcher" value="«uses»" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-service" target="generation-dispatcher">
+        <mxCell id="edge-dispatcher-direct" value="direct" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-dispatcher" target="direct-orchestrator">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-dispatcher-direct" value="direct" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-dispatcher" target="direct-orchestrator">
+        <mxCell id="edge-dispatcher-rag" value="RAG" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-dispatcher" target="rag-orchestrator">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-dispatcher-rag" value="RAG" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-dispatcher" target="rag-orchestrator">
+        <mxCell id="edge-quiz-single" value="regenerate" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="quiz-service" target="single-orchestrator">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-dispatcher-single" value="regenerate" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-dispatcher" target="single-orchestrator">
+        <mxCell id="edge-rag-retrieval" value="«uses»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="rag-orchestrator" target="retrieval-service">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-rag-retrieval" value="«uses»" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="rag-orchestrator" target="retrieval-service">
+        <mxCell id="edge-direct-prompts" value="«uses»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="direct-orchestrator" target="prompt-registry">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-generation-prompts" value="«uses»" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-service" target="prompt-registry">
+        <mxCell id="edge-rag-prompts" value="«uses»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="rag-orchestrator" target="prompt-registry">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-generation-quality" value="«uses»" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-service" target="quality-checker">
+        <mxCell id="edge-single-prompts" value="«uses»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="single-orchestrator" target="prompt-registry">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-generation-provider" value="generate / embed" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-service" target="provider-runtime">
+        <mxCell id="edge-direct-quality" value="«uses»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="direct-orchestrator" target="quality-checker">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-generation-storage" value="«persists»" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-service" target="storage-repositories">
+        <mxCell id="edge-rag-quality" value="«uses»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="rag-orchestrator" target="quality-checker">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-retrieval-storage" value="RAG cache" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="retrieval-service" target="storage-repositories">
+        <mxCell id="edge-generation-llm" value="«requires»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="generation-service" target="llm-interface">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-generation-storage" value="«uses repositories»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="generation-service" target="storage-repositories">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-retrieval-storage" value="RAG cache" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#555555;fontSize=12;" edge="1" parent="1" source="retrieval-service" target="storage-repositories">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
 
-        <mxCell id="edge-provider-interface" value="«requires»" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="provider-runtime" target="llm-interface">
+        <mxCell id="edge-provider-interface" value="«provided by»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=none;html=1;rounded=0;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="llm-interface" target="provider-runtime">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-interface-external" value="«provided by»" style="endArrow=none;html=1;rounded=0;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="llm-interface" target="external-providers">
+        <mxCell id="edge-provider-external" value="external HTTP APIs" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="provider-runtime" target="external-providers">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-storage-artifact" value="«realizes»" style="endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#777777;fontSize=12;" edge="1" parent="1" source="storage-repositories" target="file-storage">
+        <mxCell id="edge-storage-artifact" value="«persists to»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#777777;fontSize=12;" edge="1" parent="1" source="storage-repositories" target="file-storage">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
       </root>
