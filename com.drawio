@@ -187,7 +187,11 @@
           <mxGeometry x="1538" y="144" width="70" height="70" as="geometry" />
         </mxCell>
 
-        <mxCell id="external-providers" value="&lt;i&gt;«component»&lt;/i&gt;&lt;br&gt;&lt;b&gt;External LLM Providers&lt;/b&gt;&lt;br&gt;LM Studio / Ollama / OpenAI-compatible API" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#eefbf7;strokeColor=#2a8f6a;fontSize=13;spacing=10;" vertex="1" parent="1">
+        <mxCell id="model-http-interface" value="&lt;i&gt;«interface»&lt;/i&gt;&lt;br&gt;&lt;b&gt;Model HTTP API&lt;/b&gt;" style="ellipse;html=1;whiteSpace=wrap;aspect=fixed;fillColor=#eefbf7;strokeColor=#2a8f6a;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1540" y="250" width="74" height="74" as="geometry" />
+        </mxCell>
+
+        <mxCell id="external-providers" value="&lt;i&gt;«external component»&lt;/i&gt;&lt;br&gt;&lt;b&gt;External Model Providers&lt;/b&gt;&lt;br&gt;LM Studio / Ollama / OpenAI-compatible API" style="html=1;dropTarget=0;whiteSpace=wrap;rounded=1;arcSize=8;fillColor=#eefbf7;strokeColor=#2a8f6a;fontSize=13;spacing=10;" vertex="1" parent="1">
           <mxGeometry x="1640" y="130" width="230" height="98" as="geometry" />
         </mxCell>
         <mxCell id="external-providers-module" value="" style="shape=module;jettyWidth=8;jettyHeight=4;fillColor=#eefbf7;strokeColor=#2a8f6a;" vertex="1" parent="external-providers">
@@ -289,7 +293,10 @@
         <mxCell id="edge-provider-interface" value="«provided by»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=none;html=1;rounded=0;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="llm-interface" target="provider-runtime">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="edge-provider-external" value="external HTTP APIs" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="provider-runtime" target="external-providers">
+        <mxCell id="edge-provider-model-http" value="«requires»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="provider-runtime" target="model-http-interface">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="edge-model-http-external" value="«provided by»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=none;html=1;rounded=0;strokeColor=#2a8f6a;fontSize=12;" edge="1" parent="1" source="model-http-interface" target="external-providers">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="edge-storage-artifact" value="«persists to»" style="edgeStyle=orthogonalEdgeStyle;orthogonalLoop=1;jettySize=auto;endArrow=open;html=1;rounded=0;dashed=1;strokeColor=#777777;fontSize=12;" edge="1" parent="1" source="storage-repositories" target="file-storage">
