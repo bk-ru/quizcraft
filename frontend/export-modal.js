@@ -1,4 +1,4 @@
-import { triggerFileDownload } from "./download.js";
+import { createExportFileStem, triggerFileDownload } from "./download.js";
 import { validateEditableQuiz } from "./question-shape.js";
 import {
   serializeQuizAsCsv,
@@ -139,7 +139,7 @@ export function createExportModal({
     const config = FORMAT_CONFIG[format];
     const { content, warningCount } = serializeLocalExport(format, quiz, options);
     const blob = new Blob([content], { type: config.mediaType });
-    triggerFileDownload(blob, `${quiz.quiz_id ?? "quiz"}.${config.extension}`, windowRef, documentRef);
+    triggerFileDownload(blob, `${createExportFileStem(quiz.title)}.${config.extension}`, windowRef, documentRef);
     return warningCount;
   }
 

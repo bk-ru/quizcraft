@@ -13,6 +13,24 @@ const EXPORT_FORMATS = Object.freeze({
   },
 });
 
+export function createExportFileStem(title, fallback = "quiz") {
+  const rawTitle = typeof title === "string" ? title : "";
+  const rawFallback = typeof fallback === "string" ? fallback : "quiz";
+  const normalized = rawTitle.normalize("NFKC")
+    .replace(/[^\p{L}\p{N}\s]+/gu, "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_");
+  if (normalized) {
+    return normalized;
+  }
+  return rawFallback.normalize("NFKC")
+    .replace(/[^\p{L}\p{N}\s]+/gu, "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .replace(/_+/g, "_") || "quiz";
+}
+
 export function triggerFileDownload(blob, suggestedName, windowRef = window, documentRef = document) {
   const url = windowRef.URL.createObjectURL(blob);
   const anchor = documentRef.createElement("a");
@@ -32,6 +50,7 @@ export function createQuizExporter({
   backendBaseUrl,
   client,
   editorState,
+  getSuggestedName = null,
   showToast,
 }, windowRef = window, fetchImpl = globalThis.fetch?.bind(globalThis)) {
   async function exportQuiz(format) {
@@ -63,7 +82,11 @@ export function createQuizExporter({
         throw new Error(`HTTP ${response.status}`);
       }
       const blob = await response.blob();
-      triggerFileDownload(blob, `${editorState.lastGeneratedQuizId}.${formatConfig.extension}`, windowRef);
+      const fileStem = createExportFileStem(
+        typeof getSuggestedName === "function" ? getSuggestedName() : "",
+        editorState.lastGeneratedQuizId,
+      );
+      triggerFileDownload(blob, `${fileStem}.${formatConfig.extension}`, windowRef);
       showToast(`${formatConfig.label}-файл квиза скачан.`, "ok");
       return true;
     } catch (error) {

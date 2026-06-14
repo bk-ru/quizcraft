@@ -464,8 +464,12 @@ def test_frontend_wires_mockup_export_action_to_capability_driven_modal() -> Non
 
     assert 'docx: { label: "DOCX"' in export_modal_content
     assert 'pptx: { label: "PPTX"' in export_modal_content
+    assert 'getSuggestedName: () => quizTitleInput?.value ?? ""' in app_content
+    assert 'createExportFileStem(quiz.title)' in export_modal_content
 
     assert "createQuizExporter" in download_content
+    assert "createExportFileStem" in download_content
+    assert "getSuggestedName" in download_content
     assert "exportQuizAsDocx" in download_content
     assert "exportQuizAsPptx" in download_content
     assert "/export/${exportFormat}" in download_content
@@ -474,6 +478,26 @@ def test_frontend_wires_mockup_export_action_to_capability_driven_modal() -> Non
     assert "Не удалось скачать ${describeExportFormat(format)}" in download_content
     assert "function describeExportFormat" in download_content
     assert "${formatConfig.label}-файл квиза скачан." in download_content
+
+
+def test_frontend_export_filename_uses_sanitized_quiz_title() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is not installed")
+    script = r'''
+import { createExportFileStem } from "./frontend/download.js";
+
+const stem = createExportFileStem("МИИГАиК: история, направления и статистика");
+if (stem !== "МИИГАиК_история_направления_и_статистика") {
+  throw new Error(`unexpected stem: ${stem}`);
+}
+
+const fallback = createExportFileStem("", "quiz-b185b914ad5d40c1b3a2fbd40e35e56f (1)");
+if (fallback !== "quizb185b914ad5d40c1b3a2fbd40e35e56f_1") {
+  throw new Error(`unexpected fallback: ${fallback}`);
+}
+'''
+    subprocess.run([node, "--input-type=module", "-e", script], cwd=ROOT, check=True)
 
 
 def test_frontend_export_modal_serializes_text_and_saves_dirty_quiz_before_download() -> None:
@@ -2135,6 +2159,35 @@ def test_frontend_question_shape_exposes_backend_shaped_draft_helpers() -> None:
     assert "Неверно" in content
 
 
+def test_frontend_fill_blank_validation_allows_plain_prompt() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is not installed")
+    script = r'''
+import { validateEditableQuiz } from "./frontend/question-shape.js";
+
+const errors = validateEditableQuiz({
+  quiz_id: "quiz-1",
+  title: "МИИГАиК: история, направления и статистика",
+  questions: [{
+    question_id: "q1",
+    question_type: "fill_blank",
+    prompt: "Учредителем университета выступает",
+    options: [],
+    correct_option_index: null,
+    correct_answer: "Министерство науки и высшего образования Российской Федерации",
+    matching_pairs: [],
+    explanation: null,
+  }],
+});
+
+if (errors.length) {
+  throw new Error(errors.join("\n"));
+}
+'''
+    subprocess.run([node, "--input-type=module", "-e", script], cwd=ROOT, check=True)
+
+
 def test_frontend_result_screen_hosts_canonical_inline_editor() -> None:
     index_content = INDEX_HTML.read_text(encoding="utf-8")
     editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
@@ -2149,8 +2202,23 @@ def test_frontend_result_screen_hosts_canonical_inline_editor() -> None:
     assert 'deleteOptionButton.textContent = "×"' in editor_content
     assert 'deleteOptionButton.setAttribute("aria-label"' in editor_content
     assert 'data-editor-action", "delete-option"' in editor_content
+    assert 'if (question.question_type !== "true_false")' in editor_content
+    assert 'deleteOptionButton.disabled = question.question_type === "true_false"' not in editor_content
     assert '.editor-option-row[data-correct="true"]' in quiz_css
     assert ".option-delete-action:focus-visible" in quiz_css
+
+
+def test_frontend_text_answer_editor_uses_multiline_control() -> None:
+    editor_content = QUIZ_EDITOR_JS.read_text(encoding="utf-8")
+    fidelity_content = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
+
+    assert "createEditorTextarea(question.correct_answer ?? \"\", 2)" in editor_content
+    assert 'correctAnswerField.querySelector("textarea")' in editor_content
+    assert "correctAnswerInput instanceof HTMLTextAreaElement" in editor_content
+    assert ".compact-workspace .q-answer-field textarea.q-answer-text" in fidelity_content
+    assert ".compact-workspace .q-answer-field {\n    width: min(100%, calc(100% - 64px));" in fidelity_content
+    assert "max-width: 320px" not in fidelity_content
+    assert "overflow-wrap: anywhere" in fidelity_content
 
 
 def test_frontend_inline_editor_exposes_structural_actions_and_undo() -> None:
@@ -2302,6 +2370,7 @@ def test_frontend_playable_preview_supports_all_question_types_without_mutating_
 def test_frontend_playable_preview_matches_mockup_structure() -> None:
     preview_content = PREVIEW_MODE_JS.read_text(encoding="utf-8")
     quiz_css = (FRONTEND_DIR / "quiz.css").read_text(encoding="utf-8")
+    fidelity_css = (FRONTEND_DIR / "fidelity.css").read_text(encoding="utf-8")
     layout_css = (FRONTEND_DIR / "layout.css").read_text(encoding="utf-8")
 
     assert 'title.textContent = "Превью квиза"' in preview_content
@@ -2312,10 +2381,36 @@ def test_frontend_playable_preview_matches_mockup_structure() -> None:
     assert 'wrapper.className = "preview-matching play-match"' in preview_content
     assert 'bank.className = "play-match-bank"' in preview_content
     assert 'wrapper.className = "play-answer-wrap"' in preview_content
+    assert "evaluatedQuestionIds" in preview_content
+    assert 'createExplanation("", "play-answer-feedback", { force: true, labelText: "" })' in preview_content
+    assert 'createExplanation("", "play-match-feedback", { force: true, labelText: "" })' in preview_content
+    assert 'if (!force && !String(text ?? "").trim())' in preview_content
+    assert 'optionButton.classList.toggle("is-correct", evaluated && optionIndex === question.correct_option_index)' in preview_content
+    assert 'optionButton.classList.toggle("is-wrong", evaluated && optionIndex !== question.correct_option_index)' in preview_content
+    assert 'validationMessages.set(currentQuestionId, getAnswerRequiredMessage(currentQuestion))' in preview_content
+    assert 'validationMessages.delete(currentQuestionId)' in preview_content
+    assert 'inlineError.className = "quiz-preview-inline-error"' in preview_content
+    assert 'inlineError.setAttribute("role", "alert")' in preview_content
+    assert 'showToast(getAnswerRequiredMessage(currentQuestion), "bad")' not in preview_content
+    assert '"Выберите вариант ответа."' in preview_content
+    assert 'fieldset.classList.add(result.correct ? "is-correct" : "is-wrong")' in preview_content
+    assert 'scoreCounter.className = "quiz-preview-score"' in preview_content
+    assert 'scoreCounter.textContent = `${countEvaluatedCorrectAnswers(questions, answers, evaluatedQuestionIds)} / ${questions.length}`' in preview_content
+    assert "evaluatedQuestionIds.add(currentQuestionId)" in preview_content
     assert 'feedback.classList.toggle("play-match-ok", correct)' in preview_content
     assert '? "\\u0417\\u0430\\u0432\\u0435\\u0440\\u0448\\u0438\\u0442\\u044c"' in preview_content
     assert ".play-opt.is-correct" in quiz_css
+    assert ".play-opt.is-correct .play-opt-mark" in quiz_css
     assert ".play-opt.is-wrong" in quiz_css
+    assert ".play-opt.is-wrong:has(input:checked)" in quiz_css
+    assert ".preview-question.is-correct" in quiz_css
+    assert ".preview-question.is-wrong" in quiz_css
+    assert ".quiz-preview-inline-error" in quiz_css
+    assert ".quiz-preview-score" in quiz_css
+    assert ".q-expl[hidden]" in quiz_css
+    assert ".compact-workspace .q-expl[hidden]" in fidelity_css
+    assert ".preview-answer-input.is-correct" in quiz_css
+    assert ".preview-answer-input.is-wrong" in quiz_css
     assert ".play-match-bank-item" in quiz_css
     assert ".play-answer-wrap" in quiz_css
     assert "width: min(760px, calc(100vw - 32px))" in layout_css
