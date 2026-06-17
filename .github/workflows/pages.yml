@@ -2,6 +2,8 @@ name: Deploy mockup to GitHub Pages
 
 on:
   push:
+    branches:
+      - main
     paths:
       - ".github/workflows/pages.yml"
       - "mockups/compact-workspace/**"
@@ -18,7 +20,7 @@ concurrency:
 
 jobs:
   deploy:
-    if: github.ref_type == 'branch'
+    if: github.ref == 'refs/heads/main'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
