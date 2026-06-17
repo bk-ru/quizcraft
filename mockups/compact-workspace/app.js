@@ -41,6 +41,18 @@ const state = {
 };
 
 const DEMO_TEXT_URL = "./data/example-text.json";
+const STATIC_EXPORTS = Object.freeze({
+  docx: Object.freeze({
+    url: "./data/demo-export.docx",
+    extension: "docx",
+    mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  }),
+  pptx: Object.freeze({
+    url: "./data/demo-export.pptx",
+    extension: "pptx",
+    mime: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  }),
+});
 const DEFAULT_EXAMPLE_TEXT = `Фотосинтез — процесс, при котором растения используют энергию света для преобразования углекислого газа и воды в органические вещества. Основной пигмент, участвующий в поглощении света, называется хлорофилл. Световая фаза проходит на мембранах тилакоидов, где образуются АТФ и НАДФН. В темновой фазе, или цикле Кальвина, углекислый газ фиксируется и превращается в сахара. Этот процесс важен для экосистем, потому что растения создают органическое вещество и выделяют кислород.`;
 const demoText = {
   title: "Пример текста",
@@ -1243,15 +1255,43 @@ function setupExport() {
     await navigator.clipboard.writeText($("#export-preview-body").textContent);
     toast("Скопировано в буфер", { kind: "ok" });
   });
-  $("#export-do-download").addEventListener("click", () => {
+  $("#export-do-download").addEventListener("click", async () => {
+    if (STATIC_EXPORTS[state.exportFormat]) {
+      await downloadStaticExport(state.exportFormat);
+      return;
+    }
     const text = $("#export-preview-body").textContent;
-    const ext  = { json: "json", md: "md", docx: "doc", pptx: "ppt", csv: "csv" }[state.exportFormat] || "txt";
-    const mime = { json: "application/json", md: "text/markdown", docx: "application/msword", pptx: "application/vnd.ms-powerpoint", csv: "text/csv" }[state.exportFormat] || "text/plain";
+    const ext  = { json: "json", md: "md", csv: "csv" }[state.exportFormat] || "txt";
+    const mime = { json: "application/json", md: "text/markdown", csv: "text/csv" }[state.exportFormat] || "text/plain";
     const blob = new Blob([text], { type: mime });
     const u = URL.createObjectURL(blob);
-    const a = el("a", { href: u, download: `${(state.quiz?.title || "quiz").replace(/\s+/g, "-")}.${ext}` });
+    const a = el("a", { href: u, download: `${exportFileBaseName()}.${ext}` });
     document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(u);
   });
+}
+
+async function downloadStaticExport(format) {
+  const config = STATIC_EXPORTS[format];
+  try {
+    const response = await fetch(config.url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const blob = await response.blob();
+    const typedBlob = blob.type === config.mime ? blob : new Blob([blob], { type: config.mime });
+    const u = URL.createObjectURL(typedBlob);
+    const a = el("a", { href: u, download: `${exportFileBaseName()}.${config.extension}` });
+    document.body.append(a); a.click(); a.remove(); URL.revokeObjectURL(u);
+    toast(`${config.extension.toUpperCase()} скачан`, { kind: "ok" });
+  } catch (error) {
+    console.error(`Не удалось скачать ${format}`, error);
+    toast(`Не удалось скачать ${config.extension.toUpperCase()}`, { kind: "bad" });
+  }
+}
+
+function exportFileBaseName() {
+  return (state.quiz?.title || "quiz")
+    .replace(/[\\/:*?"<>|]/g, "")
+    .replace(/\s+/g, "-")
+    .slice(0, 80) || "quiz";
 }
 
 function openExport() {

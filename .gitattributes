@@ -1,0 +1,3 @@
+mockups/compact-workspace/data/*.json -text
+mockups/compact-workspace/data/*.docx binary
+mockups/compact-workspace/data/*.pptx binary
