@@ -635,10 +635,32 @@ function renderQuestionTypePicker(q) {
         closeTypeMenus(picker);
         picker.classList.toggle("is-open");
       },
-    }, typeName(q.type), el("span", { class: "q-type-caret", "aria-hidden": "true" }, "⌄")),
+    },
+      el("span", { class: "q-type-label" }, typeName(q.type)),
+      chevronIcon("q-type-caret"),
+    ),
     renderTypeMenu(q.type, type => changeQuestionType(q, type)),
   );
   return picker;
+}
+
+function chevronIcon(className = "") {
+  return el("svg", {
+    class: className,
+    "aria-hidden": "true",
+    viewBox: "0 0 24 24",
+    fill: "none",
+    width: "14",
+    height: "14",
+  },
+    el("path", {
+      d: "m6 9 6 6 6-6",
+      stroke: "currentColor",
+      "stroke-width": "2",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+    }),
+  );
 }
 
 function closeTypeMenus(except = null) {
