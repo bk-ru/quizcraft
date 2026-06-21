@@ -92,6 +92,30 @@ const el = (tag, attrs = {}, ...kids) => {
   return node;
 };
 
+const svgIcon = (d, {
+  className = "",
+  width = 20,
+  height = 20,
+  strokeWidth = 1.8,
+} = {}) => {
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", String(width));
+  svg.setAttribute("height", String(height));
+  svg.setAttribute("fill", "none");
+  svg.setAttribute("stroke", "currentColor");
+  svg.setAttribute("stroke-width", String(strokeWidth));
+  svg.setAttribute("stroke-linecap", "round");
+  svg.setAttribute("stroke-linejoin", "round");
+  svg.setAttribute("aria-hidden", "true");
+  if (className) svg.setAttribute("class", className);
+
+  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  path.setAttribute("d", d);
+  svg.append(path);
+  return svg;
+};
+
 /* ─── Toast ──────────────────────────────────────────── */
 function toast(text, { kind = "info", ttl = 3200 } = {}) {
   const region = $("#toasts");
@@ -127,7 +151,7 @@ function setupSidebar() {
   const scrim = el("div", { class: "sidebar-scrim", onclick: () => document.body.dataset.sidebarOpen = "false" });
   const menuBtn = el("button", { class: "mobile-menu-btn", "aria-label": "Меню",
     onclick: () => document.body.dataset.sidebarOpen = "true" },
-    el("svg", { viewBox: "0 0 24 24", width: "20", height: "20", fill: "none", stroke: "currentColor", "stroke-width": "1.8", html: '<path d="M3 6h18M3 12h18M3 18h18"/>' }),
+    svgIcon("M3 6h18M3 12h18M3 18h18"),
   );
   document.body.append(scrim, menuBtn);
 
@@ -645,22 +669,12 @@ function renderQuestionTypePicker(q) {
 }
 
 function chevronIcon(className = "") {
-  return el("svg", {
-    class: className,
-    "aria-hidden": "true",
-    viewBox: "0 0 24 24",
-    fill: "none",
-    width: "14",
-    height: "14",
-  },
-    el("path", {
-      d: "m6 9 6 6 6-6",
-      stroke: "currentColor",
-      "stroke-width": "2",
-      "stroke-linecap": "round",
-      "stroke-linejoin": "round",
-    }),
-  );
+  return svgIcon("m6 9 6 6 6-6", {
+    className,
+    width: 14,
+    height: 14,
+    strokeWidth: 2,
+  });
 }
 
 function closeTypeMenus(except = null) {
