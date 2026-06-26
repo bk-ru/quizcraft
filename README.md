@@ -248,11 +248,12 @@ DEFAULT_PROVIDER=ollama
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen2.5:7b
 OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+LM_STUDIO_BASE_URL=http://localhost:1234/v1
 LM_STUDIO_MODEL=qwen2.5:7b
 LM_STUDIO_ALLOWED_MODELS=qwen2.5:7b
 ```
 
-`LM_STUDIO_MODEL` остается в конфигурации как обязательное базовое поле приложения, даже если активный провайдер - Ollama.
+`LM_STUDIO_BASE_URL` и `LM_STUDIO_MODEL` остаются обязательными базовыми полями приложения, даже если активный провайдер - Ollama.
 
 ## Настройка внешнего API
 
@@ -265,6 +266,7 @@ EXTERNAL_API_BASE_URL=https://example.com/v1
 EXTERNAL_API_API_KEY=replace-with-token
 EXTERNAL_API_MODEL=replace-with-model
 EXTERNAL_API_EMBEDDING_MODEL=replace-with-embedding-model
+LM_STUDIO_BASE_URL=http://localhost:1234/v1
 LM_STUDIO_MODEL=replace-with-model
 LM_STUDIO_ALLOWED_MODELS=replace-with-model
 ```
@@ -275,27 +277,29 @@ LM_STUDIO_ALLOWED_MODELS=replace-with-model
 
 Основные переменные окружения:
 
-| Переменная | Назначение | Значение по умолчанию |
+| Переменная | Назначение | Если не задано |
 |---|---|---|
 | `QUIZCRAFT_ENV_FILE` | Путь к env-файлу | `.env` |
 | `PROVIDERS_ENABLED` | Список активных провайдеров через запятую | `lm_studio` |
 | `DEFAULT_PROVIDER` | Провайдер по умолчанию | первый из `PROVIDERS_ENABLED` |
-| `LM_STUDIO_BASE_URL` | URL LM Studio API | `http://localhost:1234/v1` |
-| `LM_STUDIO_MODEL` | Имя модели LM Studio или базовая модель приложения | из `.env.example` |
-| `LM_STUDIO_ALLOWED_MODELS` | Разрешенные модели через запятую | пусто |
+| `LM_STUDIO_BASE_URL` | URL LM Studio API | обязательная переменная; в `.env.example` — `http://localhost:1234/v1` |
+| `LM_STUDIO_MODEL` | Имя модели LM Studio или базовая модель приложения | обязательная переменная; в `.env.example` — `google/gemma-4-e2b` |
+| `LM_STUDIO_EMBEDDING_MODEL` | Embedding-модель LM Studio для RAG | `LM_STUDIO_MODEL` |
+| `LM_STUDIO_ALLOWED_MODELS` | Разрешенные модели через запятую | модели активных провайдеров: `LM_STUDIO_MODEL`, `OLLAMA_MODEL`, `EXTERNAL_API_MODEL` |
 | `OLLAMA_BASE_URL` | URL Ollama API | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Chat-модель Ollama | пусто |
-| `OLLAMA_EMBEDDING_MODEL` | Embedding-модель Ollama | пусто |
-| `EXTERNAL_API_BASE_URL` | URL внешнего OpenAI-compatible API | пусто |
-| `EXTERNAL_API_API_KEY` | API-ключ внешнего провайдера | пусто |
-| `EXTERNAL_API_MODEL` | Chat-модель внешнего провайдера | пусто |
-| `EXTERNAL_API_EMBEDDING_MODEL` | Embedding-модель внешнего провайдера | пусто |
-| `REQUEST_TIMEOUT` | Таймаут запросов к LLM в секундах | не задан |
+| `OLLAMA_MODEL` | Chat-модель Ollama | `LM_STUDIO_MODEL` |
+| `OLLAMA_EMBEDDING_MODEL` | Embedding-модель Ollama | `OLLAMA_MODEL` |
+| `EXTERNAL_API_BASE_URL` | URL внешнего OpenAI-compatible API | не задано; обязательно при `external_api` |
+| `EXTERNAL_API_API_KEY` | API-ключ внешнего провайдера | не задано; можно оставить пустым для локального OpenAI-compatible proxy |
+| `EXTERNAL_API_MODEL` | Chat-модель внешнего провайдера | не задано; обязательно при `external_api` |
+| `EXTERNAL_API_EMBEDDING_MODEL` | Embedding-модель внешнего провайдера | `EXTERNAL_API_MODEL` |
+| `REQUEST_TIMEOUT` | Таймаут запросов к LLM в секундах | не задано; таймаут отключен |
 | `MAX_FILE_SIZE_MB` | Максимальный размер загружаемого файла | `10` |
 | `MAX_DOCUMENT_CHARS` | Максимальный объем текста документа | `50000` |
+| `LLM_REPAIR_MAX_PROMPT_CHARS` | Максимальный размер prompt для repair-запроса к LLM | `9000` |
 | `LOG_LEVEL` | Уровень логирования | `INFO` |
-| `LOG_FORMAT` | Формат логов: `text`, `json` или Python logging format string | `text` |
-| `GENERATION_PROFILES` | JSON с профилями генерации | пусто |
+| `LOG_FORMAT` | Формат логов: `text`, `json` или Python logging format string | `%(asctime)s %(levelname)s %(name)s %(message)s` |
+| `GENERATION_PROFILES` | JSON с профилями генерации | встроенные профили `fast`, `balanced`, `strict` |
 | `DEFAULT_GENERATION_PROFILE` | Профиль генерации по умолчанию | `balanced` |
 
 ## Как пользоваться
