@@ -353,32 +353,37 @@ LM_STUDIO_ALLOWED_MODELS=replace-with-model
 ```text
 quizcraft/
 ├── .github/
-│   └── workflows/        # сценарии GitHub Actions
+│   └── workflows/          # сценарии GitHub Actions
 ├── backend/
 │   ├── app/
-│   │   ├── api/          # маршруты FastAPI и схемы HTTP API
-│   │   ├── core/         # конфигурация, режимы и базовые настройки
-│   │   ├── domain/       # доменные модели, ошибки, схемы и валидация
-│   │   ├── export/       # экспорт квизов в JSON, DOCX, PPTX, Markdown и CSV
-│   │   ├── generation/   # генерация, RAG, профили, статусы и диагностика
-│   │   ├── llm/          # клиенты и registry LLM-провайдеров
-│   │   ├── parsing/      # чтение TXT, DOCX, PDF, нормализация и разбиение текста
-│   │   ├── prompts/      # версии prompt-шаблонов для генерации и repair
-│   │   └── storage/      # локальные JSON-хранилища документов, квизов и кеша
-│   ├── requirements.txt  # зависимости backend
-│   └── tests/            # pytest-тесты backend
+│   │   ├── api/            # маршруты FastAPI, runtime wiring и HTTP-схемы
+│   │   ├── core/           # загрузка env-конфигурации и базовые настройки
+│   │   ├── domain/         # доменные модели, ошибки, схемы и нормализация
+│   │   ├── export/         # экспорт квизов в JSON, DOCX, PPTX, Markdown и CSV
+│   │   ├── generation/     # генерация, RAG, профили, статусы, retry и диагностика
+│   │   ├── llm/            # клиенты и registry LLM-провайдеров
+│   │   ├── parsing/        # чтение TXT, DOCX, PDF, чанкинг и ingestion
+│   │   ├── prompts/        # версии prompt-шаблонов для генерации и repair
+│   │   └── storage/        # локальные JSON-хранилища документов, квизов и кеша
+│   └── tests/              # pytest-тесты backend и fixtures
 ├── docs/
-│   └── images/           # изображения для README и интерфейса
+│   ├── design/             # HTML-концепты интерфейса
+│   ├── execplans/          # рабочие планы изменений
+│   ├── images/             # изображения для README и интерфейса
+│   └── planning/           # backlog и проектные заметки
 ├── frontend/
-│   ├── api/              # браузерный клиент backend API
-│   ├── index.html        # точка входа frontend
-│   ├── *.css             # стили интерфейса
-│   └── *.js              # модули UI, редактора, экспорта и состояния генерации
-├── tests/                # проверки структуры репозитория и frontend shell
-├── .env.example          # пример локальной конфигурации
-├── pyproject.toml        # метаданные проекта, зависимости и настройки tooling
-├── run-backend.ps1       # запуск backend на Windows
-└── run-frontend.ps1      # запуск frontend на Windows
+│   ├── api/                # браузерный клиент backend API
+│   ├── index.html          # точка входа frontend
+│   ├── *.css               # базовые, fidelity и responsive-стили
+│   └── *.js                # модули UI, редактора, экспорта, истории и preview
+├── mockups/
+│   └── compact-workspace/  # интерактивный мокап компактного рабочего пространства
+├── tests/                  # проверки структуры репозитория и frontend shell
+├── .env.example            # пример локальной конфигурации
+├── .gitattributes          # правила Git для текстовых файлов и переносов строк
+├── pyproject.toml          # метаданные проекта, зависимости и настройки tooling
+├── run-backend.ps1         # запуск backend на Windows
+└── run-frontend.ps1        # запуск frontend на Windows
 ```
 
 ## Разработка
