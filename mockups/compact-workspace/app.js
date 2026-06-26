@@ -1,12 +1,12 @@
 /* ════════════════════════════════════════════════════════════════
-   QuizCraft prototype — поведение
+   QuizCraft mockup — поведение
    Ванильный ES module, без зависимостей. Мокает API генерации,
    реализует ввод, прогресс, инлайн-редактор, экспорт и плей-режим.
    ════════════════════════════════════════════════════════════════ */
 
 import { mockGenerate, mockRegenerateQuestion, preloadMockQuestions } from "./mock-api.js?v=20260617-json-data";
 
-/* ─── Question types catalog (как в исходном репозитории) ─────── */
+/* ─── Question types catalog (формат QuizCraft) ───────────────── */
 const TYPE_LABELS = {
   single_choice: "Множественный выбор",
   true_false:    "Истина / Ложь",
