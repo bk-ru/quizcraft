@@ -368,9 +368,7 @@ quizcraft/
 │   └── tests/              # pytest-тесты backend и fixtures
 ├── docs/
 │   ├── design/             # HTML-концепты интерфейса
-│   ├── execplans/          # рабочие планы изменений
 │   ├── images/             # изображения для README и интерфейса
-│   └── planning/           # backlog и проектные заметки
 ├── frontend/
 │   ├── api/                # браузерный клиент backend API
 │   ├── index.html          # точка входа frontend

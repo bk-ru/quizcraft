@@ -23,4 +23,7 @@ docs/*
 !docs/planning/**
 !docs/design/
 !docs/design/**
+docs/design/concepts/v2/
+docs/execplans/
+docs/planning/
 staged-flow-prototype/
